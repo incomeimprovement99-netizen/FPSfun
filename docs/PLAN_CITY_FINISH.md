@@ -389,6 +389,15 @@ and the 16 to 20 m tier still to do)
   THE STRIP's letters and screens; the finish faults each review names (the curved walls' torn bases, the white rectangle in
   the base's hall, the stack heads, the dotted lines right of GLASS HEIGHTS' east block).
 
+- **After the fifteenth reviews (2026-11-02, on version 131: the centre 6.0 and 6.0, down from 6.5; the districts 6.0 and 6.0,
+  up from 5.8; finish 5 in all four):** the centre's fall is mostly what its two new pictures showed (THE VAULT's strongroom
+  door unseen from the way in, the atrium shot looking away from its open part) and what both still name: bare perches (the
+  lookout, the High City roofs), the tower's gold corner posts read as a selection box, brick on the holes' edges, an empty
+  court. The districts: THE STRIP's ground black by day (version 131's own fault), GLASS HEIGHTS the weakest (5.7 and 5),
+  dead ground in THE WORKS' yard, THE STACKS' court and THE STRIP's street, THE CANYON's flat roofs. Version 132 takes those:
+  four proposals measured as dry runs (roofs3, vault3, glass3, ground3) and the map agent's own fixes (the underground's edge
+  boxes, THE STRIP's ground and a check that no ground is black, the pergola's timber, the sign plates, LANTERN ALLEYS' name).
+
 **Last**
 
 - **683: the frame measured with the PC unused** (the detail-mapped and cut-out batches if it misses the bar).

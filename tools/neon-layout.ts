@@ -217,6 +217,7 @@ function wideFlight(chunk: string, foot: Pt, up: Pt, base: number): void {
 type VaultDress = {
   mats: Record<string, string>;
   rows: Array<[string, number, number, number, number, number, string]>;
+  door?: { across: number; parts: Array<[string, number, number, number, number, number, number, string]> };
   boxes: number[][];
   bar: { piece: string; mat: string; scale: number };
   fill: Record<string, { xs: number[]; zs: number[]; ys: number[]; turn: number }>;
@@ -241,6 +242,11 @@ function vaultDress(h: number, V: VaultDress, laid: Array<{ name: string; x: num
   }
   // (each box a number that is not the one beside it, as a wall of them is)
   V.plates.columns.forEach((x, i) => V.plates.rows.forEach((y, j) => placeTurned("c-tower", `${V.plates.piece}${(i * 7 + j * 3) % 10}.prefab`, x, V.plates.z, V.plates.yaw, "g", h + y, V.plates.mat, V.plates.scale)));
+  // THE VAULT's door (`door`, Milestone 1043; the fifteenth reviews: "the strongroom door the hero, round about 4 m on the
+  // entrance's axis", "darker metallic gold with black trim"): `parts` [piece, x, y over the floor, z, yaw, tilt, scale, mat
+  // name], each laid by its pivot, not by its footprint as the rows are (a tipped piece has no turned footprint), drawn
+  // only, its collision in `boxes`; `tilt` degrees about the piece's own x before its turn, the bake's tenth field
+  for (const [name, x, y, z, yaw, tilt, scale, mat] of V.door?.parts ?? []) add("c-tower", "c", [piece(name).key, +x.toFixed(3), +(h + y).toFixed(3), +z.toFixed(3), yaw, "g", V.mats[mat] ?? mat, null, scale, tilt] as unknown as Place);
 }
 /**
  * the street's tall cover dressed (rules.dress.board): the pack's poster sheet on each face of the concrete panel just
@@ -2619,7 +2625,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
   // a set against one rail and the next against the other, each with a low shield running on along its rail from it: a
   // body crosses from one side's cover to the other's, and the plaza under the rail it hugs has no line on it. Each
   // set's and shield's box [x, z, half x, half z, top, side] for the checks
-  const GC = B.gangwayCover as { crate: string; rail: number; inset: number; sets: Array<[string, number, number]>; shield: { piece: string; scale: number; gap: number } } | undefined;
+  const GC = B.gangwayCover as { crate: string; rail: number; inset: number; sets: Array<[string, number, number]>; shield: { piece: string; scale: number; gap: number; mat?: string } } | undefined;
   const gangway = (B.paths as number[][][]).find((p) => ((B.into ?? []) as number[][]).some((q) => same(q, p[0])));
   if (GC && gangway) {
     const [a, b] = gangway;
@@ -2653,7 +2659,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
       // the shield on along the same rail, a `gap` past the set, away from the tower
       const sx = x + hx + GC.shield.gap + shx;
       const sz = a[1] + side * (GC.rail - GC.inset - shz);
-      placeTurned("c-bridges", GC.shield.piece, sx, sz, 0, "o", deck - sh.min![1] * GC.shield.scale, undefined, GC.shield.scale);
+      placeTurned("c-bridges", GC.shield.piece, sx, sz, 0, "o", deck - sh.min![1] * GC.shield.scale, GC.shield.mat, GC.shield.scale);
       shields.push([sx, sz, shx, shz, deck + shTop, side].map((q) => +q.toFixed(2)));
     }
     cfg.gangway = { leg: [a[0], b[0]], z: a[1], deck, sets, shields };
@@ -3125,7 +3131,7 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
 // superior spot" a squad can still take). On the last bake's collision: each piece's footprint level at the perch's
 // height, `edge` metres off any drop, `apart` from the others and 3 m off where a pad lands
 {
-  const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number; face?: string; near?: number; coverMat?: Record<string, string>; without?: string[] }> | undefined;
+  const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number; face?: string; near?: number; coverMat?: Record<string, string>; without?: string[]; at?: Array<[string, number, number, number]> }> | undefined;
   if (PR && existsSync(SOLIDS_FILE)) {
     const S = lastSolids();
     const G = 2;
@@ -3293,10 +3299,15 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
       }
       const mine: Array<{ c: Pt; r: number; hx: number; hz: number }> = [];
       const at: number[][] = [];
-      for (const cand of [...kept, ...spots.map(([x, z]) => ({ x, z, yaw: -1 }))]) {
+      // (a perch's own spots first, `at` [piece, x, z, yaw], each read off the collision with its piece and passing every
+      // test below as any spot must: GLASS HEIGHTS' decks, where a drawn spot put the STACKS' cooling units and a metro
+      // bench on its decks and left their middles bare, the districts' ninth reviews' "empty hex runway". Then the last
+      // layout's spots, then any)
+      const own = (P.at ?? []).map(([piece, x, z, yaw]) => ({ x, z, yaw, piece }));
+      for (const cand of [...own, ...kept, ...spots.map(([x, z]) => ({ x, z, yaw: -1 }))] as Array<{ x: number; z: number; yaw: number; piece?: string }>) {
         if (at.length >= P.count) break;
         const [x, z] = [cand.x, cand.z];
-        const name = P.pieces[at.length % P.pieces.length];
+        const name = cand.piece ?? P.pieces[at.length % P.pieces.length];
         const row = piece(name).row;
         // (a piece that `face`s the middle turns its own +z there, to the nearest right angle so its footprint stays
         // square to the grid: the south deck's tall neon sign)
@@ -3340,12 +3351,15 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
 // the next layout reads the map as if it were not there: on the rails' cells a sign's ray, a perch's level or a rope's way
 // would read it and move. Each spot's middle, its foot and its top for the map check
 {
-  const HC = R.highCover as { chunk: string; at: Array<[string, string, number, number, number, number, number]> } | undefined;
+  // (a row's eighth field a material for it, "Name=Spec;...", as any placement's: the half-size panel's own faces are
+  // mapped 8 m a UV unit, so at half size a 4 m repeat on a 2.5 m panel, Milestone 1049, the review's "huge stretched texture".
+  // Each spot is written with its footprint's half lengths along its own x and z and its turn, for the checks)
+  const HC = R.highCover as { chunk: string; at: Array<[string, string, number, number, number, number, number, string?]> } | undefined;
   if (HC) {
     const out: Record<string, number[][]> = {};
-    for (const [where, name, x, z, yaw, y, scale] of HC.at) {
-      const q = placeTurned(HC.chunk, name, x, z, yaw, "s", y - piece(name).row.min![1] * scale, undefined, scale);
-      (out[where] ??= []).push([x, z, y, +q.top.toFixed(2)]);
+    for (const [where, name, x, z, yaw, y, scale, mat] of HC.at) {
+      const q = placeTurned(HC.chunk, name, x, z, yaw, "s", y - piece(name).row.min![1] * scale, mat ?? undefined, scale);
+      (out[where] ??= []).push([x, z, y, +q.top.toFixed(2), +q.hu.toFixed(2), +q.hv.toFixed(2), yaw]);
     }
     cfg.highCover = out;
     console.log(`the high cover: ${Object.entries(out).map(([k, v]) => `${k} ${v.length}`).join(", ")}`);
@@ -3710,8 +3724,8 @@ const STREET_WALL_BOXES: OBox[] = [];
 // part on the ground must fit as a single piece does, by the fill's own test; the test reads what stands already, so a set's
 // parts may stand closer to each other than `clear`, which is what makes them a set. All of a set or none of it: a set with a
 // part short of room is a set the eye reads as a mistake, and the kits end on sets of three.
-type CoverSet = { id: string; last?: boolean; parts: Array<[string, number, number, number, number?, number?, ("s" | "g")?]> };
-type SetPart = { name: string; scale: number; y: number; yaw: number; how: "s" | "g"; o: OBox };
+type CoverSet = { id: string; last?: boolean; parts: Array<[string, number, number, number, number?, number?, ("s" | "g")?, string?]> };
+type SetPart = { name: string; scale: number; y: number; yaw: number; how: "s" | "g"; mat?: string; o: OBox };
 /** which of a far spot's 161 spots out to 5 m a district's set is tried at: every second bearing and the far spot itself. Every
  * part of a set at every turn costs the fill's test its thousand cells; a set stands only inside a cell of the bots' grid, so
  * fewer still (every second ring too) missed that window, 77 sets for the street's rule's 113 */
@@ -3720,11 +3734,11 @@ function coverSet(kit: CoverSet[], rndS: () => number, x: number, z: number, tur
   // (the kit in a seeded order, the tight sets marked `last` after the rest: they are for nooks, and first they took the open ground)
   for (const S of [...kit].sort(() => rndS() - 0.5).sort((a, b) => Number(!!a.last) - Number(!!b.last)))
     for (const turn of turns) {
-      const parts = S.parts.map(([name, along, across, yaw, scale = 1, y = 0, how = "s"]): SetPart => {
+      const parts = S.parts.map(([name, along, across, yaw, scale = 1, y = 0, how = "s", mat]): SetPart => {
         const row = piece(name).row;
         const [ox, oz] = rotY(turn, along, across);
         const t = turn + yaw;
-        return { name, scale, y, yaw: t, how, o: { c: [x + ox, z + oz], u: rotY(t, 1, 0), v: rotY(t, 0, 1), hu: (row.size![0] / 2) * scale, hv: (row.size![2] / 2) * scale, top: y + row.size![1] * scale } };
+        return { name, scale, y, yaw: t, how, mat, o: { c: [x + ox, z + oz], u: rotY(t, 1, 0), v: rotY(t, 0, 1), hu: (row.size![0] / 2) * scale, hv: (row.size![2] / 2) * scale, top: y + row.size![1] * scale } };
       });
       const ground = parts.filter((p) => !p.y && p.how !== "g");
       // (the street model last, and across a set only when all of it fits: read part by part it took the fill from 2 minutes
@@ -3854,6 +3868,9 @@ function coverTrim(chunk: string, p: SetPart, foot: number, where: string): void
         : cellsOf(o).some((c) => over[c] < o.top + CO.headroom) ? "under"
         : pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + R.dress.padClear) ? "pad"
         : lifts.some((q) => seg(o.c, q.ring, q.car) < r + R.lifts.clear) ? "lift"
+        // (nor on GLASS HEIGHTS' lift's line itself, its middle its radius and `clear` off it as the districts' cover keeps
+        // off its ways: a set's low panel on the ring road's pavement ran 3 m into the court's mouth across the line)
+        : GLS?.line && GLS.line.some((p, i) => i + 1 < GLS.line!.length && seg(o.c, p, GLS.line![i + 1]) < r + CO.clear) ? "glass lift"
         : skyStairs.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < r + 5) ? "stairs"
         : kiosks.some((h) => x > h.x0 - r && x < h.x1 + r && z > h.z0 - r && z < h.z1 + r) ? "kiosk"
         : foot && overlaps(o, boxOf(foot), CO.clear * 2) ? "well"
@@ -3879,6 +3896,10 @@ function coverTrim(chunk: string, p: SetPart, foot: number, where: string): void
           ? Math.abs(x - nx) < CO.nameView && Math.sign(z) === Math.sign(nz) && Math.abs(z) >= R.ring[0] - 1 && Math.abs(z) <= Math.abs(nz)
           : Math.abs(z - nz) < CO.nameView && Math.sign(x) === Math.sign(nx) && Math.abs(x) >= R.ring[0] - 1 && Math.abs(x) <= Math.abs(nx),
       );
+    // (nor across GLASS HEIGHTS' lift's line, rules.districts.glass.lift.line from the ring road's middle to the car's door,
+    // within its `view`: a set's 3 m wall on the pavement in front of the court's mouth hid the car from the road)
+    const GLS = (R.districts as { glass?: { lift?: { line?: number[][]; view?: { within: number } } } } | undefined)?.glass?.lift;
+    const seesLift = (x: number, z: number) => !!GLS?.line && !!GLS.view && GLS.line.some((p, i) => i + 1 < GLS.line!.length && seg([x, z], p, GLS.line![i + 1]) < GLS.view!.within);
     const tried = new Uint8Array(N * N);
     let left = 0;
     let setsLaid = 0;
@@ -3916,11 +3937,11 @@ function coverTrim(chunk: string, p: SetPart, foot: number, where: string): void
             for (let j = Math.max(0, Math.floor((z - m0 + H) / C)); j <= Math.min(N - 1, Math.floor((z + m0 + H) / C)); j++) if (body[i * N + j]) return false;
           return true;
         };
-        const got = CO.sets && noSet < (CO.setTries ?? Infinity) && room(CO.clear - 0.5) ? coverSet(CO.sets, rndC, x, z, [along, along + 180], (o, p) => !(isWall(p) && (inView(x, z) || !wallHere)) && fits(o, true)) : null;
+        const got = CO.sets && noSet < (CO.setTries ?? Infinity) && room(CO.clear - 0.5) ? coverSet(CO.sets, rndC, x, z, [along, along + 180], (o, p) => !(isWall(p) && (inView(x, z) || seesLift(x, z) || !wallHere)) && fits(o, true)) : null;
         if (got) {
           for (const p of got) {
             const row = piece(p.name).row;
-            const b = placeTurned(CO.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, p.y - row.min![1] * p.scale, undefined, p.scale);
+            const b = placeTurned(CO.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, p.y - row.min![1] * p.scale, p.mat, p.scale);
             if (p.how === "g") continue;
             const board = posters && isWall(p);
             if (board) dressBoard(CO.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, 0);
@@ -3936,7 +3957,7 @@ function coverTrim(chunk: string, p: SetPart, foot: number, where: string): void
         }
         const pool = carriage ? (placed.length % CO.tall.every === CO.tall.every - 1 ? [CO.tall.piece, ...CO.road] : [...CO.road].sort(() => rndC() - 0.5)) : [...CO.pave].sort(() => rndC() - 0.5);
         for (const name of pool) {
-          if (name === CO.tall.piece && (inView(x, z) || !wallHere)) continue;
+          if (name === CO.tall.piece && (inView(x, z) || seesLift(x, z) || !wallHere)) continue;
           const row = piece(name).row;
           const along = yawToward(t[0], t[1]) + (row.size![2] >= row.size![0] ? 0 : 90);
           for (const yaw of [along, along + 90]) {
@@ -4455,7 +4476,7 @@ function coverTrim(chunk: string, p: SetPart, foot: number, where: string): void
       for (const z of GT.crest.z) lay((gx0 + gx1) / 2, z, "fernz", attic + GT.attic.h);
     }
     // the pergolas (`garden.pergola`, Milestone 975; the eighth review: "pergolas"): the pack has none, nor a post or a joist
-    // that reads as one, so the pack's plaster post and its floor kerb worn in its dark timber (Wood00), posts `bay` apart
+    // that reads as one, so the pack's plaster post and its floor kerb worn in timber (`mat`, Milestone 1042), posts `bay` apart
     // down both sides of a walk, two long beams on them, a joist every `rafter` metres across those. Only the posts collide:
     // each is typed, the rest overhead is drawn, so nothing roofs a jump or a climb to the blocks. [x0, x1, z0, z1] the posts'
     // lines
@@ -4970,7 +4991,7 @@ function onNode(o: OBox): boolean {
   type Glass = {
     chunk: string;
     buildings: Array<[string, number, number, number, string?]>;
-    lift?: { car: number[]; out: number[]; decks: number; colour: string; carMat?: string; shaft?: { piece: string; mat: string; half: number; from: number; tiers: number; under: number; lamp: string; lampAt: number; lampMat: string } };
+    lift?: { car: number[]; out: number[]; decks: number; colour: string; carMat?: string; line?: number[][]; shaft?: { piece: string; mat: string; half: number; from: number; tiers: number; under: number; lamp: string; lampAt: number; lampMat: string; cap?: { piece: string; mat?: string } } };
     ground?: { keep: number; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; crate: string; machines: string[]; lamps: { piece: string; at: number[][] } };
     light?: { strip: string; remap: string; every: number; side: number; under: number; ends: number; lampRemap: string; panel: string; panelRemap: string; panelEvery: number };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
@@ -5014,6 +5035,9 @@ function onNode(o: OBox): boolean {
           }
         // (the car's own lamp went with its roof, the rider's way up: drawn only, it lights the cabin and stops nobody)
         placeTurned(DG.chunk, SH.lamp, GL.car[0], GL.car[1], 0, "g", SH.lampAt - piece(SH.lamp).row.min![1], SH.lampMat);
+        // (and a cap over the shaft's top, `cap`, drawn only: the shaft stopped at its last pane, a stack of glass that the
+        // districts' ninth reviews did not read as a lift)
+        if (SH.cap) placeTurned(DG.chunk, SH.cap.piece, GL.car[0], GL.car[1], 0, "g", SH.from + SH.tiers * tall - piece(SH.cap.piece).row.min![1], SH.cap.mat);
       }
       // (the landing from the lifts' gap past the rope, over the car's far half, as the Sky Ring's: within a grab's reach)
       const from = L.gap;
@@ -6379,7 +6403,7 @@ function onNode(o: OBox): boolean {
 // Measured on the last bake's collision, laid last (the bake lists its boxes in `laid` and the next run leaves them
 // out), so the next run measures the same ground.
 {
-  const DC = (R.dress as { districtCover?: { chunk: string; far: number; farBy?: Record<string, number>; near: number; clear: number; headroom: number; tall: number; band: number[]; crate: string; most: number; seed: number; levels: Array<{ y: number; far?: number; districts?: string[]; rect?: number[]; pieces?: string[] }>; nameView: number; pieces: Record<string, string[]>; sectors: Record<string, string>; sets?: Record<string, CoverSet[]>; setTries?: number } }).districtCover;
+  const DC = (R.dress as { districtCover?: { chunk: string; far: number; farBy?: Record<string, number>; near: number; clear: number; headroom: number; tall: number; band: number[]; crate: string; most: number; seed: number; levels: Array<{ y: number; far?: number; districts?: string[]; rect?: number[]; pieces?: string[] }>; nameView: number; pieces: Record<string, string[]>; sectors: Record<string, string>; sets?: Record<string, CoverSet[]>; setTries?: number; posts?: Array<{ id: string; d: string; at: number[]; turn?: number; parts: CoverSet["parts"] }> } }).districtCover;
   if (DC) {
     const rndD = seeded(DC.seed);
     let setsLaid = 0;
@@ -6420,6 +6444,15 @@ function onNode(o: OBox): boolean {
     // (and the ways the checks walk that no district's own rules give, `ways`: THE CANYON's passages in from the ring road,
     // where at 6 m a piece stood in the south passage's mouth, Milestone 671)
     for (const w of ((DC as unknown as { ways?: number[][][] }).ways ?? [])) for (let i = 0; i + 1 < w.length; i++) ways.push([w[i], w[i + 1]]);
+    // (and GLASS HEIGHTS' lift's line, rules.districts.glass.lift.line, from the court's mouth to the car's door: three of a
+    // set's posts stood on it and hid the car from the court's mouth, and a 3 m panel stood across the mouth itself)
+    const GLL = (R.districts as { glass?: { lift?: { line?: number[][] } } } | undefined)?.glass?.lift?.line ?? [];
+    for (let i = 0; i + 1 < GLL.length; i++) ways.push([GLL[i], GLL[i + 1]]);
+    // (and nothing over a head within `view.within` of that line, its middle that and its own radius off it: with the line
+    // alone the fill stood a single 3 m post 2.5 m off it, between the court's east side and the car; a set's 1.8 m panels
+    // stay, the court's cover)
+    const GLV = (R.districts as { glass?: { lift?: { view?: { tall: number; within: number } } } } | undefined)?.glass?.lift?.view;
+    const liftView = (o: OBox, r: number) => !!GLV && o.top > GLV.tall && GLL.some((p, i) => i + 1 < GLL.length && seg(o.c, p, GLL[i + 1]) < r + GLV.within);
     // (no piece in a district name's view from the ring road, `nameView` either side of the line out to it, as the
     // street's tall boards keep out of it: a 4.7 m box hid THE WORKS' name)
     const views = Object.values((R.districts ?? {}) as Record<string, { name?: { at: number[] } }>).flatMap((d) => (d && typeof d === "object" && d.name ? [d.name.at] : []));
@@ -6436,7 +6469,9 @@ function onNode(o: OBox): boolean {
       const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * (b[0] - a[0]) + (q[1] - a[1]) * (b[1] - a[1])) / l2));
       return Math.hypot(q[0] - a[0] - (b[0] - a[0]) * t, q[1] - a[1] - (b[1] - a[1]) * t);
     };
-    const placed: Array<{ piece: string; c: Pt; yaw: number; y: number; d: string; set?: number }> = [];
+    const placed: Array<{ piece: string; c: Pt; yaw: number; y: number; d: string; set?: number; post?: string }> = [];
+    // (each position where it stood, for the map check: its footprint on the ground, its top, its parts that collide)
+    const POSTS: Array<{ id: string; d: string; box: number[]; top: number; parts: number }> = [];
     const report: string[] = [];
     for (const L of DC.levels) {
       const y0 = L.y;
@@ -6510,6 +6545,7 @@ function onNode(o: OBox): boolean {
           // (on a raised level, nothing within `clear` of its edge, a stair's or a ramp's top: THE TERRACES' grand stair)
           : y0 > 0 && cellsOf(o, DC.clear).some((c) => !band[c] && !body[c]) ? "edge"
           : ways.some(([a, b]) => seg(o.c, a, b) < r + DC.clear) ? "way"
+          : liftView(o, r) ? "lift's view"
           : (o.top > 2.2 || (o.top > 1.5 && Math.max(Math.abs(x), Math.abs(z)) < R.ring[1] + 7)) && inView(x, z) ? "name"
           : cellsOf(o).some((c) => over[c] < y0 + o.top + DC.headroom) ? "under"
           : pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + R.dress.padClear) ? "pad"
@@ -6526,6 +6562,39 @@ function onNode(o: OBox): boolean {
       // (as the street's fill: past `setTries` far spots running with no set, single pieces only. Each such spot asks every
       // set at every turn at 97 spots round it, and the fill took past 30 minutes on spots no set could have)
       let noSet = 0;
+      // Positions (rules.dress.districtCover.posts, Milestone 1055; the districts' ninth reviews: "a second height level in the
+      // dead ground ... hard cover 2 to 3 m tall plus an upper level every 15 to 20 m", THE WORKS' yard "dozens of small clean
+      // white sci-fi crates scattered like confetti", THE STACKS' court "a killing field", THE STRIP's street "wide and
+      // sparse"): a few placed by hand, each its district's own kit at a spot measured off the collision, inside the cells of
+      // the bots' grid. Laid first on the ground, unasked, as a district's buildings are: the farthest-point fill is blind to
+      // what a deliberate position is, and laid through its test a position moves or goes whenever the ground round it
+      // does. The fill then reads each as cover already standing and fills only what it leaves; the map check holds them
+      // off the street nodes, the grid's links and the drops, and climbs each
+      if (y0 === 0)
+        for (const P of DC.posts ?? []) {
+          const got = coverSet([{ id: P.id, parts: P.parts }], () => 0.5, P.at[0], P.at[1], [P.turn ?? 0], () => true, false)!;
+          const foot = [Infinity, -Infinity, Infinity, -Infinity];
+          let top = 0;
+          for (const p of got) {
+            const row = piece(p.name).row;
+            placeTurned(DC.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, y0 + p.y - row.min![1] * p.scale, p.mat ?? (DC as unknown as { mats?: Record<string, Record<string, string>> }).mats?.[P.d]?.[p.name], p.scale);
+            if (p.how === "g") continue;
+            coverTrim(DC.chunk, p, y0, P.d);
+            top = Math.max(top, p.o.top);
+            if (!p.y) {
+              STREET_GRAPH?.add(p.o);
+              for (const [su, sv] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+                const [qx, qz] = [p.o.c[0] + p.o.u[0] * su * p.o.hu + p.o.v[0] * sv * p.o.hv, p.o.c[1] + p.o.u[1] * su * p.o.hu + p.o.v[1] * sv * p.o.hv];
+                [foot[0], foot[1], foot[2], foot[3]] = [Math.min(foot[0], qx), Math.max(foot[1], qx), Math.min(foot[2], qz), Math.max(foot[3], qz)];
+              }
+            }
+            const tall = (CAP.pieces.includes(p.name) ? CAP.top : p.o.top) > DC.tall;
+            for (const c of cellsOf(p.o)) (body[c] = 1), tall && (cover[c] = 1);
+            placed.push({ piece: p.name, c: [+p.o.c[0].toFixed(3), +p.o.c[1].toFixed(3)], yaw: +p.yaw.toFixed(2), y: y0 + p.y, d: P.d, set: setsLaid, post: P.id });
+          }
+          POSTS.push({ id: P.id, d: P.d, box: foot.map((v) => +v.toFixed(2)), top: +top.toFixed(2), parts: got.filter((p) => p.how !== "g").length });
+          setsLaid++;
+        }
       // (a level's own `pieces`, Milestone 975, none on THE TERRACES' tiers: their cover is their beds' and the pergolas')
       for (let n = 0; n < DC.most && !(L.pieces && !L.pieces.length); n++) {
         field();
@@ -6554,7 +6623,7 @@ function onNode(o: OBox): boolean {
           if (got) {
             for (const p of got) {
               const row = piece(p.name).row;
-              placeTurned(DC.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, y0 + p.y - row.min![1] * p.scale, (DC as unknown as { mats?: Record<string, Record<string, string>> }).mats?.[district]?.[p.name], p.scale);
+              placeTurned(DC.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, y0 + p.y - row.min![1] * p.scale, p.mat ?? (DC as unknown as { mats?: Record<string, Record<string, string>> }).mats?.[district]?.[p.name], p.scale);
               if (p.how === "g") continue;
               coverTrim(DC.chunk, p, y0, district);
               if (y0 === 0 && !p.y) STREET_GRAPH?.add(p.o);
@@ -6577,9 +6646,11 @@ function onNode(o: OBox): boolean {
               if (!fits(o)) continue;
               if (crates) {
                 const [ox, oz] = rotY(yaw, row.size![0] / 2 + 0.01, 0);
-                placeTurned(DC.chunk, DC.crate, x + ox, z + oz, yaw, "s", y0 - row.min![1]);
-                placeTurned(DC.chunk, DC.crate, x - ox, z - oz, yaw, "s", y0 - row.min![1]);
-                placeTurned(DC.chunk, DC.crate, x - ox, z - oz, yaw, "s", y0 + row.size![1] - row.min![1]);
+                // (in the district's own material where it has one, Milestone 1055: THE WORKS' white piles were its confetti)
+                const worn = (DC as unknown as { mats?: Record<string, Record<string, string>> }).mats?.[district]?.[DC.crate];
+                placeTurned(DC.chunk, DC.crate, x + ox, z + oz, yaw, "s", y0 - row.min![1], worn);
+                placeTurned(DC.chunk, DC.crate, x - ox, z - oz, yaw, "s", y0 - row.min![1], worn);
+                placeTurned(DC.chunk, DC.crate, x - ox, z - oz, yaw, "s", y0 + row.size![1] - row.min![1], worn);
               } else if ((DC as unknown as { mats?: Record<string, Record<string, string>> }).mats?.[district]?.[name]) {
                 // (a district's own material for a piece of its set: THE TERRACES' walls as hedges)
                 placeTurned(DC.chunk, name, x, z, yaw, "s", y0 - row.min![1], (DC as unknown as { mats: Record<string, Record<string, string>> }).mats[district][name]);
@@ -6614,7 +6685,8 @@ function onNode(o: OBox): boolean {
       report.push(`at ${y0} m ${placed.length - before} pieces: ${[...per].map(([d, st]) => `${d} ${((st.far / st.open) * 100).toFixed(1)}% past ${L.far ?? DC.far} m, farthest ${st.max.toFixed(1)}`).join("; ")} (${JSON.stringify(Object.fromEntries(why))})`);
     }
     cfg.districtCover = placed;
-    console.log(`the districts' cover: ${placed.length} pieces, ${setsLaid} sets; ${report.join(" | ")}`);
+    cfg.posts = POSTS;
+    console.log(`the districts' cover: ${placed.length} pieces, ${setsLaid} sets, ${POSTS.length} positions; ${report.join(" | ")}`);
   }
 }
 // THE WORKS' yard lines (rules.districts.works.lines, Milestone 981; the districts' eighth review: "oily concrete with yellow

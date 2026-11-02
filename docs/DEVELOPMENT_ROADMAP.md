@@ -19262,3 +19262,96 @@ is nearly straight, and its shoulder was in the tube's back end.
 - **Checked:** a new check in the soldier stances fires DEVINOS from the hip and reloads it: on the old code it fails (the tube 20 cm
   left of the head, 97 frames over 15 mm, the left forearm 146 mm), on the new it passes (24 cm right, none). The soldier
   stances pass, 349 checks.
+
+## Milestones 1040 to 1057 — THE VAULT's door, GLASS HEIGHTS in white, cover on the roofs, positions in the dead ground, the station's edges
+
+From the fifteenth fresh reviews of the centre and the ninth of the districts (2026-11-02, on version 131: the centre 6.0 and
+6.0, down from 6.5, its two new pictures showing THE VAULT's door unseen and the atrium from the wrong side; the districts 6.0
+and 6.0, up from 5.8; finish 5 in all four), and the lobby agent's movement review. Four proposal agents measured the larger
+items as dry runs on version 131's collision (the vault, the roofs, GLASS HEIGHTS, the dead ground), each with a check that
+fails on version 131; the map agent applied each alone and baked them together with its own.
+
+- **1040, the underground's edges** (the lobby agent's movement review of 2026-11-01, its sixth: off the station platform's
+  back edge a body rose 13 m through the slab to the street; Milestone 991 made the rise a wall for the player alone, and a
+  bot or a thrown ball still saw nothing there): the game reads the floors under the street as rectangles (the court, its
+  halls, the station, its tunnel and concourse) and outside them the street's 0. Wherever a floor's edge meets one more than
+  a step higher with no box across it from under knee height up to that floor, the bake lays a box 0.3 m thick just past the
+  edge, from the floor to the next one's height, its top flush with the floor beyond, so no walkable way changes. Up to the
+  next floor and not to a body's height, because a ball thrown over a wall that stopped short came up through the slab too.
+  Measured on version 131: 42 boxes, the track bed's sides and ends, the tunnel's sides (its inside wall stops at 3 to 3.8 m),
+  the platform's and the concourse's backs, THE WELL's bottom, the court's side rooms and the mouths of its halls' stairs. The
+  new check reads the game's own floorAt and collision: on version 131 1,295 of 1,722 points past a rise were open, 0 with
+  the boxes.
+- **1041, no ground black by day** (the districts' ninth reviews, both, first: THE STRIP's street "close to black by day,
+  half of every frame a void", d16 and d17): version 131's own fault. Milestone 981 gave THE STRIP the pack's black glass
+  floor, whose colour map is a panel's thickness map at 0.35 of white, 0.11 in all; it wears the pack's metal floor panel
+  (0.40) now. A new check reads each district's ground off the pack's own files, its colour map's mean times the material's
+  colour and tint, and holds it at 0.25 or more, the centre's own paving (0.26) being the darkest ground that read by day.
+- **1042, the finish the ninth reviews named**: THE TERRACES' pergolas in the pack's white painted timber (0.61) for its dark
+  stained timber (0.33), "beams like tree trunks" (d05; its planks, 0.49, were tried first and still read dark in the tier's
+  shade); the wall AC unit the perches lay flat on roofs in bare metal as the other
+  AC box is, "a black plate with a pipe elbow" (d12); THE STRIP's four letter signs' plates at 0.9 like every board's, where
+  at 0.55 over the sky a plate took the sky's colour, "a flat grey plane" (d16, d98); LANTERN ALLEYS' name on its shop's front
+  over the doors, 3 to 5.4 m (d02, "a lantern hides the S"): measured from the court's way in, the lines toward the way in
+  cross the name's whole width 18 to 26 degrees over the eye and the far lines' lanterns 9 to 14, so a name over the roof
+  loses a letter at any height (the S at 11 m, the R at 12.4 in the first pictures); under them all it is clear, at eye
+  level as each corner block's name is, its plate at 0.9. Two of the centre's
+  review spots aimed where their subject is: picture 22 at the walk-in's door, which faces the street since round 12, and
+  picture 29 up through the atrium's open part.
+- **1043, THE VAULT's door the hero** (the centre's fifteenth reviews, both: "the strongroom door not identifiable", "at most a
+  small octagon far right", "a round door about 4 m on the axis you see from the way in"): a 4 m door fits only in the 6 m
+  strongroom under the 35 m hole, and its only face-on axis from a way in is the core's south door, which Milestone 977 had
+  shut. The door is open again and the round door stands 4.2 m before it on the strongroom's south wall: the pack's round hole
+  cap stood on its edge (a new tenth placement field, a tilt about the piece's own x, in the bake), 4 m across at 0.83, its
+  disc dark gold, its rim and housing black, eight pipe collars as gold bolts and the lit plate's 0 burning gold as its hub.
+  The octagon plate and a rack are gone; one typed box covers door and housing and leaves a 1.21 m lane to the crates. The
+  review's picture 30 stands 0.45 m out of the doorway, the door whole in its frame.
+- **1044, THE VAULT's gold**: the walls and the core's skin a darker gold (the paint's mean, read off its map at 198, 152, 32,
+  tinted to 160, 112, 26), black skirting, gate frames and container frames, the containers' glow half Milestone 977's so the
+  bars stay the brightest thing; the ceiling's tiles at 0.5 m, their texels 2.5 times finer; the stair core's inside gold at
+  32 to 35 m (the reviews' "grey side rooms"); a skirt or plinth triangle over a floor's own hole left out, where the 35 m
+  plinth hung in the strongroom's air.
+- **1045, the slabs' rims in concrete** (both: "a brick beam across the room", 12, 13, 29): the rim of every hole, stair and
+  the atrium through the tower's and the base's slabs in the core's own concrete (`mats.rim`); the brick stays on the skirts.
+- **1046, the tower's lines** (both: "the tower's yellow edge lines read as an editor's selection box", 01, 09, 14): the four
+  97 m corner posts and the crown's ring, drawn on the shell's bounding square and so standing off its round corners, are
+  gone; 29 lit bands, one at each storey's line, follow the facade itself, measured with the bake's own functions, 6 cm
+  proud, THE VAULT's gold bands as they were.
+- **1047, the lookout dressed** (both: "a bare floor", 10): every spot on its floor is a passage, the pad's landing or a
+  zip's end, so the cover stands on the raised middle round the way-down pad: a 4.7 m cabinet across the long sightline, an
+  AC unit and a cooling unit; the rim's black band the same paint in grey.
+- **1048, the four High City roofs** (both: "a bare disc", 14): a stair house, a plant (a tank on its stand on the north
+  deck, a cabinet on the others), an AC unit, a sign frame and a crate stack on each, kept off the pads' landings, the lifts'
+  tops, the zip lines' ends and the bridges' mouths; the disc in picture 14, where all three arrive, stays clear.
+- **1049, the gangway** (both: "cover on one rail only", "the shield a huge stretched texture", 25): six pieces each
+  opposite the other rail's low shield, no rail bare for more than 6.4 m, the narrowest lane 2 m; the 80 half-size shield
+  panels' concrete repeating every metre, not every 4.
+- **1050, THE CANYON's roofs** (the districts' ninth reviews: "acres of flat brown", "a 7.5 street and a 4 roof", d21): five
+  stair houses, four tank stands, three sign frames, three crate stacks and two AC units, each placed against the collision.
+  A second level was measured and left out: one more step up on these decks is a 2.5 m strip.
+- **1051, GLASS HEIGHTS' own look** (the districts' ninth reviews, 5.7 and 5, the weakest: "it reads as more of the
+  centre's High City", "beige and teal from the air", d00, d13): its blocks, tower, corner piece, cover panels, kiosk and lift
+  car in the bundle's clean white with a faint cool glow (the beige was measured as the golden hour's sun on a neutral white,
+  which a tint cannot undo), its dark glass a pale frosted pane darker than the frames so the grid reads, its lit windows
+  white; the cyan stays as light.
+- **1052, its name at eye level** ("tiny and slanted about 30 m up", d13): 10 m wide, 2.4 to 4.4 m up on the front deck's
+  arm, its letters about 1.2 m high, 6 to 12 degrees over a standing eye from the ring road where they were 55.
+- **1053, its lift** ("a slab hides the lift", "two tall beige slabs at its foot", "a car that reads", d15): a line from the
+  ring road to the car's open side that both cover fills keep clear, nothing over 2.2 m within 4 m of it; two lit LIFT boards
+  on the shaft and the pack's lift cap over it.
+- **1054, its decks** ("an empty hex runway", "a cage with stretched glass", d14): its own kit, 2.5 and 1.5 m glass walls in
+  the towers' frosted pane with white frames and a cyan strip (in the shaft's clear glass, its first pictures showed a white
+  frame round nothing), white planters, its low glass fence and kiosk: the off-kit
+  pieces swapped where they stood, six perches more, 24 deck pieces where there were 17.
+- **1055, THE WORKS' yard in positions** (the districts' ninth reviews: "flat dirt, its cover dozens of small white crates
+  like confetti", "a second height level in the dead ground", d22, d24): four fixed positions laid first in its fill, rust
+  and olive containers, three of them two high (2.19 and 4.38 m, each level a mantle), one a grating gantry over a 3.9 m
+  passage; its crates rust and olive, not the white glow. The front yard went from 28 groups and 14 lone crate stacks to 13
+  and 4.
+- **1056, THE STACKS' court split** ("a huge hex plaza, a killing field", d11): a two-storey capsule kiosk, 4.55 m, of the
+  hotel's own pods, and low walls in its middle cell.
+- **1057, THE STRIP's stage** ("wide and sparse", d16, d17): a 1.54 m stage with a 2.31 m riser in its own dark panel and
+  black floor, magenta strips on their rims; no truss, since any frame there blocks all nine sight lines to its name.
+- **Checks that learned the new work:** each item a check, each failing on version 131 and passing on the map that came of
+  it, measured first by proposal agents as dry runs on version 131's collision, each climb walked by the game's own Player.
+- **Checked:** version 132's lo, hi and max baked, the layout rerun after each with no difference, all 375 map checks; the edge check and the ground check each failing with its fault put back (1,295 of 1,722 points open on version 131's collision, THE STRIP's black glass at 0.11), each proposal's check failing on version 131 and on the faults its agent put back, every new climb walked by the game's own Player; the changed places photographed and three fixed after their first pictures. verify, rules and tsc. Map files version 132: lo 203.3 MB, hi 286.4 MB, max 593.1 MB.

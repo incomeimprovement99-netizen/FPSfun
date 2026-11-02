@@ -18,6 +18,7 @@ import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-st
 import { bandAlong, fillTo, flatAt, inside, sdPoly, skinRegion, skirtAlong, standing, storeySlab, type Grid } from "./neon-base";
 import { backFaces, boxInto, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
 import { wellFlight, type Flight } from "./neon-well";
+import { groundFloors, openEdges } from "./neon-under";
 import { MOVE } from "../src/game/movement";
 import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, readMaterial, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
 import { BasisPool } from "./basis-pool";
@@ -392,12 +393,16 @@ if (mode === "bake") {
     mats.set(guid, { ...info, name: spec.replace(/[|#]/g, "_"), emission: [(((n >> 16) & 255) / 255) * at, (((n >> 8) & 255) / 255) * at, ((n & 255) / 255) * at], emissive: null });
     return guid;
   };
-  for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, (string[] | null)?, number?]> }>(cfg.chunks)) {
+  for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, (string[] | null)?, (number | null)?, number?]> }>(cfg.chunks)) {
     const all = groups.get(groupOf(id)) ?? groups.set(groupOf(id), []).get(groupOf(id))!;
-    for (const [key, x, y, z, yaw, how, mat, without, scale] of chunk.place) {
+    for (const [key, x, y, z, yaw, how, mat, without, scale, tilt] of chunk.place) {
       // (a placement may be scaled about its pivot, its ninth field: the corner blocks' signs, 2.5 to 4 m in the pack,
       // read from the street at three times that)
-      const W = scale ? mul(place(x, y, z, yaw), [scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, 1]) : place(x, y, z, yaw);
+      // (and tipped about its own x by its tenth, degrees, before its turn, Milestone 1043: the pack has no upright round door, and
+      // THE VAULT's is its round hole cap stood on its edge)
+      const t = ((tilt ?? 0) * Math.PI) / 180;
+      const tipped = tilt ? mul(place(x, y, z, yaw), [1, 0, 0, 0, 0, Math.cos(t), Math.sin(t), 0, 0, -Math.sin(t), Math.cos(t), 0, 0, 0, 0, 1]) : place(x, y, z, yaw);
+      const W = scale ? mul(tipped, [scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, 1]) : tipped;
       // (a placement's material: one over all its parts, or "Name=Spec;Name2=Spec2", each part in the pack's material
       // Name worn in Spec instead and the rest as they are: the High City's blocks each in its own colour)
       const remap = mat && mat.includes("=") ? new Map(mat.split(";").map((p) => p.split("=") as [string, string])) : null;
@@ -855,7 +860,9 @@ if (mode === "bake") {
       // (nor across the tower's stair core: its cut leaves nothing standing in its box, which the base's floor would fill)
       const core: Pt[][] = cfg.tower ? [((b) => [[b[0], b[2]], [b[1], b[2]], [b[1], b[3]], [b[0], b[3]]] as Pt[])(cfg.tower.core.box)] : [];
       const parts = storeySlab(g, region, [...L.holes, ...core], stood, L.y - BS.tuck, BS.slab, BS.scale);
-      const prims = (["top", "edge", "under"] as const).map((k) => ({ pos: new Float32Array(parts[k].pos), nrm: new Float32Array(parts[k].nrm), uv: new Float32Array(parts[k].uv), idx: new Uint32Array(parts[k].idx), material: BS.mats[k] }));
+      // (the rims of its holes, the atrium's and the stairs', in `mats.rim` where it names one, Milestone 1045: brick read as a beam
+      // across the atrium's ceiling)
+      const prims = (["top", "edge", "under"] as const).map((k) => ({ pos: new Float32Array(parts[k].pos), nrm: new Float32Array(parts[k].nrm), uv: new Float32Array(parts[k].uv), idx: new Uint32Array(parts[k].idx), material: k === "edge" ? (BS.mats.rim ?? BS.mats.edge) : BS.mats[k] }));
       const mats = prims.map((p) => {
         const mg = pack.matFor(p.material);
         if (!mg) throw new Error(`no material ${p.material}`);
@@ -934,6 +941,8 @@ if (mode === "bake") {
     const areas: number[] = [];
     const holes: number[] = [];
     const bands: Array<{ at: number; length: number; high: number }> = [];
+    // (the triangles of a skirt or a plinth left out over a floor's own hole, Milestone 1044)
+    const offHoles: Array<{ at: number; part: string; tris: number }> = [];
     // (the tower as drawn and the core's walls, triangle by triangle on the map, for the seal's rays)
     const drawnTris: Array<[number[], number[], number[]]> = [];
     for (const { d, m } of towerDrawn)
@@ -1023,7 +1032,7 @@ if (mode === "bake") {
       const parts = storeySlab(g, region, banded ? [coreHole, ...ropesHere] : [coreHole, ...holesHere], null, h, banded ? spec!.slab : TW.slab, TW.scale);
       if (kind === "lid") {
         lidArea = inn.n * cell * cell;
-        tri += push("tower-lid", (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: TW.mats[k] })));
+        tri += push("tower-lid", (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "edge" ? (TW.mats.rim ?? TW.mats.edge) : TW.mats[k] })));
         continue;
       }
       if (banded) {
@@ -1035,7 +1044,7 @@ if (mode === "bake") {
         // floor's foot, under the ceiling and between the loft's two rows; the rows themselves left open)
         const SKR = (spec as Banded & { skirts?: number[][] }).skirts ?? [];
         const bands = SKR.map(([a, b]) => ({ part: skirtAlong(g, region, h + a, b - a, TW.scale), mat: TW.mats.edge }));
-        tri += push(`tower-${kind}-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : TW.mats[k] })), ...bands]);
+        tri += push(`tower-${kind}-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : k === "edge" ? (TW.mats.rim ?? TW.mats.edge) : TW.mats[k] })), ...bands]);
         continue;
       }
       // is it sealed: from points a few metres apart over its floor, out of the core, a fan of rays at eye height each
@@ -1069,6 +1078,21 @@ if (mode === "bake") {
       // (and a skirt along its outer edge up to under the sills, `skirt` metres: the facade's panels stop short of the
       // floor, and the city showed through the slit at its foot)
       const skirt = skirtAlong(g, region, h, TF.skirt, TW.scale);
+      // (none of the skirt, nor of the plinth below, over the floor's own holes, Milestone 1044: both run along the floor's outline as
+      // modelled before its holes are cut, and the 35 m floor's ran on round the strongroom's chamber, a brick band on its
+      // wall and a plinth with its cap 3 m over the vault's floor, in the air. A triangle goes by its middle)
+      const offHole = (part: { pos: number[]; idx: number[] }, name: string) => {
+        if (!holesHere.length) return;
+        const idx: number[] = [];
+        for (let k = 0; k < part.idx.length; k += 3) {
+          const [a, b, c] = [part.idx[k], part.idx[k + 1], part.idx[k + 2]];
+          const [mx, mz] = [(part.pos[a * 3] + part.pos[b * 3] + part.pos[c * 3]) / 3, (part.pos[a * 3 + 2] + part.pos[b * 3 + 2] + part.pos[c * 3 + 2]) / 3];
+          if (!holesHere.some((r) => sdPoly(r, mx, mz) < 0)) idx.push(a, b, c);
+        }
+        if (idx.length < part.idx.length) offHoles.push({ at: h, part: name, tris: (part.idx.length - idx.length) / 3 });
+        part.idx = idx;
+      };
+      offHole(skirt, "skirt");
       // THE VAULT from outside (rules.tower.vaultBand; the second review: "mark THE VAULT from outside", the fourth: "a thin
       // gold line"): a band of gold light round the facade's skin at each floor in `at`, the vault storey's floor and the
       // one over it, `out` proud of the skin, from and to its `spans` over the floor: the solid strips under and over the
@@ -1085,9 +1109,14 @@ if (mode === "bake") {
       const below = (TW.shaft as number[]).filter((y) => y < h - 0.01).sort((a, b) => b - a)[0];
       const ceil = below === undefined ? undefined : (cfg.rules.tower.floors.at as Record<string, { ceilingMat?: string }>)[String(below)]?.ceilingMat;
       if (ceil) ceilings.push({ over: below, at: h, mat: ceil });
+      // (and its texture at the floor's own `ceilingScale`, UV a metre, where it names one, Milestone 1044: THE VAULT's dark steel
+      // tiles at the slabs' tenth were 1.25 m tiles of a 5 m map, the reviews' "pixelated", "low-res ceiling")
+      const ceilK = below === undefined ? undefined : (cfg.rules.tower.floors.at as Record<string, { ceilingScale?: number }>)[String(below)]?.ceilingScale;
+      if (ceilK) parts.under.uv = parts.under.uv.map((v) => (v * ceilK) / TW.scale);
       const atH = (cfg.rules.tower.floors.at as Record<string, { mat?: string; edgeMat?: string; plinthMat?: string }>)[String(h)];
       // (a floor's `edgeMat`, Milestone 977: the rim of a hole is the slab's edge, brick, and the strongroom looks up at it)
-      tri += push(`tower-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : k === "under" && ceil ? ceil : k === "edge" && atH?.edgeMat ? atH.edgeMat : TW.mats[k] })), { part: skirt, mat: TW.mats.edge }]);
+      // (and every other rim in `mats.rim`, Milestone 1045: the brick on a hole's edge read as a brick beam across the ceiling)
+      tri += push(`tower-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : k === "under" && ceil ? ceil : k === "edge" ? (atH?.edgeMat ?? TW.mats.rim ?? TW.mats.edge) : TW.mats[k] })), { part: skirt, mat: TW.mats.edge }]);
       // The plinth (rules.tower.plinth, Milestone 979; the reviews: "curved walls stop short of the floor with jagged brick",
       // "skirting over the torn bases"). The white wall stands up to 0.8 m in from the shell's foot round each groove and
       // its turned faces end anywhere from 32.14 to 32.48 m at the 32 m floor, over the brick skirt's chords, so no skirt on
@@ -1120,6 +1149,7 @@ if (mode === "bake") {
           const up = (b[2] - a[2]) * -nx * PL.back - (b[0] - a[0]) * -nz * PL.back > 0;
           band.idx.push(...(up ? [base, base + 1, base + 2, base, base + 2, base + 3] : [base, base + 2, base + 1, base, base + 3, base + 2]));
         }
+        offHole(band, "plinth");
         tri += push(`tower-plinth-${h}`, [{ part: band, mat: atH?.plinthMat ?? atH?.mat ?? TW.mats.edge }], false);
       }
     }
@@ -1129,6 +1159,31 @@ if (mode === "bake") {
       const part = { pos: [] as number[], nrm: [] as number[], uv: [] as number[], idx: [] as number[] };
       for (const [x0, x1, y0, y1, z0, z1] of c.boxes) boxInto(part, x0, x1, y0, y1, z0, z1, c.scale, { bottom: true });
       tri += push(`tower-clad-${k}`, [{ part, mat: c.mat }], false);
+    }
+    // The tower's storey lines (rules.tower.storeyBands, Milestone 1046; the centre's fifteenth reviews: "the tower's yellow edge
+    // lines read as selection outlines", "lit bands a storey in place of the full-height gold edge lines"). game.outlines
+    // stood a 0.3 m post at each corner of the tower's bounding square from 12 m to 109 m, up to a metre off its round
+    // corners, and a ring 5 cm out of that square at the crown: from the air an editor's box. Here a lit band on the
+    // facade's own outline at each storey line, laid as THE VAULT's band is, `out` proud of the skin, on the solid strip
+    // between window rows that each [h, lo, hi, pad] gives (measured off the shell's opaque triangles), its outline found at
+    // the band's own height on a grid `pad` metres past the square (the upper half bulges 1.4 m east). Drawn only: 6 cm off
+    // a facade no body stands against
+    const SB = (cfg.rules.tower as { storeyBands?: { at: number[][]; out: number; mat: string } }).storeyBands;
+    const storeyBands: Array<{ at: number; length: number; high: number }> = [];
+    if (SB) {
+      const all = { pos: [] as number[], nrm: [] as number[], uv: [] as number[], idx: [] as number[] };
+      for (const [h, lo, hi, pad] of SB.at) {
+        const gB: Grid = { x0: sx0 - pad, z0: sz0 - pad, cell, nx: Math.ceil((sx1 - sx0 + 2 * pad) / cell), nz: Math.ceil((sz1 - sz0 + 2 * pad) / cell) };
+        const band = bandAlong(gB, skinRegion(gB, standing(gB, towerTris(), h + lo, h + hi)), h + lo, h + hi, SB.out, TW.scale);
+        const base = all.pos.length / 3;
+        all.pos.push(...band.part.pos);
+        all.nrm.push(...band.part.nrm);
+        all.uv.push(...band.part.uv);
+        all.idx.push(...band.part.idx.map((i) => i + base));
+        storeyBands.push({ at: h, length: +band.length.toFixed(1), high: +(hi - lo).toFixed(2) });
+      }
+      tri += push("tower-storey-bands", [{ part: all, mat: SB.mat }], false);
+      console.log(`the tower's storey bands: ${storeyBands.map((b) => `${b.at} m ${b.length} m`).join(", ")}`);
     }
     // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
@@ -1140,7 +1195,7 @@ if (mode === "bake") {
     if (levelAreas.length) console.log(`the tower's levels: ${levelAreas.map((q) => `${q.kind} at ${q.at} m ${q.area} m2`).join(", ")}`);
     console.log(`the tower's floors' cracks along the facade left open: ${holes.map((m, k) => `${TW.shaft[k]} m ${m} m2`).join(", ")}`);
     if (bands.length) console.log(`THE VAULT's gold bands: ${bands.map((b) => `${b.at} m ${b.length} m long`).join(", ")}`);
-    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, bands, ...(ceilings.length ? { ceilings } : {}), ...(LID ? { lid: +lidArea.toFixed(1) } : {}), ...(levelAreas.length ? { levels: levelAreas } : {}), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
+    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, bands, ...(storeyBands.length ? { storeyBands } : {}), ...(offHoles.length ? { offHoles } : {}), ...(ceilings.length ? { ceilings } : {}), ...(LID ? { lid: +lidArea.toFixed(1) } : {}), ...(levelAreas.length ? { levels: levelAreas } : {}), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
     console.log(`the tower's floors sealed but for their windows: ${seal.map((q) => `${q.at} m ${q.gaps} of ${q.rays} rays out elsewhere, ${q.windows} through the windows`).join("; ")}`);
     console.log(`the tower's floors: its core and ${TW.shaft.length} floors (${areas.map((a) => a.toFixed(0)).join(", ")} m2), ${tri} triangles`);
     // over the base and the tower, a face-up triangle in the same plane as another material's, which the eye sees as a
@@ -1332,6 +1387,17 @@ if (mode === "bake") {
   if (trimmed) console.log(`${trimmed} collision boxes of the rest cut back out of the fire escapes' rooms`);
   if (typed.length) console.log(`THE TERRACES: ${typed.length} collision boxes of its tiers and ramps`);
   const all = [...solids, ...solidBoxes];
+  // the underground floors' edges (rules.underground.edge; the lobby agent's movement review of 2026-11-01, its sixth):
+  // where one meets a higher floor or the street past its edge with no box across it, the game's floorAt was all that
+  // stood there. The player reads a rise of more than a step as a wall (Milestone 991); a bot and a thrown ball did not,
+  // and came up through the slab to the street. A box past each such run, from the floor to the next one's height
+  // (after `laid`'s runs, so their indices hold)
+  const UE = (cfg.rules.underground as { edge?: Parameters<typeof openEdges>[2] }).edge;
+  if (UE) {
+    const edges = openEdges(groundFloors(cfg as unknown as Parameters<typeof groundFloors>[0]), all, UE, MOVE.stepHeight);
+    all.push(...edges);
+    console.log(`the underground's edges: ${edges.length} boxes, ${edges.reduce((s, q) => s + Math.max(q[1] - q[0], q[3] - q[2]), 0).toFixed(1)} m`);
+  }
   mkdirSync(join(ROOT, "src", "config", "neon"), { recursive: true });
   if (!TAG) writeFileSync(
     join(ROOT, "src", "config", "neon", "neonmap.solids.json"),
