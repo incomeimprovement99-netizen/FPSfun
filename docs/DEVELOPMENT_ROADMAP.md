@@ -18746,3 +18746,13 @@ photographed, each candidate through `rifleTune`).
 
 The film's other findings, looked at and left: hands round nothing for 0.2 s in a swap is the phase; REZ's bulk hides the face
 from the nose down when aimed, as a gun that size will; the tuck in a jump is stiff but possible.
+
+## Milestone 845 — A rope's hand round by the side
+
+Reviewers of four guns' film flagged the same thing: going onto a zip line and off it, the left fist crossed the face and hid
+the head for 0.1 s, on every gun. Measured at 60 frames a second (node_modules/.scratch/ropeprobe.mts) it passed 14 to 18 cm from
+the head's middle, in front of the face rather than through it. The arm was blended straight between the hold and the rope. It
+goes round by the side now, out from the left shoulder by half the way and up onto the rope by 0.9 of it (figure.json zipline
+`round`, `roundBy`, `roundTo`, mannequin.ts reachArm), and the head stays in sight throughout.
+
+- **Checked:** a new check in the soldier stances (skfigure) holds the hand 20 cm from the head's middle; on the old code it fails at 15, on this one it passes at 24 going on and 26 coming off, and the section passes all 344 checks.

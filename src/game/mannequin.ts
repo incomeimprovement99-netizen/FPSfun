@@ -192,7 +192,7 @@ const PLUNGE = figureCfg.plunge as { fall: number; rate: number; raise: number; 
 /** a grapple's arm up at its hook point and back, a second (figure.json grapple) */
 const GRAPPLE = figureCfg.grapple as { rate: number };
 /** a zip line's hand up on the rope and back, a second, and where on the rope it holds (figure.json zipline) */
-const ZIPLINE = figureCfg.zipline as { rate: number; grip: number[]; lift: number; thigh: number; knee: number };
+const ZIPLINE = figureCfg.zipline as { rate: number; grip: number[]; lift: number; thigh: number; knee: number; round: number[]; roundBy: number; roundTo: number };
 /** a wall run's lean in and out, a second, and the most its run clip is sped up (figure.json wallRun) */
 const WALL_RUN = figureCfg.wallRun as { rate: number; mostRate: number };
 /** the skydive's body, degrees forward of upright gliding and diving, its limbs, and its ease (figure.json skydive) */
@@ -1732,13 +1732,19 @@ export class MannequinFigure {
     const G = this.grapple;
     // a grapple's hook point, or a zip line's rope over its head (Milestone 616)
     const grab = !!G && this.grabW >= 0.01;
-    const w = grab ? this.grabW : this.zipW;
+    const way = grab ? this.grabW : this.zipW;
+    // (a rope's hand goes round by the side: blended straight from the hold it crossed the face, figure.json zipline round)
+    const w = grab ? way : Math.min(1, way / ZIPLINE.roundBy);
     const up = b.upperarm_l;
     const fore = b.lowerarm_l;
     // (a grapple points the wrist at its point; a rope is held in the closed fingers, so the knuckles go to it)
     const tip = grab ? b.hand_l : b.middle_01_l;
     if (w < 0.01 || !up || !fore || !tip) return;
     const to = grab ? G!.to.clone() : this.ropeAt(new THREE.Vector3());
+    if (!grab && way < ZIPLINE.roundTo) {
+      const side = up.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(...ZIPLINE.round).applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion())));
+      to.lerp(side, 1 - smooth(ZIPLINE.roundBy, ZIPLINE.roundTo, way));
+    }
     const aim = () => {
       const sh = up.getWorldPosition(new THREE.Vector3());
       aimBone(up, tip.getWorldPosition(new THREE.Vector3()).sub(sh), to.clone().sub(sh), w);

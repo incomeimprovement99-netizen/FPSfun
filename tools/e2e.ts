@@ -8275,6 +8275,33 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     pops.slide <= 25 && pops.lean <= 15 && pops.gun <= 20 && pops.land <= 16,
     `pelvis ${pops.slide} cm in a frame, gun ${pops.gun} cm, chest ${pops.lean} degrees, landing ${pops.land} cm`,
   );
+  // A rope's hand round by the side (Milestone 845): blended straight from the hold the fist crossed the face, on and off
+  const ropeFace = await ev<{ on: number; off: number }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      r.figureLabStep(1);
+      const B = f.mq.bones;
+      const run = (pose, secs) => {
+        let near = 9;
+        r.figureLabPose(0, pose);
+        for (let i = 0; i < secs * 60; i++) {
+          r.figureLabStep(1 / 60);
+          f.group.updateMatrixWorld(true);
+          const head = B.Head.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, 0.08, 0));
+          near = Math.min(near, B.hand_l.getWorldPosition(new T.Vector3()).distanceTo(head), B.middle_01_l.getWorldPosition(new T.Vector3()).distanceTo(head));
+        }
+        return Math.round(near * 100);
+      };
+      const on = run({ speed: 12, stance: "zip", pitch: 0 }, 0.9);
+      const off = run({ speed: 6, stance: "air", pitch: 0 }, 0.5);
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+      return { on, off };
+    })()`,
+  );
+  check("going onto a rope and off it the left hand keeps clear of the head (20 cm of its middle)", ropeFace.on >= 20 && ropeFace.off >= 20, JSON.stringify(ropeFace));
   // A reload an enemy can read (Milestone 844): DEVINOS's left hand under the tube's mouth (the shared key left it 17 cm off
   // to the side, the arm straight and the wrist bent 86 degrees), REZ turned toward the hand (it stood still for a second)
   const loads = await ev<{ wrist: number; off: number; turn: number }>(
