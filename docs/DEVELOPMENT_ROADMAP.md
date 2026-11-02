@@ -14358,9 +14358,11 @@ element the page was already showing (rangetools.ts, main.ts, tools/live-check.t
 ## Milestone 996 — The menu says the keys you have
 
 The welcome's keys, the Settings tab's hints (Caps Lock to talk, Space to skip the killcam, 8 to spray), the Friends tab's voice line, F8's notice and third
-person's Alt named the defaults whatever was bound. They name your keys now, and a pad's buttons on a pad (index.html, main.ts).
+person's Alt named the defaults whatever was bound. They name your keys now, and a pad's buttons on a pad. Each moving rail's soldier stood inside the rail's
+board, on its line at its speed; it has a line of its own behind it, out of step. And a walk in and out of the tutorial's gate put a stand's fused hacks back to
+your picks at level 0; the tutorial gives back what you had, and only if it lent its own (index.html, main.ts, rangetools.json).
 
-- **Checked:** tsc, verify, rules; e2e page.
+- **Checked:** tsc, verify, rules; arena rules; e2e page, range, sktutorial.
 
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 

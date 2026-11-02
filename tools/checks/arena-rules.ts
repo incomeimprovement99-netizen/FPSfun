@@ -366,6 +366,9 @@ console.log("\nThe hands and the guns (src/game/loadout.ts, weapon-state.ts, rec
   check("the menu holds a run, body and all", /if \(!duel && courseRunning\(\) && !input\.playing && !scriptInput\) dt = 0;/.test(page));
   check("a match's Guns rule ends with it", /else if \(ruled\) applyLoadout\(loadouts\.current\);/.test(page));
   check("the tutorial's beacon and the run's ghost go with them", /this\.showBeacon\(null, 0\);/.test(readFileSync(new URL("../../src/game/tutorial.ts", import.meta.url), "utf8")) && /this\.ghostFig\.visible = false;\s+for \(const d of this\.enemies\)/.test(readFileSync(new URL("../../src/game/course.ts", import.meta.url), "utf8")));
+  // (Milestone 996) each rail's soldier on a line of its own, behind its board
+  const railCfg = JSON.parse(readFileSync(new URL("../../src/config/rangetools.json", import.meta.url), "utf8")) as { railSoldier: { behind: number } };
+  check("each rail's soldier stands behind its board, not in it", railCfg.railSoldier.behind >= 1.5 && /new Dummy\(rail\.minX, rail\.z - rangeToolsCfg\.railSoldier\.behind/.test(page), `${railCfg.railSoldier.behind} m behind`);
   const { mergeProfiles, isRecordKey } = await import("../../src/net/mergeprofile");
   check("the drill's best is a record, and the lower one stands", isRecordKey("range.drill.blink") && mergeProfiles({ "range.drill.blink": "20.5" }, { "range.drill.blink": "33.1" })["range.drill.blink"] === "20.5");
 }

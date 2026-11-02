@@ -1081,7 +1081,8 @@ ownAir(NEON_AIR);
 // soldiers"), from eight, and none on the platform that went with the old range.
 const dummies: Dummy[] = [new Dummy(-12, -15, 15), new Dummy(4, -30, 30), new Dummy(-20, -55, 55), new Dummy(18, -85, 85)];
 for (const rail of TARGET_RAILS) {
-  const d = new Dummy((rail.minX + rail.maxX) / 2, rail.z, Math.abs(rail.z));
+  // (its own line behind the board and out of step with it: on the board's line, at its speed, it stood inside it, Milestone 996)
+  const d = new Dummy(rail.minX, rail.z - rangeToolsCfg.railSoldier.behind, Math.abs(rail.z));
   d.rail = rail;
   dummies.push(d);
 }
@@ -4260,6 +4261,7 @@ function stepUnseen(): void {
       savePicks({ ...now, [slot]: sel.value as HackId });
       // (kept through a run: its end gave the old pick back, the box saying one hack and your hands holding another, Milestone 994)
       savedHacks = savedHacks?.map((h) => (hackSlotOf(h.id) === slot ? { id: sel.value as HackId, level: 0 } : h)) ?? null;
+      tutorialHacks = tutorialHacks?.map((h) => (hackSlotOf(h.id) === slot ? { id: sel.value as HackId, level: 0 } : h)) ?? null;
       // (not over the tutorial's: the room asking for its hack could no longer be passed; its end sets your picks, onReset)
       if (!duel && !tutorial.active) resetHacks();
     });
@@ -4479,6 +4481,8 @@ function tutorialCheck(): TutorialCheck {
 let tutorialSlots: SlotSetup[] | null = null;
 /** the gun the tutorial hands you for its shooting rooms, in the slot you had in hand */
 const TUTORIAL_GUN = "alternator_smg";
+/** your hacks before the tutorial lent DASH, given back at its end */
+let tutorialHacks: Array<{ id: HackId; level: number }> | null = null;
 tutorial.onStep = (title, index) => {
   hud.notice(`TUTORIAL: ${title}`, gameTime, 1.4);
   audio.countdown(false);
@@ -4488,7 +4492,10 @@ tutorial.onStep = (title, index) => {
   // its first rooms are run with the gun put away (and kept away each frame till the ANAKIN: gunsAway)
   if (index === 0) holster = "away";
   // the hacks come on with DASH in the move slot, whatever was picked: the room is built round it
-  if (index === DASH_STEP) hacks.set("dash", 0);
+  if (index === DASH_STEP) {
+    tutorialHacks ??= (["mobility", "utility"] as const).flatMap((s) => hacks.get(s) ?? []).map((h) => ({ id: h.id, level: h.level }));
+    hacks.set("dash", 0);
+  }
   // and the ANAKIN in your hands (the owner: "a couple rooms after that where the ANAKIN is defaulted to the user")
   if (index === GUN_STEP) {
     tutorialSlots ??= loadout.slots.map((_, i) => loadout.setup(i));
@@ -4504,7 +4511,10 @@ tutorial.onReset = () => {
     tutorialSlots = null;
     pouchUp();
   }
-  if (!duel) resetHacks();
+  // (the hacks you had, at their levels, and only if it lent its own: a step in and out of the gate put a stand's fused
+  // hacks back to your picks at level 0, Milestone 996)
+  if (!duel && tutorialHacks) for (const h of tutorialHacks) hacks.set(h.id, h.level);
+  tutorialHacks = null;
   if (holster === "away" || holster === "lowering") {
     holster = "raising";
     holsterAt = gameTime;
