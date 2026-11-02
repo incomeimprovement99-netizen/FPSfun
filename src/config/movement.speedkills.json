@@ -18,7 +18,13 @@
       "height": 52,
       "grace": 0.1
     },
+    "zipTop": {
+      "reach": 1.6,
+      "over": 1.2,
+      "under": 1.5
+    },
     "wallRun": {
+      "offFor": 0.3,
       "minSpeed": 140,
       "keepAngle": 70,
       "speed": 620,

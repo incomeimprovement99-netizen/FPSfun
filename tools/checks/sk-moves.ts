@@ -7,6 +7,7 @@ import type { Action } from "../../src/game/input";
 import { RANGE_SOLIDS } from "../../src/game/range";
 import { ZIPLINES, type Zipline } from "../../src/game/traversal";
 import { MOVE } from "../../src/game/movement";
+import { FLOORS } from "../../src/game/floors";
 import squadCfg from "../../src/config/squad.json";
 
 let fails = 0;
@@ -292,6 +293,157 @@ console.log("SpeedKills' movement where it went wrong (player.ts)");
     }
   }
   check("a dive that ends in a mantle onto a roof is a landing", mantled > 0 && stuck === 0, JSON.stringify({ mantled, stuck }));
+}
+
+// (Milestone 991, from a review of the movement) each on its own few boxes
+{
+  const run = (p: Player, inp: Script, t: { at: number }, n: number, each?: () => void): void => {
+    for (let i = 0; i < n; i++) {
+      t.at += dt;
+      p.update(dt, t.at, inp, 0, 1, false);
+      inp.endFrame();
+      each?.();
+    }
+  };
+  // through a ceiling: a jump and W under a floor, standing and crouched
+  let through = 0;
+  for (const base of [2.6, 2.8, 3.0]) {
+    for (const crouch of [false, true]) {
+      world([{ minX: -30, maxX: 30, minZ: -30, maxZ: 30, base, top: base + 0.3 }]);
+      const p = player();
+      const inp = new Script();
+      const t = { at: 100 };
+      p.teleport(0, 0, 0, 0);
+      run(p, inp, t, 6);
+      if (crouch) {
+        inp.hold("crouch");
+        run(p, inp, t, 27);
+      }
+      inp.hold("forward");
+      run(p, inp, t, 18);
+      inp.hold("jump");
+      run(p, inp, t, 1);
+      inp.release("jump");
+      let top = 0;
+      run(p, inp, t, 90, () => void (top = Math.max(top, p.pos.y)));
+      if (top >= base) through++;
+    }
+  }
+  check("a jump and W under a floor stays under it, standing or crouched", through === 0, `${through} of 6 went through`);
+  world([{ minX: -3, maxX: 3, minZ: -60, maxZ: -1.5, top: 2 }]);
+  const ledge = player();
+  const li = new Script();
+  const lt = { at: 100 };
+  ledge.teleport(0, 0, -0.9, 0);
+  run(ledge, li, lt, 6);
+  li.hold("forward");
+  li.hold("jump");
+  run(ledge, li, lt, 1);
+  li.release("jump");
+  run(ledge, li, lt, 90);
+  check("a ledge over your jump still mantles", ledge.pos.y > 1.9, `feet at ${ledge.pos.y.toFixed(2)}`);
+
+  // a body pushed out to a face on a line that rounds is not still in it: the next axis then "hit" that wall and threw you along it
+  world([{ minX: -4, maxX: -3, minZ: 575, maxZ: 580, top: 6 }]);
+  const pushed = (player() as unknown as { overlapping(x: number, z: number, r: number): unknown[] }).overlapping(-4 - MOVE.radius, 577, MOVE.radius).length;
+  check("a body at a wall's face on a rounding line is not in the wall", pushed === 0, `${pushed} boxes`);
+
+  // a dive into a tall wall is not a climb, and a glide along one is no wall run
+  world([{ minX: -30, maxX: 30, minZ: -6, maxZ: -2, top: 300 }]);
+  const dive = player();
+  const di = new Script();
+  const dt0 = { at: 100 };
+  dive.beginDrop(0, 200, 0, 0);
+  di.hold("forward");
+  let held = 0;
+  run(dive, di, dt0, 480, () => {
+    if (dive.onWall || dive.climbing) held++;
+  });
+  check("a dive into a tall wall neither climbs it nor runs along it", held === 0 && dive.pos.y < 200 - 60, `${held} frames on it, at ${dive.pos.y.toFixed(0)} m after 8 s`);
+
+  // in a corner the wall you face is the one you climb
+  world([
+    { minX: -3, maxX: 3, minZ: -5, maxZ: -1, top: 12 },
+    { minX: 0.5, maxX: 2, minZ: -2, maxZ: 3, top: 12 },
+  ]);
+  const corner = player();
+  const ci = new Script();
+  const ct = { at: 100 };
+  corner.teleport(0.5 - MOVE.radius - 0.05, 0, 1, 0);
+  run(corner, ci, ct, 6);
+  ci.hold("forward");
+  let climbed = false;
+  run(corner, ci, ct, 90, () => void (climbed ||= corner.climbing));
+  check("in a corner the wall you face climbs", climbed);
+
+  // a sunken floor's edge is a wall from inside it
+  world([]);
+  FLOORS.push({ minX: -10, maxX: 10, minZ: -10, maxZ: 10, y: -13 });
+  const pit = player();
+  const pi = new Script();
+  const pt = { at: 100 };
+  pit.teleport(8, -13, 0, -90);
+  run(pit, pi, pt, 6);
+  pi.hold("forward");
+  run(pit, pi, pt, 60);
+  FLOORS.length = 0;
+  check("off a sunken floor's edge you stay down", pit.pos.y < -12 && pit.pos.x < 10.5, `at ${pit.pos.x.toFixed(2)}, ${pit.pos.y.toFixed(2)}`);
+
+  // a rope grabbed in a dive ends the dive
+  world([]);
+  ZIPLINES.push({ a: new THREE.Vector3(0, 40, 0), b: new THREE.Vector3(0, 40, -60) } as unknown as Zipline);
+  const rope = player();
+  const ri = new Script();
+  const rt = { at: 100 };
+  rope.beginDrop(0, 40, -20, 0);
+  run(rope, ri, rt, 8);
+  ri.hold("interact");
+  run(rope, ri, rt, 1);
+  ri.release("interact");
+  run(rope, ri, rt, 10);
+  check("a rope grabbed in a dive ends the dive", rope.onZip && !rope.dropping, `on it ${rope.onZip}, diving ${rope.dropping}`);
+
+  // a wall run does not board the ship, and a LEAP leaves the wall
+  world([{ minX: -2, maxX: -0.5, minZ: -80, maxZ: 10, top: 10 }]);
+  const wall = player();
+  const wi = new Script();
+  const wt = { at: 100 };
+  wall.teleport(-0.5 + MOVE.radius + 0.05, 1, 0, 0);
+  wall.vel.set(0, 1, -14);
+  wi.hold("forward");
+  run(wall, wi, wt, 12);
+  const running = wall.onWall;
+  wall.impulse(6, 8, 0);
+  run(wall, wi, wt, 2);
+  const leapt = !wall.onWall;
+  wall.teleport(-0.5 + MOVE.radius + 0.05, 1, -10, 0);
+  wall.vel.set(0, 1, -14);
+  run(wall, wi, wt, 20);
+  const again = wall.onWall;
+  wall.teleport(0, 100, 0, 0);
+  check("a LEAP leaves a wall run, and a teleport takes it with it", running && leapt && again && !wall.onWall, JSON.stringify({ running, leapt, again, after: wall.onWall }));
+
+  // a double tap is not the double jump gone
+  world([]);
+  const twice = player();
+  const ti = new Script();
+  const tt = { at: 100 };
+  const said: string[] = [];
+  twice.onTech = (name) => said.push(name);
+  twice.teleport(0, 0, 0, 0);
+  run(twice, ti, tt, 12);
+  const press = (): void => {
+    ti.hold("jump");
+    run(twice, ti, tt, 1);
+    ti.release("jump");
+    run(twice, ti, tt, 1);
+  };
+  press();
+  press();
+  const spent = said.filter((n) => n === "DOUBLE JUMP").length;
+  run(twice, ti, tt, 12);
+  press();
+  check("a double tap of jump leaves the double jump for later", spent === 0 && said.filter((n) => n === "DOUBLE JUMP").length === 1, `${spent} spent on the tap`);
 }
 
 console.log(fails === 0 ? "\nSK MOVES PASS" : `\nSK MOVES FAIL (${fails})`);

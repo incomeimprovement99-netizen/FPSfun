@@ -3093,6 +3093,8 @@ function shipHud(d: BrMatch, run: ShipRun): NonNullable<HudState["ship"]> {
 }
 
 function respawnForMatch(d: MatchLike): void {
+  // (a toggled crouch does not come back with you: you stood up crouched, Milestone 991)
+  crouchLatch = false;
   // a new life counts the edge from its own landing
   edgeArmed = false;
   edge.reset();
@@ -4068,6 +4070,7 @@ function stepHacks(now: number, dt: number): void {
     const dist = to.length();
     if (dist < H.grapple.arrive || now > skPull.until || player.climbing) skPull = null;
     else {
+      player.pulledOff(now);
       to.multiplyScalar(H.grapple.speed / dist);
       player.vel.set(to.x, to.y + 1.5, to.z);
     }

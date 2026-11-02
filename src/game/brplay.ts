@@ -445,6 +445,11 @@ export class BrPlay {
         player.vel.x = this.padCarry.vx;
         player.vel.z = this.padCarry.vz;
         this.padCarry = null;
+      } else {
+        // (held to its column on the way up, as a course's pads are: W steered you into the overhang, and the tower's top pad
+        // dropped you back on the base's roof, Milestone 991)
+        player.vel.x = 0;
+        player.vel.z = 0;
       }
     }
     // the Sky Lobby's window pads (city.ts): through a window, centred and held, as THE CHAIN's (course.ts stepPads)

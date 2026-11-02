@@ -14298,6 +14298,21 @@ sat in the shotgun's check (main.ts, weapon-state.ts, recoil.ts, spread.ts, weap
 
 - **Checked:** tsc, verify, rules; arena rules, hudfit; e2e speedkills, brsolo, gulag, sksquad, skship, range.
 
+## Milestone 991 — How you move, from a review on the real map
+
+Crouch, jump and W went up through the ceiling onto the floor above, 124 of 164 tries on the tower's floors: any slab was a ledge and a mantle
+runs with collision off; it asks what is over your head now, 0 of 162 both ways. A wall on a line that rounds (x = 4, 3.75, 32, 128 and z = 512: 2,786
+faces) threw you up to 4 m along it; a hair's skin in the overlap test ends that. A dive held on a tall wall, still at 170 m after 14 s with no gun;
+a dive neither climbs nor runs a wall now. A mantle could end 4 cm in a wall and the push-out took the box's far side; a body already in something
+leaves by the shortest way now, 0.48 m where it was 2.21. A long frame's leg stopped at the first box in the list, not the nearest
+face. In a corner the wall you faced would not climb if it ran along z. Walking off the station's platform rose you 13 m through the slab; a sunken
+floor's edge is a wall now. Rope ends turned you away on a wall run, and the glass lifts' tops threw you the way you looked, 6 of 16 reaching the floor;
+15 of 16 now. The tower's top pad failed with W held. A GRAPPLE stayed on a wall run 31 m short; LEAP and SLAM flew on with its lean. A double tap spent the
+double jump; a jump after a wall kick stacked to 5.64 m; a rope grabbed in a dive kept the dive; a falling head in a box hung in the air; a mantle ended past
+the bounds; a wall run boarded the ship; a toggled crouch came back with you (player.ts, movement.ts, brplay.ts, main.ts).
+
+- **Checked:** tsc, verify, rules; sk-moves; the review's fuzz; e2e speedkills, skship, sktutorial, range, finish.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

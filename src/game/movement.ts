@@ -191,7 +191,9 @@ export const MOVE = {
  */
 export const EXTRA = {
   doubleJump: { height: m(raw.extra.doubleJump.height), grace: raw.extra.doubleJump.grace },
+  zipTop: raw.extra.zipTop,
   wallRun: {
+    offFor: raw.extra.wallRun.offFor,
     minSpeed: m(raw.extra.wallRun.minSpeed),
     keepAngle: raw.extra.wallRun.keepAngle,
     speed: m(raw.extra.wallRun.speed),
