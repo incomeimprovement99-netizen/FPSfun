@@ -652,6 +652,11 @@ export class Duel implements MatchLike {
     return !this.ended && this.mode !== "duel" && this.phase !== "waiting" && this.phase !== "matchEnd";
   }
 
+  /** a seat already held still held now (the modes keep one longer) */
+  protected keepsHeld(): boolean {
+    return this.holdsSeats();
+  }
+
   /**
    * The host: a guest's connection dropped without a goodbye. Their seat, and
    * their figure where it stood, are held for net.json's rejoin.hold seconds
@@ -772,8 +777,9 @@ export class Duel implements MatchLike {
     this.hostId = this.id;
     this.hostLink = null;
     this.reconnectUntil = null;
-    // (said to a host that is now this page: nobody to send it to)
-    this.outbox.length = 0;
+    // (said to a host that is now this page: nobody to send it to, and what of it the host would have done this page does
+    // itself once the match is rebuilt, heirOwes)
+    const owed = this.outbox.splice(0);
     this.heirSnap = null;
     this.heirSeen = null;
     this.sync.forgetPeer(old);
@@ -788,7 +794,13 @@ export class Duel implements MatchLike {
     this.playerGone(old, `${this.remotes.get(old)?.name ?? "The host"} left: you are the host now`);
     this.migrating = false;
     this.restoreAsHost(now, old, snap.mode);
+    this.heirOwes(owed);
     this.onFeed?.("The host is gone: you are the host now", false);
+  }
+
+  /** what this page said to the old host while it was getting back in, the host's to act on and now this page's (the modes) */
+  protected heirOwes(_owed: NetMsg[]): void {
+    /* nothing the base match keeps */
   }
 
   /** the host: its heir named to everyone, and the heir sent what it needs to take over, now and then */
@@ -1896,7 +1908,7 @@ export class Duel implements MatchLike {
     if (this.ended) return;
     // the host: a held seat nobody came back for is gone
     for (const [id, until] of [...this.held]) {
-      if (now < until && this.holdsSeats()) continue;
+      if (now < until && this.keepsHeld()) continue;
       this.held.delete(id);
       this.seatGone(id, "did not come back");
       if (this.ended) return;

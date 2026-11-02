@@ -14455,6 +14455,16 @@ so Milestone 1003's first deploy stopped at its build; it is typed as the net ha
 
 - **Checked:** tsc, verify, rules; arena-rules (a new check, failing with the fault put back: 4 of 9 restocked items on the gone ground).
 
+## Milestone 1005 — What a guest said while away, and its result on the way back
+
+From the review of the BR after the landing, its last two. A guest getting back in keeps what it says to the host for when it is in (Milestone 729); an heir
+that took the match over cleared those, so one that died in the seconds the host was gone lost its guns and its echo off the floor. The heir now lays the
+drops it owed the old host once the match is rebuilt (a take it asked for stays on the floor, to be taken again). And a guest getting back in as a battle
+royale ended missed its result: the seat went with the match's end and it was told it had lost the connection, with no result and nothing recorded. A seat
+held as the match ends stays held for its time, and the guest gets its result as it comes back in (duel.ts keepsHeld, heirOwes; brmatch.ts sendEnd, rejoin).
+
+- **Checked:** tsc, verify, rules; br-heir (two new checks, each failing with its fault put back); e2e migrate, p2p, brsolo.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

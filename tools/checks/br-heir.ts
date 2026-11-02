@@ -138,6 +138,37 @@ console.log("A battle royale's care packages across a change of host (src/game/b
   run(ls.slice(1), 0.5, wire);
   check("a package called after the heir's last snapshot is not called again for its wave", heard && heir.pods.length === 1, `${heir.pods.length} packages for one wave`);
 }
+{
+  // (Milestone 1005) the heir dies in the seconds the host is gone: its guns and echo, said to a host that never came back
+  const { host, heir, wire, ls } = start();
+  const snap = heir.heirSnap;
+  gone(host);
+  heir.hostLink?.onClose?.();
+  const keyAt = heir.lootField.keyNext;
+  const last = heir.remotes.get(0)?.samples?.at(-1);
+  const at = new THREE.Vector3((last?.x ?? 0) + 2, last?.y ?? 0, last?.z ?? 500);
+  heir.dropDeath([{ kind: "weapon", id: "vinson", n: 1, rarity: "common", fusion: 0 }, { kind: "echo", id: "echo", n: 1, rarity: "common", owner: 1, ownerName: "P" }], at);
+  const waiting = heir.outbox.length;
+  run(ls.slice(1), 1, wire);
+  heir.takeOver(snap);
+  run(ls.slice(1), 0.5, wire);
+  const laid = [...heir.lootField.drops.values()].filter((d: Any) => d.key >= keyAt && (d.item.id === "vinson" || d.item.kind === "echo"));
+  check("an heir's own death in the seconds the host was gone leaves its guns and echo on the floor (they were cleared with the messages)", waiting === 2 && laid.length === 2, `${waiting} waiting, ${laid.length} laid`);
+}
+{
+  // (Milestone 1005) a guest getting back in as the match ends: its seat stays held for its time, and its result is there
+  const { host, heir: guest, wire, ls } = start();
+  host.links.get(1)?.onClose?.();
+  guest.hostLink?.onClose?.();
+  const held = host.held.has(1) && guest.reconnectUntil !== null;
+  host.endBr(true);
+  run([ls[0], ls[2]], 2, wire);
+  const [h, gl] = wire.pair(0, 1);
+  const back = host.rejoin(h, 1);
+  guest.swapHost(gl, 0);
+  run(ls, 0.5, wire);
+  check("a guest back in as the match ended gets its result, not a lost connection", held && back && guest.brOver && guest.placement === 1 && !guest.ended, JSON.stringify({ held, back, over: guest.brOver, placement: guest.placement }));
+}
 
 console.log(fails === 0 ? "\nBR HEIR PASS" : `\nBR HEIR FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

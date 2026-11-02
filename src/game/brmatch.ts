@@ -1070,6 +1070,19 @@ export class BrMatch extends Duel {
     });
   }
 
+  /**
+   * What this page dropped while it was getting back in, the guns and echo of a death in the seconds the host was gone,
+   * laid now that it is the host: they waited for a host that never came, and were cleared (Milestone 1005). Not a take:
+   * granted by itself, an item would leave the floor and reach nobody; it stays there to be taken again.
+   */
+  protected override heirOwes(owed: NetMsg[]): void {
+    for (const m of owed) {
+      if (m.t !== "loot" || m.op !== "drop" || !Array.isArray(m.at) || m.at.length !== 3 || !m.at.every((v) => Number.isFinite(v))) continue;
+      const it = wireItem(m.item);
+      if (it) this.dropLoot(it, new THREE.Vector3(...m.at));
+    }
+  }
+
   /** when the old host was last heard, as the heir took over (restoreAsHost: a package down since then was laid by nobody) */
   private hostHeardAt = -Infinity;
 
@@ -2026,7 +2039,7 @@ export class BrMatch extends Duel {
       if (id === this.id) {
         this.brOver = false;
         this.finishBr(won, placement);
-      } else this.links.get(id)?.send({ t: "brend", won, placement });
+      } else this.sendEnd(id, won, placement);
     }
     this.brOver = true;
   }
@@ -2132,7 +2145,7 @@ export class BrMatch extends Duel {
       const won = side === winner;
       const placement = won ? 1 : Math.max(2, this.placedAt.get(side) ?? rest);
       if (id === this.id) this.finishBr(won, placement);
-      else this.links.get(id)?.send({ t: "brend", won, placement });
+      else this.sendEnd(id, won, placement);
     }
     this.brOver = true;
   }
@@ -2143,7 +2156,35 @@ export class BrMatch extends Duel {
     // placed behind every bot squad still up (in solo, every bot)
     const placement = won ? 1 : this.botSquadsAlive + 1;
     this.broadcast({ t: "brend", won, placement });
+    for (const id of this.held.keys()) this.endsOwed.set(id, { won, placement });
     this.finishBr(won, placement);
+  }
+
+  /**
+   * A guest's result: sent, or kept for its way back in while its seat is held. One getting back in as the match ended
+   * missed it, its seat went with the match's end, and it was told it had lost the connection, with no result and nothing
+   * on its record (Milestone 1005).
+   */
+  private sendEnd(id: number, won: boolean, placement: number): void {
+    const l = this.links.get(id);
+    if (l) l.send({ t: "brend", won, placement });
+    else if (this.held.has(id)) this.endsOwed.set(id, { won, placement });
+  }
+  private endsOwed = new Map<number, { won: boolean; placement: number }>();
+
+  /** (a seat held as the match ended stays held for its time, for its player to come back to their result) */
+  protected override keepsHeld(): boolean {
+    return super.keepsHeld() || (this.brOver && this.role === "host");
+  }
+
+  override rejoin(link: Link, id: number): boolean {
+    if (!super.rejoin(link, id)) return false;
+    const end = this.endsOwed.get(id);
+    if (end) {
+      this.endsOwed.delete(id);
+      link.send({ t: "brend", won: end.won, placement: end.placement });
+    }
+    return true;
   }
 
   private finishBr(won: boolean, placement: number): void {
