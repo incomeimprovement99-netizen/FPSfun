@@ -1104,7 +1104,15 @@ export class BrMatch extends Duel {
   override takeOver(snap: HeirSnapshot): void {
     if (this.role !== "host") this.hostHeardAt = this.remotes.get(this.hostId)?.lastHeard ?? -Infinity;
     super.takeOver(snap);
+    for (const id of this.held.keys()) this.backAt.set(id, wallClock());
   }
+
+  /**
+   * When each guest came back in, to this host or to this page as the heir: a place of theirs heard before it is from
+   * before their drop, and a take they asked for while away, sent ahead of any state on the way back, was judged on it and
+   * refused 30 m on (Milestone 1008)
+   */
+  private backAt = new Map<number, number>();
 
   /** the pods: called, falling under smoke, then landing (the host lays out a package's items) */
   private updatePods(now: number): void {
@@ -2171,6 +2179,7 @@ export class BrMatch extends Duel {
     // placed behind every bot squad still up (in solo, every bot)
     const placement = won ? 1 : this.botSquadsAlive + 1;
     this.broadcast({ t: "brend", won, placement });
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID) this.endsOwed.set(r.id, { won, placement });
     for (const id of this.held.keys()) this.endsOwed.set(id, { won, placement });
     this.finishBr(won, placement);
   }
@@ -2181,9 +2190,10 @@ export class BrMatch extends Duel {
    * on its record (Milestone 1005).
    */
   private sendEnd(id: number, won: boolean, placement: number): void {
-    const l = this.links.get(id);
-    if (l) l.send({ t: "brend", won, placement });
-    else if (this.held.has(id)) this.endsOwed.set(id, { won, placement });
+    this.links.get(id)?.send({ t: "brend", won, placement });
+    // (kept for every guest, sent or not: a link that died silently in the match's last seconds took it, and is seen gone
+    // only after the end, Milestone 1008)
+    this.endsOwed.set(id, { won, placement });
   }
   private endsOwed = new Map<number, { won: boolean; placement: number }>();
 
@@ -2194,6 +2204,7 @@ export class BrMatch extends Duel {
 
   override rejoin(link: Link, id: number): boolean {
     if (!super.rejoin(link, id)) return false;
+    this.backAt.set(id, wallClock());
     const end = this.endsOwed.get(id);
     if (end) {
       this.endsOwed.delete(id);
@@ -2277,7 +2288,9 @@ export class BrMatch extends Duel {
           // across the map, was granted (Milestone 1007). Its own echo from anywhere (a won Gulag clears it from the sky),
           // and what lies round it: a restore clears its death's guns there, the ghost it was perhaps across the street.
           const d = f.drops.get(key)!;
-          const last = this.remotes.get(from)?.samples.at(-1);
+          const them = this.remotes.get(from);
+          // (a place from before they came back in is no place: unknown, as with none)
+          const last = (them?.stateHeardAt ?? -Infinity) >= (this.backAt.get(from) ?? -Infinity) ? them?.samples.at(-1) : undefined;
           const now = wallClock();
           const own = d.item.kind === "echo" && d.item.owner === from;
           const echo = [...f.drops.values()].find((e) => e.item.kind === "echo" && e.item.owner === from)?.pos ?? (now < (this.echoCleared.get(from)?.until ?? -Infinity) ? this.echoCleared.get(from)!.at : null);

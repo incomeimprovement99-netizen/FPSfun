@@ -74,7 +74,7 @@ const run = (steps: Array<{ d: Any; l: () => Any }>, seconds: number, wire: Wire
   }
 };
 /** a host and two guests, landed and fighting, the host's heir named */
-function start(): { host: Any; heir: Any; wire: Wire; ls: Array<{ d: Any; l: () => Any }> } {
+function start(): { host: Any; heir: Any; g2: Any; wire: Wire; ls: Array<{ d: Any; l: () => Any }>; pos: Array<{ x: number; z: number }> } {
   const wire = new Wire();
   const host = makeMatch({ players: 3, myId: 0, team: "trio" });
   const guests: Any[] = [];
@@ -91,11 +91,13 @@ function start(): { host: Any; heir: Any; wire: Wire; ls: Array<{ d: Any; l: () 
   host.holdFire = true;
   const mid = decay.centreOf(host.decay.final);
   const safe = { x: br.BR_X + mid.x + 3, z: br.BR_Z + mid.z };
-  const ls = [{ d: host, l: () => local({ ...safe }) }, ...guests.map((gm, i) => ({ d: gm, l: () => local({ x: safe.x + 1 + i, z: safe.z }) }))];
+  // (where each stands, which a check may move)
+  const pos = [{ ...safe }, { x: safe.x + 1, z: safe.z }, { x: safe.x + 2, z: safe.z }];
+  const ls = [host, ...guests].map((d, i) => ({ d, l: () => local({ ...pos[i] }) }));
   for (let i = 0; i < 400 && host.phase !== "fight"; i++) run(ls, 1 / 30, wire);
   for (let i = 0; i < 60 * 30 && !host.canMigrate(); i++) run(ls, 1 / 30, wire);
   run(ls, 1.2, wire);
-  return { host, heir: guests[0], wire, ls };
+  return { host, heir: guests[0], g2: guests[1], wire, ls, pos };
 }
 const gone = (host: Any): void => {
   host.ended = true;
@@ -217,6 +219,43 @@ console.log("\nThe host's word on a guest's take (src/game/brmatch.ts)");
     !left(near) && left(far) && !left(echo) && !left(byEcho),
     JSON.stringify({ near: !left(near), far: !left(far), echo: !left(echo), byEcho: !left(byEcho) }),
   );
+}
+
+{
+  // (Milestone 1008) a take asked for while away, 30 m from where the host last had the guest: sent ahead of any state on
+  // the way back in, it was judged on the place from before the drop and refused
+  const { host, g2, wire, ls, pos } = start();
+  const s0 = host.remotes.get(2).samples.at(-1);
+  const key = host.lootField.keyNext;
+  host.dropLoot({ kind: "weapon", id: "r97", n: 1, rarity: "common", fusion: 0 }, new THREE.Vector3(s0.x + 30, s0.y + 0.5, s0.z));
+  run(ls, 0.2, wire);
+  host.links.get(2).onClose();
+  g2.hostLink.onClose();
+  const d = g2.lootField.drops.get(key);
+  pos[2] = { x: d.pos.x, z: d.pos.z };
+  run(ls, 5, wire);
+  g2.takeLoot(key);
+  const [h, gl] = wire.pair(0, 2);
+  host.rejoin(h, 2);
+  g2.swapHost(gl, 0);
+  run(ls, 0.5, wire);
+  check("a take asked for while away is granted on the way back in, the guest 30 m from where it dropped", !host.lootField.drops.has(key));
+}
+{
+  // (Milestone 1008) a guest's link dies silently in the match's last seconds: seen gone only after the end, 10 s on
+  const { host, g2, wire, ls } = start();
+  const hostEnd = host.links.get(2);
+  hostEnd.send = () => undefined;
+  g2.hostLink.onClose();
+  host.endBr(true);
+  run([ls[0], ls[1]], 1, wire);
+  hostEnd.onClose?.();
+  const held = host.held.has(2);
+  const [h, gl] = wire.pair(0, 2);
+  const back = host.rejoin(h, 2);
+  g2.swapHost(gl, 0);
+  run(ls, 0.5, wire);
+  check("a guest whose drop is seen only after the end still gets its result on the way back in", held && back && g2.brOver && g2.placement === 1, JSON.stringify({ held, back, over: g2.brOver }));
 }
 
 console.log(fails === 0 ? "\nBR HEIR PASS" : `\nBR HEIR FAIL (${fails})`);

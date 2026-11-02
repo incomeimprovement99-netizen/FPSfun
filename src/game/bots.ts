@@ -1220,7 +1220,8 @@ export class Bot {
     // Someone else is a new sighting too: a target swapped with no gap between kept the last one's reaction spent and its
     // aim settled, and was shot at once with the settled aim (Milestone 1000). Not one it saw a moment ago: the nearest of
     // two side by side changed back and forth every few frames, and each change held its fire for good (Milestone 1006).
-    const someoneElse = sees && !!this.lastSeen && this.lastSeen.id !== sense.targetId && now - (this.seenIds.get(sense.targetId) ?? -Infinity) > GLANCE;
+    // (within its reaction too: the nearest changing every 0.5 to 0.9 s still held a slow tier's fire for good, Milestone 1008)
+    const someoneElse = sees && !!this.lastSeen && this.lastSeen.id !== sense.targetId && now - (this.seenIds.get(sense.targetId) ?? -Infinity) > Math.max(GLANCE, tier.reaction);
     if (sees) this.seenIds.set(sense.targetId, now);
     if (sees && ((!this.sawLast && now - this.lastTargetAt > GLANCE) || someoneElse)) {
       // a new sighting: the reaction starts; an elite bot back round a corner where it lost you is already aimed

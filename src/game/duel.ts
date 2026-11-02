@@ -179,6 +179,8 @@ export interface Remote {
   /** when this screen last predicted a hit on them (wall clock): their packets may only lower their numbers for a while after (heardVital) */
   hitAt?: number;
   lastHeard: number;
+  /** when the host last had a state of theirs, by its own clock (a take judged on their place asks how fresh it is) */
+  stateHeardAt?: number;
   /** who this player's messages come in on (the host: their link; a guest: the host's) */
   link: Link;
 }
@@ -666,7 +668,9 @@ export class Duel implements MatchLike {
   protected guestDropped(id: number): void {
     const link = this.links.get(id);
     if (!link) return;
-    if (!this.holdsSeats()) {
+    // (a seat the match keeps held keeps a dropped player's too: a silent drop is seen 10 s late, after a battle royale's
+    // end, and its result went into the dead link, Milestone 1008)
+    if (!this.keepsHeld()) {
       this.guestLeft(id);
       return;
     }
@@ -1464,6 +1468,7 @@ export class Duel implements MatchLike {
     this.noteLateness(r, at, now);
     r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (Number.isFinite(m.sp) ? (m.sp as number) : 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), airJumps: typeof m.dj === "number" && Number.isFinite(m.dj) ? m.dj : 0, reloadEmpty: emptyReloadOf(ac) });
     if (r.samples.length > 30) r.samples.shift();
+    r.stateHeardAt = now;
     // Their own numbers lag our hits by a round trip, so just after a hit a
     // packet can only LOWER what we predicted; after that it is the truth, a
     // regeneration or a heal included (heardVital). A respawn (alive again) resets.

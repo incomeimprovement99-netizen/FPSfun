@@ -232,6 +232,15 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
     shots += b.update((t += 1 / 60), 1 / 60, { target: pair[k], targetId: k === 0 ? 3 : 4, goal: null, canShoot: true }).length;
   }
   check("a bot fires on two enemies side by side, the nearest flickering between them", shots >= 10, `${shots} rounds in 3 s`);
+  // (Milestone 1008) and a slow tier, the nearest changing every 0.55 s, longer than a glance and shorter than its reaction
+  const slow: Any = new Bot(0, scene, projectiles, DIFFICULTY.beginner, { x: 0, z: 0, yaw: 0 }, 1, "vinson");
+  let slowShots = 0;
+  for (let i = 0; i < 360; i++) {
+    slow.mag.left = 99;
+    const k = Math.floor(i / 33) % 2;
+    slowShots += slow.update((t += 1 / 60), 1 / 60, { target: pair[k], targetId: k === 0 ? 3 : 4, goal: null, canShoot: true }).length;
+  }
+  check("and a beginner fires with the nearest changing every 0.55 s, inside its 0.9 s reaction", slowShots >= 4, `${slowShots} rounds in 6 s`);
 }
 {
   const read = (f: string): string => readFileSync(new URL(`../../src/game/${f}`, import.meta.url), "utf8");

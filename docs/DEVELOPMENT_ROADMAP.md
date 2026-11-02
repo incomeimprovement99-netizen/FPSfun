@@ -14489,6 +14489,19 @@ guest's drop of any gun at any level is still taken at its word: the host keeps 
 
 - **Checked:** tsc, verify, rules; br-heir (a new check, failing with the reach test taken out, and with the echo's reach taken out); e2e squad, sksquad, brsolo.
 
+## Milestone 1008 — What Milestones 1005 to 1007 got wrong, from a third review
+
+A third fresh review, of the last three, each fault run. M1006's half-second glance was shorter than the slower tiers' reactions (Beginner's 0.9 s, Easy's
+0.6): the nearest of two enemies changing every 0.52 to 0.9 s still held their fire for good, 0 rounds in 6 s. A target seen within the glance or the
+bot's reaction, whichever is longer, is no new sighting. M1005 held a seat as a battle royale ended only for a drop the host had already seen; a link that
+died silently in the last seconds is seen 10 s late, after the end, and its result had gone into the dead link. A drop seen after the end is held now, and
+every guest's result is kept to be sent again on the way back in. And M1007 judged a take a guest asked for while away on its place from before the drop,
+the take reaching the host ahead of any state, and refused it 30 m on; a place heard before a guest came back in counts as no place (duel.ts, bots.ts,
+brmatch.ts).
+
+- **Checked:** tsc, verify, rules; br-heir and arena-rules (three new checks, each failing with its fault put back); the review's three probes on the fixed
+  code; e2e bots, migrate, brsolo, p2p.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
