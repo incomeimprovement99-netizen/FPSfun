@@ -101,6 +101,8 @@ export class RangeCombat {
   private seenAt = new Map<Dummy, number>();
   private nextShot = new Map<Dummy, number>();
   private err = new Map<Dummy, { x: number; y: number; at: number }>();
+  /** the share of a round that reaches you (ARMOR, main.ts) */
+  incoming: () => number = () => 1;
   onHurt: ((amount: number, from: THREE.Vector3) => void) | null = null;
   onDown: (() => void) | null = null;
   onUp: (() => void) | null = null;
@@ -115,8 +117,9 @@ export class RangeCombat {
     this.alive = true;
   }
 
-  private takeHit(amount: number, from: THREE.Vector3, now: number): void {
+  private takeHit(raw: number, from: THREE.Vector3, now: number): void {
     if (!this.alive) return;
+    const amount = raw * this.incoming();
     const toShield = Math.min(this.shield, amount);
     this.shield -= toShield;
     this.health = Math.max(0, this.health - (amount - toShield));
@@ -129,7 +132,7 @@ export class RangeCombat {
   }
 
   /** the nearest dummies that can see you fire, with a bot's aim at the level set */
-  update(now: number, dummies: Dummy[], feet: THREE.Vector3, projectiles: ProjectileSystem, weapon: ResolvedWeapon): void {
+  update(now: number, dummies: Dummy[], feet: THREE.Vector3, projectiles: ProjectileSystem, weapon: ResolvedWeapon, top?: number): void {
     if (!this.on) return;
     if (!this.alive) {
       if (now >= this.downUntil) {
@@ -145,6 +148,8 @@ export class RangeCombat {
       .map((d) => ({ d, dist: d.group.position.distanceTo(feet) }))
       .sort((a, b) => a.dist - b.dist)
       .slice(0, cfg.combat.shooters);
+    // (one that lost you any way sees you afresh: back up from down or back inside its range it fired in 0.02 s, its aim settled)
+    for (const d of this.seenAt.keys()) if (!shooters.some((s) => s.d === d)) this.seenAt.delete(d);
     for (const { d } of shooters) {
       const from = d.group.position.clone().setY(d.group.position.y + 1.35);
       const toYou = chest.clone().sub(from);
@@ -165,7 +170,7 @@ export class RangeCombat {
       const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
       dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), (e.x * Math.PI) / 180).applyAxisAngle(side, (e.y * Math.PI) / 180).normalize();
       projectiles.fire(from, dir, weapon, true);
-      if (hitsBody(from, dir, feet)) this.takeHit(weapon.damage.near, from, now);
+      if (hitsBody(from, dir, feet, top)) this.takeHit(weapon.damage.near, from, now);
     }
   }
 }
@@ -478,9 +483,9 @@ export class FlickDrill {
     this.target.group.updateMatrixWorld(true);
   }
 
-  /** your shots while it runs (per pellet, as the range's accuracy counts) */
+  /** a trigger pull, or a swing (no shots), while it runs: its accuracy is pulls to figures, a perfect BIGANTLER read 20% by the pellet */
   onShot(n: number): void {
-    if (this.state === "running") this.shots += n;
+    if (this.state === "running" && n > 0) this.shots++;
     this.pull++;
   }
 
@@ -489,7 +494,13 @@ export class FlickDrill {
     if (d !== this.target || this.state !== "running") return false;
     // One figure a trigger pull (Milestone 918): a shotgun's pellet still in flight that met the next figure where it came
     // up cleared it unseen, now and then two with BIGANTLER's five (a figure's new place, counted at once, was the rest)
-    if (this.hitPull === this.pull) return true;
+    // (up again, for a round of its own: the hit has knocked it, and with no next figure the board lay down for good, the clock
+    // running, 16 drills in 120 with BIGANTLER, Milestone 994)
+    if (this.hitPull === this.pull) {
+      this.target.popUp();
+      this.target.group.updateMatrixWorld(true);
+      return true;
+    }
     this.hitPull = this.pull;
     this.hits++;
     this.done++;

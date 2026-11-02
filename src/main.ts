@@ -74,7 +74,7 @@ import { Trails } from "./game/trails";
 import { selfFadeAt, spectateCamera } from "./game/tpcam";
 import DECAY_CFG from "./config/decay.json";
 import { Hacks, HACK, HACK_DEFS, cooldownOf, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
-import { BotMatch, MOST_BOTS, tierSpeed } from "./game/bots";
+import { BotMatch, MOST_BOTS, tierSpeed, CROUCH_TOP } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
 import { flushScores, submitScore } from "./game/leaderboard";
@@ -1636,6 +1636,7 @@ function rocketBlast(at: THREE.Vector3, travelled: number, w: ResolvedWeapon, on
 const dummyBehaviour = new DummyBehaviour(dummies);
 const rangeCombat = new RangeCombat();
 const combatWeapon = resolveWeapon(rangeToolsCfg.combat.weapon);
+rangeCombat.incoming = () => (gameTime < armorUntil ? H.armor.damageScale : 1);
 rangeCombat.onHurt = (amount) => {
   hud.hurt(gameTime);
   audio.hurt(rangeCombat.shield > 0);
@@ -1660,6 +1661,7 @@ drill.onFinish = (time, acc) => {
   audio.stinger(time <= (drill.best ?? Infinity) + 1e-6 ? "won" : "lost");
   profile.recordRun("drill", time, rank);
   profile.flush();
+  account.sync();
   void submitScore("course:drill", profile.profile.name, Number(time.toFixed(3))).then((r) => {
     if (r !== null) hud.notice(`#${r} ON THE ONLINE BOARD`, gameTime, 3);
   });
@@ -1743,6 +1745,13 @@ const realNow = (): number => performance.now() / 1000;
 // the range's ammo: endless (the default), or counted like a match (Settings)
 const rangeAmmoSel = $<HTMLSelectElement>("rangeAmmo");
 let rangeAmmoCounted = false;
+/**
+ * Ammo for the guns in your hands, on Counted, whenever they change outside a match. Only a match's end and this box's own change
+ * filled the pouch: a page opened on Counted, a gun from a stand, THE RUN's pistols and the tutorial's gun had no reload (Milestone 994).
+ */
+const pouchUp = (): void => {
+  if (rangeAmmoCounted && !duel) loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
+};
 try {
   rangeAmmoCounted = localStorage.getItem("range.ammo") === "counted";
 } catch {
@@ -3515,6 +3524,16 @@ function kitSight(): { reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, rang
   return d && typeof d.reveal === "function" && d.shown instanceof Set ? (d as never) : null;
 }
 
+/** the range's dummies standing in a REVEAL's cone */
+function rangeDummiesAhead(fwd: THREE.Vector3): number {
+  const cos = Math.cos((H.reveal.cone * DEG) / 2);
+  return dummies.filter((d) => {
+    const to = d.group.position.clone().sub(player.pos);
+    const dist = to.length();
+    return d.group.visible && !d.knocked && dist <= H.reveal.range && to.dot(fwd) / Math.max(dist, 1e-3) >= cos;
+  }).length;
+}
+
 /** when something last hurt this player (SpeedKills' shield and health wait this out) */
 let lastHurtAt = -Infinity;
 
@@ -3983,7 +4002,8 @@ function useHack(slot: HackSlot, now: number): void {
     }
     case "reveal": {
       // a cone the way you look, as Hyper Scape's final Reveal was (a 50 degree frustum out to 60 m; Phase 20 A9)
-      const n = kitSight()?.reveal(player.pos, fwd, H.reveal.range, H.reveal.cone, H.reveal.seconds) ?? 0;
+      // (on the range's dummies too: facing four it said NOBODY THERE, where the tutorial says to try it, Milestone 994)
+      const n = kitSight()?.reveal(player.pos, fwd, H.reveal.range, H.reveal.cone, H.reveal.seconds) ?? (duel ? 0 : rangeDummiesAhead(fwd));
       audio.pingTick();
       audio.hackSound("reveal");
       // and heard by the others where you are (Milestone 926): the one hack nobody else heard, its caption never shown
@@ -4128,7 +4148,8 @@ function stepHacks(now: number, dt: number): void {
       healZones.splice(i, 1);
       continue;
     }
-    const v = d as unknown as { health?: number; shield?: number; shieldMax?: number; alive?: boolean } | null;
+    // (in the range, what the dummies have taken: HEAL healed nothing under their fire, Milestone 994)
+    const v = (d ?? (rangeCombat.on ? rangeCombat : null)) as unknown as { health?: number; shield?: number; shieldMax?: number; alive?: boolean } | null;
     if (v && typeof v.health === "number" && typeof v.shield === "number" && v.alive !== false && player.pos.distanceTo(z.at) <= H.heal.radius) {
       const top = SK_HEALTH?.health ?? HEALTH_MAX;
       if (v.health < top || (typeof v.shieldMax === "number" && v.shield < v.shieldMax)) healingNow = 1;
@@ -4179,10 +4200,12 @@ function stepHacks(now: number, dt: number): void {
     mines.splice(i, 1);
   }
   // others under ARMOR: their gold shell while it lasts (Milestone 694), in any match (a bots' arena is no Duel)
-  if (d) {
+  // (the range together too: a friend's ARMOR sounded there with no gold shell, Milestone 994)
+  const shown = d ?? hangout;
+  if (shown) {
     const t = realNow();
-    for (const a of d.avatars) {
-      const r = d.remoteOf(a);
+    for (const a of shown.avatars) {
+      const r = shown.remoteOf(a);
       const until = r ? armoredUntil.get(r.id) : undefined;
       a.setArmored(until !== undefined && t < until);
       if (r && until !== undefined && t >= until) armoredUntil.delete(r.id);
@@ -4230,6 +4253,8 @@ function stepUnseen(): void {
     sel.addEventListener("change", () => {
       const now = savedPicks();
       savePicks({ ...now, [slot]: sel.value as HackId });
+      // (kept through a run: its end gave the old pick back, the box saying one hack and your hands holding another, Milestone 994)
+      savedHacks = savedHacks?.map((h) => (hackSlotOf(h.id) === slot ? { id: sel.value as HackId, level: 0 } : h)) ?? null;
       // (not over the tutorial's: the room asking for its hack could no longer be passed; its end sets your picks, onReset)
       if (!duel && !tutorial.active) resetHacks();
     });
@@ -4463,6 +4488,7 @@ tutorial.onStep = (title, index) => {
   if (index === GUN_STEP) {
     tutorialSlots ??= loadout.slots.map((_, i) => loadout.setup(i));
     loadout.setWeaponId(loadout.activeIndex, TUTORIAL_GUN);
+    pouchUp();
     holster = "raising";
     holsterAt = gameTime;
   }
@@ -4471,6 +4497,7 @@ tutorial.onReset = () => {
   if (tutorialSlots) {
     tutorialSlots.forEach((su, i) => loadout.restore(i, su));
     tutorialSlots = null;
+    pouchUp();
   }
   if (!duel) resetHacks();
   if (holster === "away" || holster === "lowering") {
@@ -4701,17 +4728,18 @@ function armorySay(st: ArmoryStation): string {
 
 /** a stand of the armory taken: as a copy off a match's floor is (applyLoot: the same one fuses a level up) */
 function takeFromArmory(st: ArmoryStation): void {
+  queueMicrotask(pouchUp);
   applyLoot(st.kind === "gun" ? { kind: "weapon", id: st.id, n: 1, rarity: "common", fusion: 0 } : { kind: "hack", id: st.id, n: 0, rarity: "common" });
 }
+
+/** when each gun you put down could next fire */
+const boltOwed = new Map<string, number>();
 
 /**
  * Guns into empty hands all at once, the one you held up in one raise. One at a time, as loot, each was a pickup with its
  * sounds and its name over the notice saying where you are, and you stood 1.28 s gunless to end on the second gun whichever
  * you had died holding (Milestone 969).
  */
-/** when each gun you put down could next fire */
-const boltOwed = new Map<string, number>();
-
 function giveGuns(kit: LootItem[], hand: string): void {
   let i = 0;
   for (const it of kit) {
@@ -5418,7 +5446,10 @@ function startHangout(link: Link, myId: number, guestId: number): void {
   cancelJoin = null;
   // (as any other way out of these: a step of the tutorial read the teleport as done, and a run's clock ran on, Milestone 960)
   for (const c of courses) c.leave();
+  // (out of its rooms: their doors all shut behind the reset, a host in one stood shut in with no word, Milestone 994)
+  const inRooms = tutorial.active || courseTutorial.inside;
   if (tutorial.active) tutorial.reset();
+  if (inRooms) player.teleport(0, 0, 0, 0);
   drill.stop();
   const h = new Duel(scene, projectiles, { players: MAX_PLAYERS, myId, link, guestId, mode: "range" });
   hangout = h;
@@ -5640,6 +5671,8 @@ function endMatch(reason: string): void {
   // any wall the WALL hack put up goes with the match
   clearWalls();
   voiceStop();
+  // (the Guns rule wrote over your slots: the range and every later match kept the rule's guns, Milestone 994)
+  const ruled = matchGuns !== null;
   matchGuns = null;
   flushTally();
   // a match that ran to its end keeps the group: its links, handed back open (leaving closed them)
@@ -5662,9 +5695,8 @@ function endMatch(reason: string): void {
   // the match's bullet holes and sprays go with it
   impacts.clear();
   sprays.clear();
-  // back in the range: ammo as Settings says (a pouch a loot start emptied filled again, or Counted could not reload, Milestone 969)
+  // back in the range: ammo as Settings says
   loadout.ammo.infinite = !rangeAmmoCounted;
-  if (rangeAmmoCounted) loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
   killcam.stop();
   recap = null;
   recorder.clear();
@@ -5677,7 +5709,8 @@ function endMatch(reason: string): void {
     for (let i = 0; i < loadout.slots.length; i++) if (loadout.slots[i].empty) loadout.give(i, [loadouts.current.slot1, loadouts.current.slot2][i]);
     applyLoadout(loadouts.current);
     brPlay.reset();
-  }
+  } else if (ruled) applyLoadout(loadouts.current);
+  pouchUp();
   // the host's code stays open behind a kept group (no new friends join it); otherwise it goes
   if (party && "guests" in party) hosting?.stopAccepting();
   else if (!takingOver) {
@@ -5946,10 +5979,7 @@ duelJoinBtn.addEventListener("click", () => {
 });
 // the Flick drill button: to the pad, facing downrange, the countdown starts once you are in
 $("goDrill").addEventListener("click", () => {
-  if (duel) {
-    hud.notice("LEAVE THE MATCH FIRST", gameTime, 2);
-    return;
-  }
+  // (out of a match too: the refusal sat under the menu, so the button looked dead, the fault goTo's own comment records)
   goTo("range");
   player.teleport(rangeToolsCfg.drill.padX, 0, rangeToolsCfg.drill.padZ, 0);
   drill.start(gameTime);
@@ -6264,6 +6294,7 @@ function sendCityTextures(compiled: Promise<unknown>, drawn: THREE.Object3D[]): 
 const loadout = new Loadout([loadouts.current.slot1, loadouts.current.slot2]);
 // (the range's ammo as the box says from the start: Counted read Counted after a reload, and the range was endless, Milestone 960)
 loadout.ammo.infinite = !rangeAmmoCounted;
+pouchUp();
 // from here the readout describes the gun actually in hand, attachments included
 currentWeapon = () => loadout.active.weapon;
 currentOpticZoom = () => {
@@ -6288,6 +6319,9 @@ for (const course of courses) {
       if (!savedSlots) savedSlots = loadout.slots.map((_, i) => loadout.setup(i));
       loadout.setWeaponId(0, "semipistol");
       loadout.setWeaponId(1, "g17");
+      pouchUp();
+      // (and the drill, left on a walk into the run: both clocks and both HUDs went on)
+      drill.stop();
       // and your hacks at their first level, as a lent gun is: DASH at level 4 crossed the GAP in one, on a course with a board
       // whose every room is passed by its own move (Milestone 954)
       if (!savedHacks) {
@@ -6297,6 +6331,7 @@ for (const course of courses) {
     } else if (savedSlots) {
       savedSlots.forEach((su, i) => loadout.restore(i, su));
       savedSlots = null;
+      pouchUp();
       for (const h of savedHacks ?? []) hacks.set(h.id, h.level);
       savedHacks = null;
     }
@@ -6355,6 +6390,7 @@ function applyLoadout(def: LoadoutDef): void {
   viewModel.setLook(operatorWearing(def.operator, lookCode()));
   viewModel.setHeirloom(def.heirloom);
   refreshDerived();
+  pouchUp();
 }
 
 /** the modes played on the range's side of the world: the range together goes on through them */
@@ -6362,6 +6398,10 @@ const RANGE_SIDE: ReadonlySet<Mode> = new Set<Mode>(["range", "lab", "run", "tut
 /** go somewhere to play, from the menu: the range, a course's start, the lab, or a match */
 function goTo(mode: Mode): void {
   if (mode === "duel") return;
+  // (a SLAM started in the range went off at THE RUN's start, and a GRAPPLE pulled you from the new place, Milestone 994)
+  skSlam = null;
+  skPull = null;
+  skLeap = false;
   // anything else, on your own, is leaving the group (its host starts the group's matches: Start for everyone)
   if (hangout && !RANGE_SIDE.has(mode)) hangout.leave();
   // In a match the arena and your spawn are the match's, so a jump elsewhere
@@ -7120,6 +7160,9 @@ function step(): void {
   let dt = wall - last;
   last = wall;
   if (dt > 0.1) dt = 0.1;
+  // The menu holds a run, body and all: it stopped the clock alone, and behind it the GAP took 1.12 s of clock for 2.05, a jump
+  // flying on and DASH's cooldown running out at no cost (Milestone 994).
+  if (!duel && courseRunning() && !input.playing && !scriptInput) dt = 0;
   // `now` is a game clock that advances by the CLAMPED dt. Using wall time for
   // the schedulers while the integrators saw a clamped dt made them disagree
   // after a hitch: the fire scheduler and decay delays would think a full
@@ -7238,6 +7281,8 @@ function step(): void {
     if (handsOut && !knockedOut && !player.aboard && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       swungAt = now;
+      // (a pull to the drill: two punched figures with no shot between were one pull, and the second stood down for good, Milestone 994)
+      drill.onShot(0);
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
@@ -7343,6 +7388,7 @@ function step(): void {
     if (input.pressedNow("melee") && now >= meleeReadyAt && !loadout.swapping && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       swungAt = now;
+      drill.onShot(0);
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
@@ -7391,7 +7437,7 @@ function step(): void {
     // F (a pad's LB): SpeedKills' mobility hack; G (RB) the utility one, below
     if (input.pressedNow("ability") && !knockedOut) useHack("mobility", now);
     // K: race your best run's ghost, or not
-    if (input.pressedNow("ghost")) {
+    if (!duel && input.pressedNow("ghost")) {
       const course = activeCourse();
       const on = course.toggleGhost();
       hud.notice(on ? (course.hasGhost ? "GHOST ON" : "GHOST ON: finish a run to record one") : "GHOST OFF", now, 1.4);
@@ -8100,7 +8146,7 @@ function step(): void {
   // the range's tooling: moving dummies, the ones that shoot back, the drill, the trainer
   if (!duel) {
     dummyBehaviour.update(now, dt);
-    if (input.playing || scriptInput) rangeCombat.update(now, dummies, player.pos, projectiles, combatWeapon);
+    if (input.playing || scriptInput) rangeCombat.update(now, dummies, player.pos, projectiles, combatWeapon, player.crouched ? CROUCH_TOP : undefined);
     // the menu open: the drill's clock waits
     if (!input.playing && !scriptInput) drill.hold(dt);
     drill.update(now);

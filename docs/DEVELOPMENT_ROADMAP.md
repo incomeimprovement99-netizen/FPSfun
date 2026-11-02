@@ -14334,6 +14334,18 @@ card ran off a narrow window. F8 lost the neon night (gamepad.ts, input.ts, bind
 
 - **Checked:** tsc, verify, rules; hudfit; e2e page, pad.
 
+## Milestone 994 — The range and its courses, from a review
+
+The flick drill hung with a shotgun, 16 drills in 120 with BIGANTLER, the board lying down with no next one and the clock running. A match's Guns rule left its guns in your
+hands for the range and every match after. The menu stopped THE RUN's clock but not the run: the GAP took 1.12 s for 2.05, DASH's cooldown ran out at no cost, and it went to the board;
+the menu holds the body now, as its name says. Counted ammo left guns with no reload six ways. A host in a tutorial room when a friend joined was shut in behind nine doors. REVEAL,
+HEAL and ARMOR do something on the dummies, as the tutorial says they do, and crouching counts against their fire. The tutorial's beacon and the run's ghost stood on in a match. A
+shoot-back dummy back up from down fired in 0.02 s. A friend's ARMOR had no shell in the range together. The drill's accuracy counted pellets, and its best was lost to an account's worse one. Its
+button refused in a match, unseen under the menu; it goes as a mode does. A hack picked mid-run was undone at its end. The drill ran on into THE RUN, a SLAM or GRAPPLE crossed a menu teleport,
+and K worked in a match (rangetools.ts, tutorial.ts, course.ts, mergeprofile.ts, main.ts).
+
+- **Checked:** tsc, verify, rules; arena rules; e2e range, finish, sktutorial, page.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

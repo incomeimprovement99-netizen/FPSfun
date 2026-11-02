@@ -294,6 +294,8 @@ export class Tutorial {
   /** out of it: back to before the first room */
   reset(): void {
     const was = this.active || this.doors.some((d) => d.openedAt !== null);
+    // (its own update is what hid it, and no update runs in a match: a 9 m green column stood at the city's edge, Milestone 994)
+    this.showBeacon(null, 0);
     this.index = -1;
     this.skipFrom = -Infinity;
     for (const d of this.doors) {

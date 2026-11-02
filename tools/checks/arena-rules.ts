@@ -360,6 +360,14 @@ console.log("\nThe hands and the guns (src/game/loadout.ts, weapon-state.ts, rec
   check("no sights on the ship or in a dive", /!loadout\.active\.empty && !player\.dropping && !player\.aboard;/.test(page));
   check("a rocket on a range target goes by its face", /const point = t\.hitMeshes\[0\]\.getWorldPosition/.test(page));
   check("a rule keeps the guns on its own list", /if \(s\.empty \|\| list\.includes\(s\.id\)\) continue;/.test(page));
+  // (Milestone 994) the range's own
+  const tools = readFileSync(new URL("../../src/game/rangetools.ts", import.meta.url), "utf8");
+  check("a drill's figure knocked by the same pull stands up again", /if \(this\.hitPull === this\.pull\) \{\s+this\.target\.popUp\(\);/.test(tools));
+  check("the menu holds a run, body and all", /if \(!duel && courseRunning\(\) && !input\.playing && !scriptInput\) dt = 0;/.test(page));
+  check("a match's Guns rule ends with it", /else if \(ruled\) applyLoadout\(loadouts\.current\);/.test(page));
+  check("the tutorial's beacon and the run's ghost go with them", /this\.showBeacon\(null, 0\);/.test(readFileSync(new URL("../../src/game/tutorial.ts", import.meta.url), "utf8")) && /this\.ghostFig\.visible = false;\s+for \(const d of this\.enemies\)/.test(readFileSync(new URL("../../src/game/course.ts", import.meta.url), "utf8")));
+  const { mergeProfiles, isRecordKey } = await import("../../src/net/mergeprofile");
+  check("the drill's best is a record, and the lower one stands", isRecordKey("range.drill.blink") && mergeProfiles({ "range.drill.blink": "20.5" }, { "range.drill.blink": "33.1" })["range.drill.blink"] === "20.5");
 }
 
 console.log(fails === 0 ? "\nARENA RULES PASS" : `\nARENA RULES FAIL (${fails})`);

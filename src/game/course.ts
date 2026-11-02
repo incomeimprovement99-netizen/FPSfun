@@ -857,6 +857,8 @@ export class Course {
   /** hide every enemy and clear the run */
   reset(): void {
     this.returnAt = Infinity;
+    // (and the ghost: only a course's own update hid it, and a run left for a match took it along, Milestone 994)
+    this.ghostFig.visible = false;
     for (const d of this.enemies) d.hide();
     this.roomTriggered.fill(false);
     if (this.running) {

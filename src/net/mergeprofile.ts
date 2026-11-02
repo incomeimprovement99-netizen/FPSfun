@@ -11,10 +11,12 @@ type Obj = Record<string, unknown>;
 
 const PROGRESS = "range.progress.v1";
 const STATS = "range.profile.v1";
+/** the flick drill's best, the lower the better (a merge kept the account's: 20.5 lost to 33.1, and a 25 then read NEW BEST, Milestone 994) */
+const DRILL = "range.drill.blink";
 /** a course's best time, by the keys course.ts storageKeys gives: its prefix */
 const BEST = /^(range\.course(?:\..+)?)\.best$/;
 /** every key of a player's record, kept apart from their settings */
-export const isRecordKey = (k: string): boolean => k === PROGRESS || k === STATS || k.startsWith("range.course");
+export const isRecordKey = (k: string): boolean => k === PROGRESS || k === STATS || k === DRILL || k.startsWith("range.course");
 
 const parsed = (t: string | undefined): Obj | null => {
   if (t === undefined) return null;
@@ -87,6 +89,7 @@ export function mergeProfiles(mine: Copy, theirs: Copy): Copy {
   };
   whole(PROGRESS, mergeProgress);
   whole(STATS, mergeStats);
+  if (Number(mine[DRILL]) > 0 && !(Number(theirs[DRILL]) <= Number(mine[DRILL]))) out[DRILL] = mine[DRILL];
   // a course's best time, and the splits and the ghost of that run with it
   for (const [k, v] of Object.entries(mine)) {
     const at = BEST.exec(k);
