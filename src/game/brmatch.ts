@@ -2486,7 +2486,7 @@ export class BrMatch extends Duel {
     const RS = PROFILE.loot?.restock;
     if (RS && this.role === "host" && this.lootField && this.phase === "fight" && now >= this.restockAt) {
       this.restockAt = now + RS.every;
-      for (const { item, at } of this.lootField.restockPlan(RS, Math.random)) this.dropLoot(item, at);
+      for (const { item, at } of this.lootField.restockPlan(RS, Math.random, (x, z) => this.lostAt(x, z))) this.dropLoot(item, at);
     }
     // a care package inside the next ring as br.json's rounds close; the
     // squad is told the whole warning, announce and fall, so every screen

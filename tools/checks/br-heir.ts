@@ -41,7 +41,7 @@ console.warn = warn;
 type Any = any;
 const scene = new THREE.Scene();
 const projectiles = { addDummy: () => undefined, removeDummy: () => undefined, fire: () => undefined } as never;
-const via = (v: unknown): unknown => unpack(pack(withoutUndefined(v) as never));
+const via = (v: unknown): unknown => unpack(pack(withoutUndefined(v) as Parameters<typeof pack>[0]) as ArrayBuffer);
 class Wire {
   q: Array<() => void> = [];
   pair(a: number, b: number): [Any, Any] {

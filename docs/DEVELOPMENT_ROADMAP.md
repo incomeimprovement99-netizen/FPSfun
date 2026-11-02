@@ -14446,6 +14446,15 @@ now, as a key's always did (brmatch.ts, link.ts, main.ts, br.json).
   the live check run against the local page, failing on the countdown with M1001's swallow and passing without; e2e pad, page, speedkills, sktutorial,
   skwall, migrate.
 
+## Milestone 1004 — No restock on a dissolved street
+
+From the review of the BR after the landing. The hot zone's restock (speedkills.json loot.restock) laid its guns on any of the zone's spots, so where THE
+TOWER is not the final sector, guns kept landing on its street after the decay had taken it. A spot on a sector that is decaying or gone is passed over now
+(loot.ts restockPlan, brmatch.ts). And tools/checks/br-heir.ts typed PeerJS's packing as nothing, which verify's run passed and the deploy's own tsc refused,
+so Milestone 1003's first deploy stopped at its build; it is typed as the net harness types it.
+
+- **Checked:** tsc, verify, rules; arena-rules (a new check, failing with the fault put back: 4 of 9 restocked items on the gone ground).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

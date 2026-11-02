@@ -599,10 +599,11 @@ export class LootField {
    * nothing near are rolled again, up to `batch` of them. Says what to put
    * down where; the caller keys and sends each (brmatch.ts dropLoot).
    */
-  restockPlan(R: { below: number; batch: number; near: number }, rnd: () => number): Array<{ item: LootItem; at: THREE.Vector3 }> {
+  restockPlan(R: { below: number; batch: number; near: number }, rnd: () => number, gone: (x: number, z: number) => boolean = () => false): Array<{ item: LootItem; at: THREE.Vector3 }> {
     const held = this.hotHeld();
     if (!this.hotStock || held.length >= R.below * this.hotStock) return [];
-    const empty = this.hotSpots.filter((s) => !held.some((d) => Math.hypot(d.pos.x - s.x, d.pos.z - s.z) < R.near && Math.abs(d.pos.y - s.y) < 1.5));
+    // (not where the decay has taken the ground: guns kept landing on a dissolved street, Milestone 1004)
+    const empty = this.hotSpots.filter((s) => !gone(s.x, s.z) && !held.some((d) => Math.hypot(d.pos.x - s.x, d.pos.z - s.z) < R.near && Math.abs(d.pos.y - s.y) < 1.5));
     const out: Array<{ item: LootItem; at: THREE.Vector3 }> = [];
     for (let i = 0; i < R.batch && empty.length; i++) {
       const s = empty.splice(Math.floor(rnd() * empty.length), 1)[0];

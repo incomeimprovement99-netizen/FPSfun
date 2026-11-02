@@ -298,6 +298,14 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   f.add = (item: unknown, pos: THREE.Vector3, key: number): void => f.drops.set(key, { key, item, pos });
   f.settle((x: number) => x > 0, (p: THREE.Vector3) => new THREE.Vector3(p.x, 3, p.z));
   check("loot on a gone sector comes down to what is under it; elsewhere it stays", f.drops.get(1).pos.y === 3 && f.drops.get(2).pos.y === 40, JSON.stringify([f.drops.get(1).pos.y, f.drops.get(2).pos.y]));
+  // (Milestone 1004) the hot zone's restock: not onto a street the decay has taken (x > 0 here)
+  const r: Any = Object.create(LootField.prototype);
+  r.drops = new Map();
+  r.hotZone = { x: 0, z: 0, radius: 50 };
+  r.hotStock = 10;
+  r.hotSpots = [10, -10, 20, -20, 30, -30].map((x) => new THREE.Vector3(x, 0, 0));
+  const plan = r.restockPlan({ below: 0.6, batch: 8, near: 1.5 }, Math.random, (x: number) => x > 0) as Array<{ at: THREE.Vector3 }>;
+  check("a restock lays nothing where the decay has taken the ground", plan.length > 0 && plan.every((p) => p.at.x < 0), `${plan.filter((p) => p.at.x > 0).length} of ${plan.length} on it`);
   const src = readFileSync(new URL("../../src/game/brmatch.ts", import.meta.url), "utf8");
   check("a package's items each lie on a clear spot, at the floor's height", /const o = openGround\((?:p\.)?at\.x \+ Math\.cos\(i \* 2\.1\) \* 1\.3/.test(src) && /const at = restingSpot\(new THREE\.Vector3\(clear\.x, brCfg\.pod\.stepUp, clear\.z\)\)/.test(src));
   check("a side's capture meter stays through stepping off and a change of host", !/c\.held = 0;/.test(src) && !/this\.capture\.progress\.clear\(\)/.test(src));
