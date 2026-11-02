@@ -144,6 +144,42 @@ function doubleStair(own: (ox: number, oz: number) => Pt, base: number, where: s
   return lanes;
 }
 /**
+ * a straight stair up one tower storey through a hole in the slab over it (rules.tower.floors.stair, Milestone 827; the
+ * centre's twelfth review: "holes and inner stairs between floors"): the pack's flight end to end, as its own StairsDoble02
+ * stacks it, drawn only on typed treads as rules.doubleStair's are. The flight is one slope, not steps, so each tread is
+ * at the slope's height at its middle: the feet stay within 8 cm of what is drawn. A tread with a standing body's room
+ * under it is a plate, or the room's way round the stair's high end would be shut by nothing to see. `foot` the middle of
+ * its foot on the map, `up` the way it climbs; its box for the way round the floor, its lanes for the check
+ */
+const INNER_STAIRS: Array<{ where: string; box: number[]; lanes: number[][][] }> = [];
+function innerStair(chunk: string, foot: Pt, up: Pt, base: number): OBox {
+  const S = R.tower.floors.stair as { piece: string; flights: number; run: number; rise: number; treads: number; half: number; guard: number; thick: number; plate: number; under: number; lanes: number[]; off: number };
+  const [run, rise, n] = [S.run * S.flights, S.rise * S.flights, S.treads * S.flights];
+  const across: Pt = [-up[1], up[0]];
+  const on = (a: number, b: number): Pt => [foot[0] + up[0] * a + across[0] * b, foot[1] + up[1] * a + across[1] * b];
+  const solid = (a0: number, a1: number, b0: number, b1: number, y0: number, y1: number) => {
+    const [p, q] = [on(a0, b0), on(a1, b1)];
+    STAIR_SOLIDS.push([Math.min(p[0], q[0]), Math.max(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[1], q[1]), y0, y1].map((v) => +v.toFixed(3)));
+  };
+  // (the piece climbs along its own -z, its pivot at its foot)
+  const yaw = yawToward(-up[0], -up[1]);
+  for (let k = 0; k < S.flights; k++) {
+    const [cx, cz] = on(S.run * (k + 0.5), 0);
+    placeTurned(chunk, S.piece, cx, cz, yaw, "g", base + S.rise * k);
+  }
+  const tread = run / n;
+  for (let k = 0; k < n; k++) {
+    const top = base + (rise * (k + 0.5)) / n;
+    const under = top - S.plate > base + S.under ? top - S.plate : base;
+    solid(tread * k, tread * (k + 1), -S.half, S.half, under, top);
+    for (const b of [-S.half, S.half - S.thick]) solid(tread * k, tread * (k + 1), b, b + S.thick, under, top + S.guard);
+  }
+  const lanes = S.lanes.map((v) => [[-S.off, v, 0], [0.3, v, 0.2], [run / 2, v, rise / 2], [run - 0.2, v, rise - 0.1], [run + S.off, v, rise]].map(([a, b, y]) => [...on(a, b).map((q) => +q.toFixed(2)), +(base + y).toFixed(2)]));
+  const [p, q] = [on(0, -S.half), on(run, S.half)];
+  INNER_STAIRS.push({ where: `the ${base} m floor's stair at (${foot[0]}, ${foot[1]})`, box: [Math.min(p[0], q[0]), Math.max(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[1], q[1])].map((v) => +v.toFixed(3)), lanes });
+  return { c: on(run / 2, 0), u: up, v: across, hu: run / 2, hv: S.half, top: base + rise };
+}
+/**
  * the street's tall cover dressed (rules.dress.board): the pack's poster sheet on each face of the concrete panel just
  * placed, `up` over its foot and `gap` off each face, drawn only. The panel's own thin side is its z
  */
@@ -381,7 +417,7 @@ const noGround: Array<[number, number, number, number]> = [];
     let tWalls = 0, tProps = 0, tLamps = 0;
     let tTrim = 0;
     const wayLog: string[] = [];
-    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; coverMat?: Record<string, string>; keep?: number[][]; holes?: number[][]; mat?: string; lampMat?: string; trim?: { strip: string; remap: string; y: number; every: number; off: number } }>)) {
+    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; coverMat?: Record<string, string>; keep?: number[][]; holes?: number[][]; stairs?: number[][]; mat?: string; lampMat?: string; trim?: { strip: string; remap: string; y: number; every: number; off: number } }>)) {
       const h = Number(hs);
       const plan = F.plans[P.plan] as Record<string, string>;
       const placed: OBox[] = [];
@@ -414,6 +450,13 @@ const noGround: Array<[number, number, number, number]> = [];
       for (const k of P.keep ?? []) keepT.push(boxOf(k));
       // (and its `holes` in the slab, Milestone 879, with 0.6 m round them: a piece by one's edge would hang over it)
       for (const [x0, x1, z0, z1] of P.holes ?? []) keepT.push(boxOf([x0 - 0.6, x1 + 0.6, z0 - 0.6, z1 + 0.6]));
+      // (and its inner `stairs` up to the storey over it, Milestone 827, [x, z, up x, up z] each: a wall to the way round
+      // the floor, and standing among the walls, `apart` keeps the cover off the ways round it)
+      for (const [fx, fz, ux, uz] of P.stairs ?? []) {
+        const o = innerStair("c-tower", [fx, fz], [ux, uz], h);
+        placed.push(o);
+        bars.push({ o, open: 0, pad: 0 });
+      }
       // (and the express ropes on every floor they pass or start from, their holes and `clear` round them: the way on and off)
       if (EX && h >= EX.from && h <= EX.to) for (const [ex, ez] of EX.at) keepT.push(boxOf([ex + px - EX.hole / 2 - F.clear, ex + px + EX.hole / 2 + F.clear, ez + pz - EX.hole / 2 - F.clear, ez + pz + EX.hole / 2 + F.clear]));
       // the partitions: a line from a to b (its own metres), opened as the plan says
@@ -650,6 +693,7 @@ const noGround: Array<[number, number, number, number]> = [];
         }
     }
     cfg.tower.trim = tTrim;
+    cfg.tower.stairs = INNER_STAIRS;
     console.log(`the tower's floors: ${tWalls} lengths of wall, ${tProps} pieces of cover, ${tLamps} lamps, ${tTrim} lengths of lit trim`);
     console.log(`the tower's floors' way round each, kept whole by the cover: ${wayLog.join("; ")}`);
   }
@@ -2576,6 +2620,10 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         const [bx, bz] = rotY(yaw, (row.min![0] + row.max![0]) / 2, row.min![2]);
         const f: Pt = [q[0] + dir[0] * d, q[1] + dir[1] * d];
         if (climbSpots.some((c) => Math.hypot(c[0] - f[0], c[1] - f[1]) < climbR + w / 2 + 1)) continue;
+        // (and not on the Sky Ring's deck, Milestone 970: its rail's columns are a front to the ray, and two signs stood on
+        // the walk, drawn only, one across it)
+        const skyW = R.skyring as { r0: number; r1: number; deck: number } | undefined;
+        if (skyW && Math.hypot(f[0], f[1]) > skyW.r0 - 0.5 && Math.hypot(f[0], f[1]) < skyW.r1 + 0.5 && y > skyW.deck - 1 && y < skyW.deck + 2.5) continue;
         // (and its twin rule again where it hangs: drawn by the front at the lowest sign's height, it can hang metres
         // from there at its own, and one did within the twin's distance of its twin)
         if (signsAt.some((o) => o.piece === name && Math.hypot(o.at[0] - f[0], o.at[1] - f[1]) < (S.twin ?? 0))) continue;
@@ -2944,7 +2992,7 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
 // superior spot" a squad can still take). On the last bake's collision: each piece's footprint level at the perch's
 // height, `edge` metres off any drop, `apart` from the others and 3 m off where a pad lands
 {
-  const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number; face?: string; near?: number }> | undefined;
+  const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number; face?: string; near?: number; coverMat?: Record<string, string>; without?: string[] }> | undefined;
   if (PR && existsSync(SOLIDS_FILE)) {
     const S = lastSolids();
     const G = 2;
@@ -3137,7 +3185,10 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
         const after = roofPieces([...allPlaced.filter(inBox), ...mine, { c: [x, z], hx, hz }]);
         if (after > pieces) continue;
         pieces = after;
-        placeTurned("c-dress", name, x, z, yaw, "o", y - row.min![1]);
+        // (in the material its perch gives it, `coverMat`, and with named parts left out, `without`: GLASS HEIGHTS' kiosk,
+        // Milestone 889, its door side open, as a shut glass box is a floor the bots' graph finds and no player reaches)
+        if (P.without) placeAt("c-dress", "c", name, x, z, yaw, "o", { y: y - row.min![1], mat: P.coverMat?.[name], without: P.without });
+        else placeTurned("c-dress", name, x, z, yaw, "o", y - row.min![1], P.coverMat?.[name]);
         mine.push({ c: [x, z], r, hx, hz });
         at.push([+x.toFixed(2), +y.toFixed(2), +z.toFixed(2), yaw, +hx.toFixed(2), +hz.toFixed(2), +(row.max![1] - row.min![1]).toFixed(2)]);
       }
@@ -3147,6 +3198,24 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     }
     cfg.perches = perches;
     console.log(`the perches' cover: ${perches.map((q) => `${q.name} ${q.at.length}`).join(", ")}; the pieces of roof each leaves a body: ${roofCounts.join(", ")}`);
+  }
+}
+// Solid cover on the Sky Ring, the bridge ring and the lookout (rules.highCover, Milestone 971; the centre's twelfth
+// review: "solid cover every 8-10 m ... the glass rails are see-through and do not count as cover"). Its spots are written
+// into the rules, each read off the collision: drawn at random, spots on the ring's curved 4 m deck stopped the walk round
+// it twice (Milestones 872 and 877). Each piece collides as its own columns ("s") in a chunk the bake lists in `laid`, so
+// the next layout reads the map as if it were not there: on the rails' cells a sign's ray, a perch's level or a rope's way
+// would read it and move. Each spot's middle, its foot and its top for the map check
+{
+  const HC = R.highCover as { chunk: string; at: Array<[string, string, number, number, number, number, number]> } | undefined;
+  if (HC) {
+    const out: Record<string, number[][]> = {};
+    for (const [where, name, x, z, yaw, y, scale] of HC.at) {
+      const q = placeTurned(HC.chunk, name, x, z, yaw, "s", y - piece(name).row.min![1] * scale, undefined, scale);
+      (out[where] ??= []).push([x, z, y, +q.top.toFixed(2)]);
+    }
+    cfg.highCover = out;
+    console.log(`the high cover: ${Object.entries(out).map(([k, v]) => `${k} ${v.length}`).join(", ")}`);
   }
 }
 // (a scaled placement carries its scale as a ninth field, past what Place names: the bake reads it, tools/import-neon.ts)
@@ -4175,7 +4244,7 @@ function onNode(o: OBox): boolean {
 // 6 and z from its pivot less 1 to its pivot plus 20.5. A taxi rank of the pack's urban cars on the forecourt, the
 // district's name over the arcade on the north face. Colliding as their own faces, as the centre's hall does
 {
-  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number; mat?: string }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][] }; concourse?: { machines: string[]; bench: string; map?: string; spots: Array<[number, number, string, number]> }; roof?: { pieces: string[]; y: number; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
+  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number; mat?: string }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][]; front?: { piece: string; x: number; z: number; yaw: number; plates: number[] } }; concourse?: { machines: string[]; bench: string; map?: string; spots: Array<[number, number, string, number]> }; roof?: { pieces: string[]; y: number; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
   if (TM) {
     const H = TM.hall;
     const hr = piece(H.piece).row;
@@ -4204,7 +4273,7 @@ function onNode(o: OBox): boolean {
     // strips past the roads, off the bots' street lines; benches on the platform. The plates a centimetre over the ground,
     // whose tiles are flush with theirs. All collide as their own faces: the wagons stand as cover
     const TR = TM.trains;
-    let trams = 0, plates = 0;
+    let trams = 0, plates = 0, front = 0;
     if (TR) {
       const M = TR.metro;
       add(TM.chunk, "c", [piece(M.piece).key, M.at[0], M.at[1], M.at[2], M.yaw, "o"] as Place);
@@ -4230,6 +4299,23 @@ function onNode(o: OBox): boolean {
         }
       }
       for (const [x, z, yaw] of TR.benches) placeTurned(TM.chunk, TR.bench, x, z, yaw, "o");
+      // the wagon on the forecourt (`front`, Milestone 888): a tram standing on rail plates along the station's north face,
+      // the only wagon in the picture from the forecourt. Unlike the strips' it stands on the bots' streets, so it takes
+      // their tests and goes into their model
+      const FT = TR.front;
+      if (FT) {
+        for (let x = FT.plates[0]; x < FT.plates[1] - 1e-6; x += pl) {
+          placeTurned(TM.chunk, TR.plate, x + pl / 2, FT.z, 90, "g", TR.lift);
+          plates++;
+        }
+        const fr = piece(FT.piece).row;
+        const o: OBox = { c: [FT.x, FT.z], u: rotY(FT.yaw, 1, 0), v: rotY(FT.yaw, 0, 1), hu: fr.size![0] / 2, hv: fr.size![2] / 2, top: fr.size![1] };
+        if (!onNode(o) && !STREET_GRAPH?.splits(o)) {
+          STREET_GRAPH?.add(o);
+          placeTurned(TM.chunk, FT.piece, FT.x, FT.z, FT.yaw, "o", TR.lift - fr.min![1]);
+          front = 1;
+        }
+      }
     }
     // the concourse's cover (`concourse`, Milestone 590): in each hall, either side of its walkway from arch to arch, the
     // centre station's ticket and vending machines and its benches, each at `spots` ([dx, dz, kind, yaw] from the hall's
@@ -4261,7 +4347,7 @@ function onNode(o: OBox): boolean {
     }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "terminal"), { district: "terminal", ...TM.name }];
     const [X0, X1, Z0, Z1] = [Math.min(...halls.map((h) => h[0])), Math.max(...halls.map((h) => h[1])), Math.min(...halls.map((h) => h[2])), Math.max(...halls.map((h) => h[3]))];
-    cfg.terminal = { halls, box: [X0, X1, Z0, Z1], cars: RK.x.length, trams, plates, cover, roofCover: RF?.at.length ?? 0 };
+    cfg.terminal = { halls, box: [X0, X1, Z0, Z1], cars: RK.x.length, trams, plates, front, cover, roofCover: RF?.at.length ?? 0 };
     console.log(`THE TERMINAL: ${halls.length} halls, x ${X0} to ${X1}, z ${Z0} to ${Z1}; ${RK.x.length} cars in the rank, ${trams} trams, ${plates} rail plates${TR ? ", the metro train at the platform" : ""}`);
   }
 }
@@ -4525,7 +4611,7 @@ function onNode(o: OBox): boolean {
   type Glass = {
     chunk: string;
     buildings: Array<[string, number, number, number, string?]>;
-    lift?: { car: number[]; out: number[]; decks: number; colour: string };
+    lift?: { car: number[]; out: number[]; decks: number; colour: string; carMat?: string; shaft?: { piece: string; mat: string; half: number; from: number; tiers: number; under: number; lamp: string; lampAt: number; lampMat: string } };
     ground?: { keep: number; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; crate: string; machines: string[]; lamps: { piece: string; at: number[][] } };
     light?: { strip: string; remap: string; every: number; side: number; under: number; ends: number; lampRemap: string; panel: string; panelRemap: string; panelEvery: number };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
@@ -4553,8 +4639,23 @@ function onNode(o: OBox): boolean {
       const w: Pt = [GL.out[0], GL.out[1]];
       const along = (k: number): Pt => [GL.car[0] + w[0] * k, GL.car[1] + w[1] * k];
       const yaw = +((Math.atan2(-w[1], w[0]) * 180) / Math.PI).toFixed(2);
-      placeAt(DG.chunk, "c", L.car.piece, GL.car[0], GL.car[1], yaw, "o", { y: 0, without: L.car.without });
+      placeAt(DG.chunk, "c", L.car.piece, GL.car[0], GL.car[1], yaw, "o", { y: 0, without: L.car.without, mat: GL.carMat });
       const rope = [[GL.car[0], +(hang + L.under).toFixed(3), GL.car[1]], [GL.car[0], +(B.deck + hang + L.over).toFixed(3), GL.car[1]]];
+      // the clear shaft round the rope (`shaft`, Milestone 889; "a lit glass cabin in a clear shaft"): drawn only, so the
+      // rope, its rider and the bots' streets are as they were
+      const SH = GL.shaft;
+      if (SH) {
+        const tall = piece(SH.piece).row.size![1];
+        for (let t = 0; t < SH.tiers; t++)
+          for (const [sx, sz, wall] of [[1, 0, 90], [-1, 0, 270], [0, 1, 0], [0, -1, 180]]) {
+            const y = SH.from + t * tall;
+            // (the side the rider steps off on stops under the landing: past that it would stand through its deck)
+            if (sx * w[0] + sz * w[1] > 0.5 && y + tall > SH.under) continue;
+            placeTurned(DG.chunk, SH.piece, GL.car[0] + sx * SH.half, GL.car[1] + sz * SH.half, wall, "g", y, SH.mat);
+          }
+        // (the car's own lamp went with its roof, the rider's way up: drawn only, it lights the cabin and stops nobody)
+        placeTurned(DG.chunk, SH.lamp, GL.car[0], GL.car[1], 0, "g", SH.lampAt - piece(SH.lamp).row.min![1], SH.lampMat);
+      }
       // (the landing from the lifts' gap past the rope, over the car's far half, as the Sky Ring's: within a grab's reach)
       const from = L.gap;
       for (let k = 0; k < GL.decks; k++) placeTurned(DG.chunk, L.landing, ...along(from + landing.size![0] * (k + 0.5)), yaw, "o", B.deck - B.straight.deck);
@@ -4952,7 +5053,7 @@ function onNode(o: OBox): boolean {
     walkways?: { y: number; slab: string; short: string; rail: string; railShort: string; railH: number; runs: number[][] };
     stairs?: { at: number[][] };
     roofs?: { bridge: string; bridges: number[][]; cell: number; rail: string; railShort: string; railH: number; cover: Array<[string, number, number, number]> };
-    market?: { crate: string; turned: string[]; rows: Array<{ pieces: string[]; yaw: number; flip?: boolean; at: number[][] }> };
+    market?: { crate: string; turned: string[]; sets?: Record<string, Array<[string, number, number, number, number, string?, boolean?]>>; wear?: string[]; cloth?: { panel: string; wire: string; scale: number; gap: number; y: number; panels: number; wear: string[]; at: Array<[string, number]> }; rows: Array<{ pieces: string[]; yaw: number; flip?: boolean; at: number[][] }> };
     light?: { strip: string; remap: string; every: number; in: number; lamp: string; lampEvery: number; roofLamp: string; lampRemap: string; roofLamps: number[][] };
     cliffs?: { faces: Array<[string, number, number, number, number]>; signs: { pieces: string[]; every: number; y: number[]; gap: number; scale?: number }; units: { pieces: string[]; every: number; y: number[]; gap: number }; banners?: { y: number; h: number; w: number; colour: string; back: string; at: Array<[string, number, string]> } };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
@@ -5120,19 +5221,30 @@ function onNode(o: OBox): boolean {
     // the passages, each set laid unless it stands on a street node or cuts the bots' streets in two, as THE STRIP's
     // ground is
     const MK = DC.market;
-    const market = { laid: 0, of: 0 };
+    const market = { laid: 0, of: 0, stalls: [] as Array<[string, number, number, number, number, number, number]>, cloth: 0, wires: 0 };
     for (const row of MK?.rows ?? [])
       for (const [i, [x, z]] of row.at.entries()) {
         const yaw = row.yaw + (row.flip && i % 2 ? 180 : 0);
         const name = row.pieces[i % row.pieces.length];
-        const set: Array<[string, number, number, number, number]> = [];
-        if (name === "crates") {
+        const set: Array<[string, number, number, number, number, string?, string?]> = [];
+        // (a named set, `market.sets`, Milestone 886: its pieces in metres along the wall and out of it, so a wall's row
+        // needs only its own turn; `worn` the set's cloth in the next of `market.wear`, by the set's number, not by those
+        // laid: one refused would change every colour after it)
+        const named = MK!.sets?.[name];
+        if (named) {
+          for (const [n, al, out, turn, y, how, worn] of named) {
+            const [dx, dz] = rotY(yaw, al, out);
+            set.push([n, dx, dz, yaw + turn, y, how, worn ? MK!.wear![market.of % MK!.wear!.length] : undefined]);
+          }
+        } else if (name === "crates") {
           const c = piece(MK!.crate).row;
           const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
           set.push([MK!.crate, ox, oz, yaw, 0], [MK!.crate, -ox, -oz, yaw, 0], [MK!.crate, -ox, -oz, yaw, c.size![1]]);
         } else set.push([name, 0, 0, yaw + (MK!.turned.includes(name) ? 90 : 0), 0]);
         let [hu, hv, top] = [0, 0, 0];
-        for (const [n, dx, dz, yw, y] of set) {
+        for (const [n, dx, dz, yw, y, how] of set) {
+          // (an awning drawn only stops no body: only what collides is in the box the street tests take)
+          if (how === "g") continue;
           const r = piece(n).row;
           const turned = Math.abs(Math.round((yw - yaw) / 90)) % 2 === 1;
           const [lu, lv] = rotY(-yaw, dx, dz);
@@ -5144,9 +5256,35 @@ function onNode(o: OBox): boolean {
         const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu, hv, top };
         if (onNode(o) || STREET_GRAPH?.splits(o)) continue;
         STREET_GRAPH?.add(o);
-        for (const [n, dx, dz, yw, y] of set) placeTurned(DC.chunk, n, x + dx, z + dz, yw, "o", y - piece(n).row.min![1]);
+        for (const [n, dx, dz, yw, y, how, worn] of set) placeTurned(DC.chunk, n, x + dx, z + dz, yw, (how ?? "o") as Place[5], y - piece(n).row.min![1], worn);
         market.laid++;
+        if (named) market.stalls.push([name, x, z, yaw, +hu.toFixed(2), +hv.toFixed(2), +top.toFixed(2)]);
       }
+    // THE CANYON's hanging cloth (`market.cloth`, Milestone 887): a wire from wall to wall and `panels` lengths of cloth
+    // hung from it across the street's middle, over a body on a walkway's rail and under the blade signs, drawn only. The
+    // street's 5 m stays open under them. Each panel the pack's flat board, one-sided, hung both ways; across the street,
+    // so it faces down it: along a walkway's edge a panel shows only its edge from the street
+    const CL = MK?.cloth;
+    for (const [i, [axis, a]] of (CL?.at ?? []).entries()) {
+      const lines = (DC.cliffs?.faces ?? []).filter((f) => f[0] === axis && a > f[2] && a < f[3]).map((f) => f[1]);
+      if (lines.length !== 2) throw new Error(`THE CANYON's cloth at ${axis} ${a}: ${lines.length} walls`);
+      const mid = (lines[0] + lines[1]) / 2;
+      const at = (across: number): Pt => (axis === "z" ? [a, mid + across] : [mid + across, a]);
+      const [wx, wz] = at(0);
+      placeTurned(DC.chunk, CL!.wire, wx, wz, axis === "z" ? 0 : 90, "g", CL!.y - piece(CL!.wire).row.max![1]);
+      market.wires++;
+      const k = CL!.scale;
+      const w = piece(CL!.panel).row.size![0] * k + CL!.gap;
+      for (let p = 0; p < CL!.panels; p++) {
+        const [x, z] = at((p - (CL!.panels - 1) / 2) * w);
+        const mat = CL!.wear[(i * 3 + p) % CL!.wear.length];
+        const yaw = axis === "z" ? 90 : 0;
+        for (const turn of [0, 180]) {
+          placeTurned(DC.chunk, CL!.panel, x, z, yaw + turn, "g", CL!.y - piece(CL!.panel).row.max![1] * k, mat, k);
+          market.cloth++;
+        }
+      }
+    }
     // THE CANYON's light (`light`, Milestone 644): the yellow-green strip under each walkway's open edge, the ceiling
     // lamp the game lights as fill down each one's middle, and the street lamp on the roofs along the canyon's edges
     const LG = DC.light;
@@ -5268,7 +5406,7 @@ function onNode(o: OBox): boolean {
   type Upper = { hall: string; atrium: number[]; lampEvery: number; cover: Array<[string, number, number, number]>; ground?: Array<[string, number, number, number]>; pipes?: Array<[string, number, number, number, number]> };
   type Roofs = { bridge: string; bridges: number[][]; cell: number; rail: string; railShort: string; railH: number; cover: Array<[string, number, number, number]>; gas: number[][]; gasPiece: string; crate: string; yard: number[][] };
   type WorksLight = { strip: string; remap: string; every: number; in: number; roofLamp: string; lampRemap: string; roofLamps: number[][] };
-  type Works = { chunk: string; wall: string; wallShort: string; wallMat?: string; lintel?: number; facade?: { piece: string; remap: string; under: number; out: number; inside?: number }; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; upper?: Upper; roofs?: Roofs; light?: WorksLight; name?: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
+  type Works = { chunk: string; wall: string; wallShort: string; wallMat?: string; lintelMat?: string; fires?: { piece: string; at: number[][]; roof: number; rise: number; flights: number }; stacks?: { drum: string; scale: number; cap: string; capScale: number; mat: string; half: number; at: number[][]; ring: number[]; clear: number }; lintel?: number; facade?: { piece: string; remap: string; under: number; out: number; inside?: number }; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; upper?: Upper; roofs?: Roofs; light?: WorksLight; name?: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
   const DW = (R.districts as { works?: Works } | undefined)?.works;
   if (DW) {
     const solids: number[][] = [];
@@ -5333,8 +5471,9 @@ function onNode(o: OBox): boolean {
               const lw = piece(DW.wall).row.size![2] * half;
               for (let a = d0; a < d1 - 0.01; a += lw) {
                 const [px, pz, yw] = [alongX ? a + lw / 2 : line, alongX ? line : a + lw / 2, alongX ? 90 : 0];
-                placeTurned(DW.chunk, DW.wall, px, pz, yw, "g", y + DW.lintel, DW.wallMat, half);
-                placeTurned(DW.chunk, DW.wall, px, pz, yw + 180, "g", y + DW.lintel, DW.wallMat, half);
+                // (in `lintelMat`, Milestone 828: in the walls' rust a 10 m door read as a dark gap in a dark wall)
+                placeTurned(DW.chunk, DW.wall, px, pz, yw, "g", y + DW.lintel, DW.lintelMat ?? DW.wallMat, half);
+                placeTurned(DW.chunk, DW.wall, px, pz, yw + 180, "g", y + DW.lintel, DW.lintelMat ?? DW.wallMat, half);
                 lintels++;
               }
               solids.push((alongX ? [d0, d1, line - thick / 2, line + thick / 2] : [line - thick / 2, line + thick / 2, d0, d1]).map((v) => +v.toFixed(3)).concat([y + DW.lintel, y + DW.storey]));
@@ -5561,6 +5700,20 @@ function onNode(o: OBox): boolean {
     const roofs = { rails: [] as number[][], bridges: [] as number[][], cover: [] as number[][], names: [] as string[], laid: 0, of: 0 };
     if (RW) {
       const open: number[][] = [];
+      // the outside stairs (`fires`, Milestone 829; the review: "outside stairs"): the pack's flights as rules.low.fire
+      // stacks them, the top landing level with the roof, the lowest flight's foot a jump over the street; on `fires`,
+      // so the fire escape check climbs each, and the roof's fence left out where the top landing arrives
+      const FE = DW.fires;
+      if (FE) {
+        const fp = piece(FE.piece);
+        for (const [x, z, yaw] of FE.at) {
+          for (let k = 0; k < FE.flights; k++) add(DW.chunk, "c", [fp.key, x, FE.roof - k * FE.rise, z, yaw, "o"] as Place);
+          fires.push({ block: `THE WORKS at (${x}, ${z})`, at: [x, z], yaw, roof: FE.roof, rise: FE.rise, flights: FE.flights });
+          const [fx0, fx1, fz0, fz1] = turned(fp.row, yaw);
+          open.push([x + fx0 - 0.3, x + fx1 + 0.3, z + fz0 - 0.3, z + fz1 + 0.3]);
+          STREET_GRAPH?.add({ c: [x + (fx0 + fx1) / 2, z + (fz0 + fz1) / 2], u: [1, 0], v: [0, 1], hu: (fx1 - fx0) / 2, hv: (fz1 - fz0) / 2, top: FE.roof + fp.row.max![1] });
+        }
+      }
       for (const [x, z, yaw] of RW.bridges) {
         const b = placeTurned(DW.chunk, RW.bridge, x, z, yaw, "o", DW.storey);
         const [hx, hz] = [Math.abs(b.u[0]) * b.hu + Math.abs(b.v[0]) * b.hv, Math.abs(b.u[1]) * b.hu + Math.abs(b.v[1]) * b.hv];
@@ -5664,8 +5817,34 @@ function onNode(o: OBox): boolean {
         light.roofLamps++;
       }
     }
+    // THE WORKS' stacks (`stacks`, Milestone 829; the review: "a chimney or crane as a landmark seen from afar"): the pack
+    // has no chimney taller than 1.9 m and no crane, and its short one scaled to the height is 10 m across: so the pack's
+    // round tank drum, scaled, one on another with the short one's finned head on top, [x, z, drums] on a roof. Drawn only
+    // on one typed box to the drums' top: nothing a body can reach is over it. A ring of the facade's teal strips under
+    // the head, at `ring` metres under the drums' top, for the night
+    const SK = DW.stacks;
+    const stacks: Array<{ at: number[]; top: number; box: number[] }> = [];
+    if (SK) {
+      const dr = piece(SK.drum).row, cr = piece(SK.cap).row;
+      const step = dr.size![1] * SK.scale;
+      const radius = (dr.size![0] / 2) * SK.scale;
+      for (const [x, z, n] of SK.at) {
+        const H = halls.find((h) => x > h.box[0] && x < h.box[1] && z > h.box[2] && z < h.box[3]);
+        if (!H) throw new Error(`THE WORKS' stack at (${x}, ${z}): over no hall`);
+        for (let k = 0; k < n; k++) placeTurned(DW.chunk, SK.drum, x, z, 0, "g", H.top + k * step, SK.mat, SK.scale);
+        const body = H.top + n * step;
+        placeTurned(DW.chunk, SK.cap, x, z, 0, "g", body, undefined, SK.capScale);
+        if (DW.facade)
+          for (const under of SK.ring)
+            for (const [dx, dz, yaw] of [[1, 0, 90], [-1, 0, 90], [0, 1, 0], [0, -1, 0]])
+              placeTurned(DW.chunk, DW.facade.piece, x + dx * (radius + DW.facade.out), z + dz * (radius + DW.facade.out), yaw, "g", body - under, DW.facade.remap);
+        const box = [x - SK.half, x + SK.half, z - SK.half, z + SK.half, H.top, body].map((q) => +q.toFixed(3));
+        solids.push(box);
+        stacks.push({ at: [x, z], top: +(body + cr.size![1] * SK.capScale).toFixed(2), box });
+      }
+    }
     if (DW.name) cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "works"), { district: "works", ...DW.name }];
-    cfg.works = { halls, panels, tiles, lamps, solids, strips: { lintels, facades, inside: insides }, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}), ...(RW ? { roofs } : {}), ...(LG ? { light } : {}) };
+    cfg.works = { halls, panels, tiles, lamps, solids, strips: { lintels, facades, inside: insides }, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}), ...(RW ? { roofs } : {}), ...(LG ? { light } : {}), ...(SK ? { stacks } : {}) };
     console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}${UP ? `; the works block's ground floor ${upper.ground.laid} of ${upper.ground.of} sets${upper.ground.left.length ? ` (left out: ${upper.ground.left.join("; ")})` : ""}, ${upper.pipes} pipe runs` : ""}`);
   }
 }

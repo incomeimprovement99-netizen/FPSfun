@@ -68,8 +68,10 @@ export function tickAir(scene: THREE.Scene, camera: THREE.Camera, now: number, d
   fog.color.copy(cur);
   // (the night's own, thinner: the owner, "the night fog, just a bit if anything")
   const [near, far] = day ? [own.near, own.far] : [own.nightNear ?? own.near, own.nightFar ?? own.far];
-  fog.near = near;
-  fog.far = Math.min(saved?.far ?? far, far + Math.max(0, camera.position.y - 2) * own.farUp);
+  // (its near end climbs with you too, Milestone 973: both district reviews found the drop's view a pale wash, and that is
+  // where a landing is chosen; a fog that starts at 60 m has the whole map in it from 140 m up)
+  fog.near = near + Math.max(0, camera.position.y - A.climb.from) * A.climb.nearUp;
+  fog.far = Math.max(fog.near + A.climb.least, Math.min(saved?.far ?? far, far + Math.max(0, camera.position.y - 2) * own.farUp));
   if (skyU) {
     skyU.uHorizon.value.copy(cur);
     skyU.uGround.value.copy(cur);

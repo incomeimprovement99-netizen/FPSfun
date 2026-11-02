@@ -380,6 +380,15 @@ and the 16 to 20 m tier still to do)
   landmark; the curved tower out of THE TERRACES and THE STRIP. The agents' measured proposals for the last of these are
   in %TEMP%/neon/proposals.
 
+- **After the fourteenth reviews (2026-11-01, on version 127: the centre 6.5 and 6.5, the districts 5.8 and 5.8, finish 5 in all
+  four; THE TERRACES 4.5 and 5 the only district under 5.5).** The bundle from the thirteenth raised the centre by 0.35 and
+  the districts by 0.25. Built while they were read: the haze thinned with height (973). Next, in order: THE TERRACES rebuilt
+  (a stair on the ring road's axis, planted fronts, one landmark); THE VAULT's strongroom and the base's atrium, the centre's
+  two landmarks; street cover in clusters cutting the wide streets into lanes; each district's own ground and one hero cover
+  piece; the wave tower out of THE TERRACES and THE STRIP; THE CANYON's kiosks and roof islands; THE WORKS' hall machines;
+  THE STRIP's letters and screens; the finish faults each review names (the curved walls' torn bases, the white rectangle in
+  the base's hall, the stack heads, the dotted lines right of GLASS HEIGHTS' east block).
+
 **Last**
 
 - **683: the frame measured with the PC unused** (the detail-mapped and cut-out batches if it misses the bar).

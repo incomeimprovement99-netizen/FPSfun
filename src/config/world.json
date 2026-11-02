@@ -34,8 +34,14 @@
  "neonGlow": 2.2,
  "_atmosphere": "The air over the map (atmosphere.ts): `margin` metres past the map's edge it still holds, `ease` seconds to blend to its colour. Its colours, near and far are the map's own (neonmap.json game.air).",
  "atmosphere": {
-  "margin": 40,
-  "ease": 1.2
+  "margin": 100,
+  "ease": 1.2,
+  "climb": {
+   "from": 30,
+   "nearUp": 1,
+   "least": 60
+  },
+  "_climb973": "Milestone 973 (the districts' eighth reviews, both readers: 'thin the haze at drop height', 'landing choices are made from there'): `climb`, the fog's near end rising `nearUp` a metre over `from` metres, so the ground under a falling player is out of it; `least` metres at the fewest from its near end to its far. `margin` 100 (40): the views from past the fence, under the firing range's 153 m, take the map's own air too."
  },
  "_arenaLook": "NEON BLOCK's walls (arenas/build.ts look \"city\"): the night facade texture's tile, metres, and its windows' glow.",
  "arenaLook": {

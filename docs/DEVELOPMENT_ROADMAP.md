@@ -18793,3 +18793,48 @@ goes round by the side now, out from the left shoulder by half the way and up on
 `round`, `roundBy`, `roundTo`, mannequin.ts reachArm), and the head stays in sight throughout.
 
 - **Checked:** a new check in the soldier stances (skfigure) holds the hand 20 cm from the head's middle; on the old code it fails at 15, on this one it passes at 24 going on and 26 coming off, and the section passes all 344 checks.
+
+## Milestones 827 to 829, 881, 883, 885 to 889, 970 to 973 — An inner stair in the tower, THE WORKS from outside, each district its own cover, THE WELL lit, THE CANYON a market, GLASS HEIGHTS in glass, cover on the Sky Ring, the haze thin at drop height
+
+From the fresh reviews of 2026-10-30 (the centre's round 13, the districts' round 7). The stair, THE WORKS, THE CANYON,
+GLASS HEIGHTS and the Sky Ring were each measured by a proposal agent on version 122's collision, as dry runs, and applied
+after that version's bake.
+
+- **827, an inner stair between two tower floors** (the centre's twelfth review: "holes and inner stairs between floors"):
+  the pack's rust flight twice end to end, 3.00 m in 4.5 m, from the maze at 23 m through a hole at 26 m opened to 5.15 by
+  2.9 m. A step up with the head in a box is a wall, so the slab ends short of the flight's foot. Each corner of the shell
+  has its own quarter disc of floor that a hole does not cut, so the holes stand clear of them, and the map check now
+  walks the stair in three lanes both ways.
+- **828, THE WORKS' rust and doors:** walls in shade measured 0 to 9 of 255 against 89, 70, 44 in the sun, so no albedo can
+  lift them. A derived material `Base~#rrggbb|k` makes the rust glow in its own colour map, and each big door's lintel the
+  yellow panels the same way.
+- **829, THE WORKS' stacks and outside stairs** (the districts' review: "a chimney or crane as a landmark", "outside stairs"):
+  two stacks on the works block's roof to 45.8 and 38.6 m, and two fire escapes the existing climb check walks.
+- **881, more of the tower open between storeys:** holes at 20, 29 and 35 m, the last over THE VAULT, so its middle rises
+  two storeys.
+- **883, each district its own cover** (the districts' seventh review: the white-framed crate pile in 8 pictures, the
+  yellow machines in 7): the crate pile in THE WORKS alone, the ticket machines at THE TERMINAL alone.
+- **885, THE WELL lit** (the centre's thirteenth reviews: "each level lit in the block's colour", "a METRO sign at the
+  bottom"): cyan strips on the shaft's beams and METRO on its back wall, lit plates the game draws.
+- **970, no sign in the Sky Ring's walk:** the signs' rays read the ring's rail columns as a front, and two drawn signs stood
+  on the deck, one across the walk.
+- **886 and 887, THE CANYON a market** (the districts' reviews: "stalls both sides", "awninged stalls alternating"): 35 stalls
+  down its walls in place of its crates, tables and barrels, 12 of them the pack's food stalls standing in the gaps between
+  the ceiling lamps, the rest the pack's awnings over its tables and racks, and 12 lines of hanging cloth 4.8 to 6.3 m up.
+- **888, a train in THE TERMINAL's view** (the reviews: "show a train"): the east tram at the arcade's end, and a tram on the
+  forecourt, 3.3% of the d07 picture where the arcade's end alone is 0.09%.
+- **889, GLASS HEIGHTS in glass** (the reviews: "pale panels", "a lit lift shaft"): its decks in the pack's hex tile, laid flat
+  by a small bake patch where the piece's own UVs run 2.5 to 22.5 m a repeat; the lift in clear cyan glass with white frames
+  and a drawn shaft of 34 panes to 30 m with lit rails; a walk-in kiosk; low glass walls and planters.
+- **971, cover on the Sky Ring, the bridges and the lookout** (the reviews: "solid cover every 8-10 m ... the glass rails do
+  not count"): after two failed tries with crates (877), measured: the 4 m deck is 2.14 to 3 m between the rail's columns, and
+  the walk check's 25 cm cells shut a 1 m slot a body fits, so the crates cut its flood though a player passes. 28 of the
+  gangway's 25 cm panels in the rail's own columns, 8.3 to 10 m apart, keep the walk at 248 of 248 m; 42 spots on the bridges
+  take pieces of 1.4 m or more from 4 to 64; 4 panels stand on the lookout's rim. All in a chunk of their own the bake lists
+  in `laid`, so no later layout reads them.
+- **972, the sun's edge soft** (the fresh reviews of 2026-10-30: "a hard-edged sun"): the disk clips to white, so its ramp
+  never showed. A wider ramp and a corona (sky.json `sunCorona`) fade it into the sky, game side.
+- **973, the haze thin at drop height** (the districts' eighth reviews, both readers: "thin the haze at drop height", "landing
+  choices are made from there"): the fog's near end rises a metre a metre over 30 m (world.json `atmosphere.climb`), so the
+  ground under a falling player is out of it, and the map's own air holds 100 m past the fence (40). Game side.
+- **Checked:** version 127's lo, hi and max baked, 346 map checks, each new one failing with its fault put back; the walks of the stair, the stalls, the kiosk and the ring's cover by the game's own Player. verify, rules and tsc. Map files version 127: lo 193.6 MB, hi 273.8 MB, max 575.9 MB.

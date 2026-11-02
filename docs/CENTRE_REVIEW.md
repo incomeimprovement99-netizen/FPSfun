@@ -517,3 +517,36 @@ The centre rose from 5.5 to 6.1 and 6.2, its first real move in five rounds (flo
 at 5.5 and 5.6, finish 4.5 to 5; THE STACKS 6.5 to 7, THE WORKS and THE TERRACES lowest. All four readers name the same
 two things first: faces in shade going pure black, and one kit of crates, planters, rails and towers shared by every
 district. Their asks are the plan's next versions (docs/PLAN_CITY_FINISH.md, "After the thirteenth reviews").
+
+## Round 14 (the centre) and the districts' round 8, 2026-11-01 (map version 127)
+
+The same spots as round 13, on map version 127's high bake, but d13 and d14, moved because the new kiosk and a blind stretch
+stood where they were (since version 122: faces in shade out of black, the sun's edge soft, an inner stair between 23 and 26 m,
+holes at 20, 29 and 35 m, THE WELL's beams lit and METRO, panels on the Sky Ring's rails, the bridges and the lookout's rim,
+THE WORKS' rust lit with two stacks and two outside stairs, THE CANYON's 35 stalls and hanging cloth, a tram on THE
+TERMINAL's forecourt, GLASS HEIGHTS' decks tiled and its lift in a glass shaft, each district's cover its own). Two fresh
+agents reviewed each, seeing nothing but the pictures. In their words cut short:
+
+CENTRE ROUND 14 reviewer A (2026-11-01, map version 127): overall 6.5 (round 13: 6.1 and 6.2).
+Scores: visual 6.5, readability 7, flow 7.5, play-style 6.5, finish 5, fun 7.
+Ten changes: 1 THE VAULT a real centrepiece (a double-height strongroom through the 35 m hole, gold bars on racks, crates that read gold, gold on its grey walls; 28); 2 a landmark interior in the base, an atrium from hall to terrace with galleries and stalls (07, 08); 3 relief on the High City faces from 3 to 9 m, awnings, ledges, shop fronts (04, 05, 27); 4 mid-range pockets in the wide streets, raised beds, sunken steps, low-walled courts, canopies (16, 18, aerials); 5 finish the tower floors, mid-value floors, skirting over the torn bases (11, 28); 6 a mid-value face and lit trim on the black cover (06, 15, 25); 7 real structures on the lookout and roof domes (10, 14); 8 shadow resolution on roofs and ceilings; 9 THE WELL and the court read from the rim (19, 20); 10 each High City block its own window pattern and rail panel, the night's pink wash calmed.
+Broken: 07 a white rectangle at the hall's far side; 11/28 curved walls stop short of the floor with jagged brick; 12 half the frame a low-resolution block; 14 a rope ends in mid-air; 19 the shaft reads as a tilted building; 20 window recesses backed with brick; 22 the door a dark panel, the frame beside it, the sign behind a lamp post; 26 a truss fills the frame; 27 the fire escape a black lump, its frame two sticks; 28 pale cyan patches on the far floor; night-24 black buildings, a pink road.
+Gap: flat printed High City faces; THE VAULT only a floor and one wall colour; the base without character; few mid-size courtyards.
+
+CENTRE ROUND 14 reviewer B (2026-11-01, map version 127): overall 6.5.
+Scores: visual 6.5, readability 7, flow 7, play-style 6, finish 5, fun 7.
+Ten changes: 1 open each High City block at street level, a pillared arcade, a two-room loop and an inside stair (04, 27); 2 street cover in clusters cutting the carriageways into 10 m lanes (02, 16, 18); 3 the stair side in 12 and the jagged wedges at curved wall bases (11, 28); 4 lit coloured faces for the black cover (06, 15, 17, 25); 5 THE VAULT's payoff, a central strongroom behind the gold door (28); 6 an atrium through the base from court to roof (07, 20); 7 the corner blocks told apart, a roofed market hall, their own paving, a name arch at eye height (16, 18); 8 the roofs dressed, a raised deck and two cover blocks (10, 14); 9 sharper ground, lane paint, crossings, calmer puddles (06, 14, 18); 10 near shadows, thinner gold edges, softer night pools.
+Broken: 12 a stretched noisy block; 07 a blown-out white rectangle, stipple on the kiosk; 10 the rim's top a black band; 14 the sun a squashed oval, a rope stops in mid-air; 19 no METRO sign seen from the rim; 20 two ceilings collide; 22 which is the door; 27 two stray pink sticks; 28 white and teal blotches on the far floor, the chest reads as a bin; 04, 05 low-poly car hoods.
+Gap: no gold chests in THE VAULT, the four largest buildings shells, few 6 to 15 m roof gaps, little short-range space on the street.
+
+DISTRICTS ROUND 8 reviewer A (2026-11-01, map version 127): overall 5.8 (round 7: 5.5 and 5.6).
+Per district: LANTERN 6, TERRACES 4.5, TERMINAL 6.5, STACKS 6, GLASS 6, STRIP 6, CANYON 6.5, WORKS 6.5.
+Together: visual 6, readability 6.5, flow 5.5, play-style 5.5, finish 5, fun 6, overall 5.8.
+Ten changes: 1 stop using the wave tower and window grid everywhere, keep it for GLASS HEIGHTS and THE CANYON's cliffs; 2 thin the day haze with height; 3 rebuild THE TERRACES, a grand stair seen from the ring road, planted beds, pergolas, one landmark; 4 finish the shared props, one hero cover piece a district; 5 THE CANYON's centre kiosks, booths on the walkways, its roof deck cut into islands; 6 THE STRIP's letter signs and screens, red tile kept to the club; 7 lit detailed windows on the shophouses and THE STACKS; 8 narrow LANTERN ALLEYS; 9 fill the moat; 10 machines to fight round in THE WORKS' hall.
+Broken: d01 a poster wall at the camera; d02 a lantern wire ends in open sky; d06 a blown ceiling, a blank card; d07 the clock at 12:00; d08 a blank machine face; d09 the sun egg-shaped; d13 dotted hoops right of the block; d16/d17 stretched pyramid faces; d18 a ribbed ring between pillars; d20 rail posts with no top rail; d21 a mottled blue courtyard; d22 chimney caps like heads, pixelated tank rust; d23 openings like painted backdrops; d98 flat purple ground, floating props; d99 banding in the night sky.
+
+DISTRICTS ROUND 8 reviewer B (2026-11-01, map version 127): overall 5.8.
+Per district: LANTERN 6, TERRACES 5, TERMINAL 7, STACKS 6.5, GLASS 6.5, STRIP 6.5, CANYON 6.5, WORKS 5.5.
+Together: visual 6, readability 5.5, flow 6, play-style 5.5, finish 5, fun 6, overall 5.8.
+Ten changes: 1 each district its own ground; 2 thin the haze at drop height and a coloured beacon each; 3 cover in clusters of three to five, L or U shapes, 10 m apart; 4 LANTERN ALLEYS narrowed to 4 to 6 m; 5 THE TERRACES' stair on the d04 axis, the lime drum out of it; 6 THE CANYON's lines broken, kiosk islands, walkway bays; 7 THE WORKS' hall filled, machines, trusses, a gantry; 8 THE STRIP's block in screens, two more panel patterns; 9 THE CANYON's roofs stepped; 10 the moat closed, the outer city's lit windows halved.
+Broken: d13 a dotted wire cylinder, d13/d15 the lift's insides as twisted ribbons; d04 a tilted plank; d06, d08 blank white faces; d12 a black square with a pipe; d18 a ribbed ring; d20 forks with no top rail; d21 mottled blue ground; d22 cowls like heads; d23 teal pad columns as flat planes; d24 hard-edged paving rectangles; d99 bars in the night sky; d98 a flat magenta wash.

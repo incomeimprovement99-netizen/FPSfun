@@ -32,6 +32,8 @@ uniform vec3  uGround;
 uniform vec3  uSunColor;
 uniform vec3  uSunDir;
 uniform float uSunSize;
+uniform float uCoronaPow;
+uniform float uCoronaK;
 uniform float uGlow;
 varying vec3 vDir;
 
@@ -56,9 +58,11 @@ void main() {
 
   // sun disk plus a wide atmospheric glow that also warms the horizon near it
   float cosA = dot( d, normalize( uSunDir ) );
-  float disk = smoothstep( 1.0 - uSunSize, 1.0 - uSunSize * 0.35, cosA );
+  float disk = smoothstep( 1.0 - uSunSize * 1.5, 1.0 - uSunSize * 0.2, cosA );
   float glow = pow( max( cosA, 0.0 ), 18.0 ) * uGlow;
-  c += uSunColor * ( disk * 6.0 + glow );
+  // (the disk clips to white, so its edge read hard however soft its ramp: a tight corona carries it down into the glow)
+  float corona = pow( max( cosA, 0.0 ), uCoronaPow ) * uCoronaK;
+  c += uSunColor * ( disk * 6.0 + corona + glow );
 
   gl_FragColor = vec4( c, 1.0 );
 }
@@ -196,6 +200,8 @@ export function makeSky(sunDir: THREE.Vector3, c: SkyColors = SKY): Sky {
       uSunColor: { value: new THREE.Color(c.sun) },
       uSunDir: { value: sunDir.clone().normalize() },
       uSunSize: { value: skyCfg.sunDisk },
+      uCoronaPow: { value: skyCfg.sunCorona.power },
+      uCoronaK: { value: skyCfg.sunCorona.k },
       uGlow: { value: 0.22 },
     },
     vertexShader: vert,

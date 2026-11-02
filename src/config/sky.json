@@ -6,7 +6,7 @@
   "_light": "the DIRECTIONAL LIGHT's colour, which is not the same thing as the sun disk drawn in the dome: the disk is what you see when you look at the sun, the light is what falls on the world. They were the same value at first and that quietly changed how the range had always been lit, because the range's light was fff2dc and its disk fff0d0. An hour with no light colour uses its disk colour.",
   "_fog": "near and far in metres. The battle royale scales both up because its map is 440 m across and the range is 80 m.",
   "_sunDisk": "The sun disk drawn in the dome (src/game/sky.ts), as 1 less the cosine of its radius: 0.0014 is a disk about 3 degrees across its edge (0.0035, nearly 5, until Milestone 667: at the wide field of view a disk that size near the picture's corner drew as a big ellipse, the centre's review round 8, picture 14).",
-  "sunDisk": 0.0014,
+  "sunDisk": 0.001,
   "default": "goldenHour",
   "_neonNight": "SpeedKills' own hour (speedkills.json identity.skies): a neon city at night, after the owner's direction and Hyper Scape's screenshots. The dome's horizon is the city's glow, a violet the fog takes too, so the far towers go dark and violet rather than a grey-blue wash, and their windows and neon carry the picture; the moon is dim, so the lit things are what you see. Tuned by eye against the city's snapshots (npm run snap).",
   "order": [
@@ -79,5 +79,10 @@
     }
   },
   "_hazyDay": "SpeedKills' daytime (speedkills.json identity.skies; F8 flips it with the neon night): the bought city's own pictures, High City's store shots, are a hazy bright day, warm sun high and raking down its streets and haze from 30 m, so this is that, on the noon sky's picture with a paler dome and a nearer fog. Asked for by the owner to see the difference (2026-09-28); tuned by eye against the store's pictures.",
-  "_fillRim": "An hour's `fill` and `rim` (Milestone 576): the range's sky fill, its hemisphere light, and its rim light's strengths, 0.75 and 0.3 where an hour gives none, as they were at every hour before. The neon night's are low, with its environment light and its moon, so the city's own lights carry it: lit at the day's fill, the Neon City's fourth review called it \"a purple-tinted day\"."
+  "_fillRim": "An hour's `fill` and `rim` (Milestone 576): the range's sky fill, its hemisphere light, and its rim light's strengths, 0.75 and 0.3 where an hour gives none, as they were at every hour before. The neon night's are low, with its environment light and its moon, so the city's own lights carry it: lit at the day's fill, the Neon City's fourth review called it \"a purple-tinted day\".",
+  "_sunCorona": "Milestone 972 (the fresh reviews of 2026-10-30: 'a hard-edged sun'): a tight glow round the disk, `power` the cosine's exponent (350 falls to half about 3.6 degrees out), `k` its strength, so the clipped disk fades into the sky. The disk 0.001 (0.0014), for the wider ramp's sake, so the sun stays its size.",
+  "sunCorona": {
+    "power": 350,
+    "k": 0.55
+  }
 }

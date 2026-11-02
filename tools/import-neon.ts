@@ -252,7 +252,9 @@ if (mode === "bake") {
   // exactly these and see the rest as they never stood)
   // (and the districts' cover, Milestone 660: left out of it, the next layout found its own last pieces standing as cover
   // already there, and the rerun laid 109 pieces where the run before it laid 102)
-  const LAID = [cfg.rules.low.walls, (cfg.rules.blocks as { climbs?: unknown }).climbs, (cfg.rules.dress as { cover?: unknown }).cover, (cfg.rules.dress as { districtCover?: unknown }).districtCover].map((q) => (q as { chunk?: string } | undefined)?.chunk).filter(Boolean);
+  // (and the cover on the Sky Ring, the bridges and the lookout, Milestone 971: on the rails' cells a sign's ray, a perch's
+  // level and a rope's way would read it)
+  const LAID = [cfg.rules.low.walls, (cfg.rules.blocks as { climbs?: unknown }).climbs, (cfg.rules.dress as { cover?: unknown }).cover, (cfg.rules.dress as { districtCover?: unknown }).districtCover, (cfg.rules as { highCover?: unknown }).highCover].map((q) => (q as { chunk?: string } | undefined)?.chunk).filter(Boolean);
   const laid: number[][] = [];
   /** every draw that collides (placed "o" or "s"): what a window may open onto, not the hanging lamps and signs ("g") */
   const collidingDraws: Array<{ d: Draw; m: M4 }> = [];
@@ -332,6 +334,22 @@ if (mode === "bake") {
   // its textures kept (the tower floors' walls in the pack's grey panels, each floor its colour: the pack's coloured
   // plastics are a noise texture under a flat colour, "flat colour with a speckle", the centre's third review)
   const derivedMat = (spec: string): string | null => {
+    // ("Name~#rrggbb|k": Name with its own colour map as its glow, times the colour at k, Milestone 828. A face in shade
+    // takes no light to multiply a brighter albedo by: THE WORKS' rust measured 0 to 9 of 255 there and 89, 70, 44 in the
+    // sun. A flat glow, "Name|#rrggbb|k", paints the rust out; this keeps its streaks in the dark)
+    if (spec.includes("~#")) {
+      const guid = `derived:${spec}`;
+      if (mats.has(guid)) return guid;
+      const [base, rest] = spec.split("~");
+      const [hex, k] = rest.split("|");
+      const bg = pack.matFor(base);
+      const info = bg ? readMaterial(pack, bg) : null;
+      if (!info) throw new Error(`no material ${base} to derive ${spec} from`);
+      const n = parseInt(hex.replace("#", ""), 16);
+      const at = Number(k || 1);
+      mats.set(guid, { ...info, name: spec.replace(/[~|#]/g, "_"), emission: [(((n >> 16) & 255) / 255) * at, (((n >> 8) & 255) / 255) * at, ((n & 255) / 255) * at], emissive: info.map });
+      return guid;
+    }
     // ("Name^#hex": the colour and the glow both tinted; a lit window's light is its emission, which a "*#" tint of the
     // colour alone leaves as it was: GLASS HEIGHTS' cyan windows, Milestone 669)
     if (spec.includes("^#")) {
@@ -379,6 +397,16 @@ if (mode === "bake") {
       // (a placement's material: one over all its parts, or "Name=Spec;Name2=Spec2", each part in the pack's material
       // Name worn in Spec instead and the rest as they are: the High City's blocks each in its own colour)
       const remap = mat && mat.includes("=") ? new Map(mat.split(";").map((p) => p.split("=") as [string, string])) : null;
+      // (a remap's "Spec@m": those faces' UVs laid flat on the map, `m` metres a UV repeat before the material's own tiling.
+      // The pack stretches a part's UVs with its scale, 2.5 to 22.5 m a repeat on one of GLASS HEIGHTS' decks, measured,
+      // which its plain concrete hides and a tile shows as a patchwork of sizes, Milestone 889)
+      const flatUv = new Map<string, number>();
+      for (const [name, to] of remap ?? []) {
+        const [spec, at] = to.split("@");
+        if (!at) continue;
+        remap!.set(name, spec);
+        flatUv.set(name, Number(at));
+      }
       const matGuid = mat && !remap ? (derivedMat(mat) ?? pack.matFor(mat)) : null;
       if (mat && !remap && !matGuid) throw new Error(`no material ${mat}`);
       const named = new Map<string, string>();
@@ -393,6 +421,26 @@ if (mode === "bake") {
         const tg = derivedMat(to) ?? pack.matFor(to);
         if (!tg) throw new Error(`no material ${to} for ${name}`);
         return tg;
+      };
+      // (read before `remapped` turns the part's material: the faces are found by the name they had)
+      const laidFlat = (d: Draw, m: M4): Draw => {
+        if (!flatUv.size || !d.mats) return d;
+        const T = mul(W, m);
+        let touched = false;
+        const prims = d.model.meshes[d.mesh].prims.map((q, i) => {
+          const g = d.mats![i];
+          const at = g ? flatUv.get(readMaterial(pack, g)?.name ?? "") : undefined;
+          if (!at || !q.uv) return q;
+          touched = true;
+          const uv = new Float32Array(q.uv.length);
+          for (let k = 0; k * 2 < uv.length; k++) {
+            uv[k * 2] = (T[0] * q.pos[k * 3] + T[4] * q.pos[k * 3 + 1] + T[8] * q.pos[k * 3 + 2] + T[12]) / at;
+            uv[k * 2 + 1] = (T[2] * q.pos[k * 3] + T[6] * q.pos[k * 3 + 1] + T[10] * q.pos[k * 3 + 2] + T[14]) / at;
+          }
+          return { ...q, uv };
+        });
+        if (!touched) return d;
+        return { ...d, model: { meshes: [{ name: d.model.meshes[d.mesh].name, prims }], nodes: [], roots: [] } as unknown as Draw["model"], mesh: 0 };
       };
       // (a placement may leave named parts of its prefab out: neonmap.json's rules say which and why)
       // An entry is a model's file name (every part drawn from it) or "name@x,y,z", the one part of it whose middle is
@@ -443,7 +491,7 @@ if (mode === "bake") {
         return { d: { ...d, model, mesh: 0, pre: null }, m: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] };
       };
       const shaped = cuts.length ? kept.map(({ d, m }) => (cuts.some((b) => reaches(b, d, m)) ? cutPart(d, m) : { d, m })) : kept;
-      const mine = shaped.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : remap && d.mats ? { ...d, mats: d.mats.map(remapped) } : d, m: mul(W, m) }));
+      const mine = shaped.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : remap && d.mats ? { ...laidFlat(d, m), mats: d.mats.map(remapped) } : d, m: mul(W, m) }));
       for (const name of remap?.keys() ?? []) if (!used.has(name)) throw new Error(`${key}: no ${name} to wear another material`);
       // the tower's one-sided shell pieces (rules.tower.backs) drawn from inside too, their triangles turned over: from
       // inside its floors the pack's "fake" walls, faced only toward the street, showed the sky through the building.
