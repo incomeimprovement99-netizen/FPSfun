@@ -6323,7 +6323,7 @@ async function skArmoryTest(browser: Browser): Promise<void> {
   const g1 = await seen(GUN);
   check(
     "armory: in front of a gun's stand the prompt offers it, and E takes it into your hands at level 0",
-    g0.near === GUN && /^TAKE /.test(g0.prompt ?? "") && !g0.held.some((h) => h?.startsWith(`${GUN}:`)) && g1.held.includes(`${GUN}:0`) && /^FUSE .*LEVEL 0 TO 1/.test(g1.prompt ?? ""),
+    g0.near === GUN && /^(TAKE|SWAP FOR) /.test(g0.prompt ?? "") && !g0.held.some((h) => h?.startsWith(`${GUN}:`)) && g1.held.includes(`${GUN}:0`) && /^FUSE .*LEVEL 0 TO 1/.test(g1.prompt ?? ""),
     JSON.stringify({ g0, g1 }),
   );
   // E again, and again: a level up each time to the top, the screen drawn again and the skin changed on the way

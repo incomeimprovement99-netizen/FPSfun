@@ -240,6 +240,12 @@ console.log("\nThe maps and marks (src/game/hud.ts, src/main.ts, src/game/brmatc
   marks.hitMarker(100, false, "kill");
   marks.hitMarker(100.05, false, "hit");
   check("a kill's mark holds over the next round's hit", marks.hitMarkerKind === "kill", `${marks.hitMarkerKind}, up to ${(marks.hitMarkerUntil - 100).toFixed(2)} s`);
+  // (Milestone 992) a gun's prompt says what the press does, and the list's rows stop at a wall
+  const { reachRows } = await import("../../src/game/brplay");
+  const row = (x: number): unknown => ({ key: x, item: { kind: "weapon", id: "r97", n: 1, rarity: "gold", fusion: 3 }, pos: { x, y: 0, z: 0 } });
+  const seen = reachRows([row(1), row(2)] as never, { x: 0, y: 0, z: 0 }, (d) => d.pos.x < 1.5);
+  check("the reach list leaves out what a wall hides, and a row says its level", seen.length === 1 && / LEVEL 3$/.test(seen[0].label), JSON.stringify(seen.map((s) => s.label)));
+  check("a gun's prompt says SWAP FOR and FUSE", /`SWAP FOR \$\{row\.label\}`/.test(bp) && /TO LEVEL \$\{does\.to\}/.test(bp));
   const { ammoWarning } = await import("../../src/game/hud");
   check("no ammo words on a gun that has heat", ammoWarning(0, 24, true) === null && /ammoWarning\(s\.clip, s\.clipSize, s\.reloading \|\| !!s\.heat\)/.test(h));
 }

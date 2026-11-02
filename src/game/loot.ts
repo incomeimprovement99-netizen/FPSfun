@@ -128,7 +128,8 @@ export function seeded(seed: number): () => number {
 export function lootLabel(it: LootItem): string {
   switch (it.kind) {
     case "weapon":
-      return weaponLabel(it.id).toUpperCase();
+      // (its level, as a core's: levels 3, 4 and 5 are all gold, and a row gave no way to tell them apart, Milestone 992)
+      return `${weaponLabel(it.id).toUpperCase()}${it.fusion ? `  ·  LEVEL ${it.fusion}` : ""}`;
     case "hack":
       return `${hackDef(it.id)?.name ?? it.id.toUpperCase()} HACK${it.n > 0 ? `  ·  LEVEL ${it.n}` : ""}`;
     case "echo":

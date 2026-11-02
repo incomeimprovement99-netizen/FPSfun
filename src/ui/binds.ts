@@ -87,7 +87,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
   {
     title: "The range",
     actions: [
-      ["cycleArmor", "Dummy armour"],
+      ["cycleArmor", "Dummy armour, and the next item in reach"],
       // (the Range controller preset's D-pad down: missing here, its button showed blank, Milestone 731)
       ["magLevel", "The gun in hand's fusion level, a step at a time"],
       ["dummyMode", "Dummies: stand, strafe, crouch, random"],

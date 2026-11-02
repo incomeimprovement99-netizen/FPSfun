@@ -27,6 +27,8 @@ import type { MoveInput, Player } from "./player";
 import { solidHit } from "./projectile";
 import { floorAt } from "./floors";
 import { lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
+import { gunOutcome, type SlotView } from "./lootcard";
+import { weaponLabel } from "./weapons";
 import { DROP_HEIGHT, restingSpot } from "./brmatch";
 import squad from "../config/squad.json";
 import windowPad from "../config/windowpad.json";
@@ -75,6 +77,8 @@ export interface ReachHud {
  */
 export interface CarryState {
   hacks?: Record<string, string | null>;
+  /** the two guns and which is in hand: what a press does with a gun (gunOutcome) */
+  guns?: { slots: SlotView[]; active: number };
   /** the hacks already at their top level: a core of one is no use, and taken it goes straight back down */
   topped?: string[];
 }
@@ -108,6 +112,7 @@ export const REACH: ReachHud = { rows: [], pick: -1, cycleKey: "" };
 const LOOTING = hudCfg.loot;
 /** the action that steps the reach list, named in the config */
 const CYCLE = LOOTING.cycle as Action;
+const PAD_CYCLE = LOOTING.padCycle as Action;
 
 /**
  * Everything lying within reach of your feet, nearest first, at most
@@ -116,13 +121,13 @@ const CYCLE = LOOTING.cycle as Action;
  * on the map. Equal distances go to the lower key, so the list holds still
  * under the cursor instead of shuffling while you stand there.
  */
-export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }): ReachRow[] {
+export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }, clear?: (d: ReachDrop) => boolean): ReachRow[] {
   const rows: ReachRow[] = [];
   for (const d of drops) {
     if (d.item.kind === "echo") continue;
     if (Math.abs(d.pos.y - at.y) > LOOTING.floorGap) continue;
     const dist = Math.hypot(d.pos.x - at.x, d.pos.z - at.z);
-    if (dist > LOOTING.reach) continue;
+    if (dist > LOOTING.reach || (clear && !clear(d))) continue;
     rows.push({ key: d.key, label: lootLabel(d.item), rarity: d.item.rarity, dist });
   }
   rows.sort((a, b) => a.dist - b.dist || a.key - b.key);
@@ -566,20 +571,28 @@ export class BrPlay {
       const d = f.drops.get(key);
       return !!d && Math.hypot(d.pos.x - this.gunTakenFrom.x, d.pos.z - this.gunTakenFrom.z) < 0.5;
     };
-    const rows = reachRows(f.drops.values(), p).filter((r) => !letGo(r.key));
+    // (not through a wall: E could swap your gun for one in the next room, Milestone 992)
+    const chest = new THREE.Vector3(p.x, p.y + LOOTING.chest, p.z);
+    const clear = (d: ReachDrop): boolean => {
+      const to = new THREE.Vector3(d.pos.x, d.pos.y + 0.2, d.pos.z).sub(chest);
+      const dist = to.length();
+      return dist < 0.6 || solidHit(chest, to.divideScalar(dist), dist) >= dist - 0.3;
+    };
+    const rows = reachRows(f.drops.values(), p, clear).filter((r) => !letGo(r.key));
     if (!rows.length) {
       this.stopTaking();
       return;
     }
     if (this.picked !== null && !rows.some((r) => r.key === this.picked)) this.picked = null;
     const many = rows.length > 1;
-    if (many && input.pressedNow(CYCLE)) {
+    // (a pad has no key for it: it steps with the D-pad's zoom, which nothing needs with a list of loot in front of you, Milestone 992)
+    if (many && (input.pressedNow(CYCLE) || input.pressedNow(PAD_CYCLE))) {
       const at = rows.findIndex((r) => r.key === this.pickOf(rows, eye, fwd, f));
       this.picked = rows[(at + 1) % rows.length].key;
     }
     const pick = this.pickOf(rows, eye, fwd, f);
     const row = rows.find((r) => r.key === pick) ?? rows[0];
-    out.reach = { rows, pick: row.key, cycleKey: many ? this.deps.keyLabel(CYCLE) : "", how: this.pickHow(rows, eye, fwd, f) };
+    out.reach = { rows, pick: row.key, cycleKey: many ? this.deps.keyLabel(CYCLE) || this.deps.keyLabel(PAD_CYCLE) : "", how: this.pickHow(rows, eye, fwd, f) };
     // what a hold would still take: what is in reach but guns and cores it would swap or cannot fuse (below). It counted
     // everything, so three guns said HOLD: TAKE ALL and TAKING EVERYTHING, 2 LEFT for a hold that took nothing (Milestone 927)
     const leaves = (key: number): boolean => {
@@ -593,7 +606,11 @@ export class BrPlay {
     };
     const left = rows.filter((r) => !isGun(r.key) && !leaves(r.key));
     const holds = many && left.some((r) => r.key !== row.key);
-    out.prompt = { key: holds ? `${key} / HOLD` : key, text: holds ? `TAKE ${row.label}  ·  HOLD: TAKE ALL` : `TAKE ${row.label}` };
+    // (what the press does: TAKE said nothing of the gun in your hand going down for this one, Milestone 992)
+    const gun = f.drops.get(row.key)?.item;
+    const does = gun?.kind === "weapon" && carry?.guns ? gunOutcome(gun.id, gun.fusion ?? 0, carry.guns.slots, carry.guns.active) : null;
+    const word = does?.verdict === "swap" ? `SWAP FOR ${row.label}` : does?.verdict === "fuse" ? `FUSE ${weaponLabel(gun!.id).toUpperCase()} TO LEVEL ${does.to}` : does?.verdict === "max" ? `${row.label}: AT ITS TOP LEVEL` : `TAKE ${row.label}`;
+    out.prompt = { key: holds ? `${key} / HOLD` : key, text: holds ? `${word}  ·  HOLD: TAKE ALL` : word };
     if (input.pressedNow("interact")) {
       // the press takes the one the prompt names, as it always has
       if (isGun(row.key)) {

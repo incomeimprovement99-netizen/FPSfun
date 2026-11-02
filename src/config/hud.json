@@ -142,7 +142,9 @@
     "listMax": 5,
     "cycle": "cycleArmor",
     "swapGuard": 0.8,
-    "pingGap": 0.8
+    "pingGap": 0.8,
+    "padCycle": "zoomToggle",
+    "chest": 1.1
   },
   "_pingGap": "loot.pingGap: how many metres off the crosshair's line a tap ping may mark an item. In metres, not degrees: wide up close, narrow far off, which is how a player's aim is (brplay.ts ping).",
   "_swapGuard": "loot.swapGuard: seconds after you take a gun during which a gun that appears within reach is left out of the list. Taking a gun with both slots full puts the one in hand down at your feet, inside the reach list, and nearest. A press read over several frames, or a hold, took it straight back and put the new one down, and the two swapped every frame for as long as the key was down. Ours: long enough to cover a press and let go, short enough that a gun dropped by someone else a moment later is still offered.",

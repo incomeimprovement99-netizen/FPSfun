@@ -4599,6 +4599,7 @@ const brPlay = new BrPlay({
 });
 // What you carry, for the hold that empties a spot: it leaves a hack core that would swap yours.
 brPlay.carrying = () => ({
+  guns: { slots: loadout.slots.map((s) => ({ id: s.id, empty: s.empty, fusion: s.fusion ?? 0, clip: s.state.clip })), active: loadout.activeIndex },
   hacks: { mobility: hacks.get("mobility")?.id ?? null, utility: hacks.get("utility")?.id ?? null },
   topped: (["mobility", "utility"] as const).flatMap((slot) => {
     const h = hacks.get(slot);
@@ -4749,12 +4750,12 @@ function applyLoot(it: LootItem): void {
         const s = loadout.slots[twin];
         const to = Math.max((s.fusion ?? 0) + 1, it.fusion ?? 0);
         if (loadout.fuse(twin, to)) {
-          hud.notice(`${label} FUSED  ·  LEVEL ${s.fusion}`, gameTime, 1.8);
+          hud.notice(`${weaponLabel(it.id).toUpperCase()} FUSED  ·  LEVEL ${s.fusion}`, gameTime, 1.8);
           fusedCount++;
           audio.reloadStep("bolt");
           audio.swap();
         } else {
-          hud.notice(`${label}: ALREADY AT ITS TOP LEVEL`, gameTime, 1.4);
+          hud.notice(`${weaponLabel(it.id).toUpperCase()}: ALREADY AT ITS TOP LEVEL`, gameTime, 1.4);
           putBack(it);
         }
         // (as the hack's: the FUSED notice was written over by the bare name after the switch)

@@ -14313,6 +14313,14 @@ the bounds; a wall run boarded the ship; a toggled crouch came back with you (pl
 
 - **Checked:** tsc, verify, rules; sk-moves; the review's fuzz; e2e speedkills, skship, sktutorial, range, finish.
 
+## Milestone 992 — What E will do
+
+A gun's prompt says SWAP FOR, or FUSE TO LEVEL n, where it said TAKE whatever the press did. A row on the reach list gives a gun's level, levels 3 to 5
+being all gold. The list stops at a wall, where E could swap your gun for one in the next room. A pad can step the list, with the D-pad's zoom, where it
+had no button at all (brplay.ts, loot.ts, main.ts, binds.ts).
+
+- **Checked:** tsc, verify, rules; hudfit; e2e speedkills, skhunt.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
