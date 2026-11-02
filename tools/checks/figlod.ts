@@ -21,13 +21,13 @@ function check(label: string, cond: boolean, detail = ""): void {
 const L = FIG_LOD;
 const at = (d: number) => new THREE.Vector3(0, 0, -d);
 /** a view from the origin looking down -z, with everything in front of it on screen */
-function look(frame: number, fps = 60): void {
+function look(frame: number, fps = 60, zoom = 1): void {
   const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 1000);
   cam.position.set(0, 1.6, 0);
   cam.lookAt(0, 1.6, -10);
   cam.updateMatrixWorld();
   const f = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
-  setFigureView(cam.position, f, frame, fps);
+  setFigureView(cam.position, f, frame, fps, zoom);
 }
 /** how often a figure at `d` animates over 12 frames */
 function ran(d: number, spread = 0): number {
@@ -45,6 +45,17 @@ console.log("Figure LOD");
   check(`within ${L.near} m a figure animates every frame`, ran(L.near - 5) === 12 && figureWork(at(5), 0).stride === 1, `${ran(L.near - 5)} of 12`);
   check(`to ${L.mid} m it animates every second frame`, ran((L.near + L.mid) / 2) === 6 && figureWork(at(L.mid - 1), 0).stride === 2, `${ran((L.near + L.mid) / 2)} of 12`);
   check(`beyond ${L.mid} m every fourth`, ran(L.mid + 40) === 3 && figureWork(at(L.mid + 40), 0).stride === 4, `${ran(L.mid + 40)} of 12`);
+  // through a scope (Milestone 846): by its size on screen, so at 100 m at x4 as at 25 m; a figure behind stays where it is
+  look(0, 60, 4);
+  const scoped = figureWork(at(100), 0);
+  const behindUs = figureWork(new THREE.Vector3(0, 0, 100), 0);
+  check("zoomed in 4 times a figure on screen 100 m off animates every frame, its eyes on", scoped.stride === 1 && scoped.eyes, JSON.stringify(scoped));
+  check("and at 50 m its gun is the full model", figureWork(at(50), 0).fullGun);
+  check("and its shadow stays on the real distance", !figureWork(at(L.shadow + 1), 0).shadow);
+  check("a figure off screen is not brought nearer by the zoom", behindUs.stride === 4 && !behindUs.eyes, JSON.stringify(behindUs));
+  look(0, 60, 0.5);
+  check("a view wider than the hip's does not push a figure further off", figureWork(at(L.near - 5), 0).stride === 1);
+  look(0);
   // the spread: two figures at the same far distance do not animate on the same frames
   const mine: number[] = [];
   const theirs: number[] = [];

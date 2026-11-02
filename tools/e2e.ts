@@ -8287,6 +8287,35 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     pops.slide <= 25 && pops.lean <= 15 && pops.gun <= 20 && pops.land <= 16,
     `pelvis ${pops.slide} cm in a frame, gun ${pops.gun} cm, chest ${pops.lean} degrees, landing ${pops.land} cm`,
   );
+  // An enemy through a scope animates as near as it looks (Milestone 846): on the real page, how many of its frames a
+  // figure 100 m off takes a new pose, at the hip's view and at a narrow one. It played at 15 poses a second under any zoom
+  const scoped = await ev<{ hip: number; zoomed: number }>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false);
+      const [f] = r.figureLab([{ speed: 8.8, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 100, 180);
+      const raf = () => new Promise((res) => requestAnimationFrame(res));
+      for (let i = 0; i < 400 && !(f.mq && f.mq.bones.calf_l); i++) await raf();
+      const poses = async (fov) => {
+        r.shotFov(fov);
+        for (let i = 0; i < 6; i++) await raf();
+        let moved = 0, last = f.mq.bones.calf_l.quaternion.w;
+        for (let i = 0; i < 40; i++) {
+          await raf();
+          const w = f.mq.bones.calf_l.quaternion.w;
+          if (w !== last) moved++;
+          last = w;
+        }
+        return moved / 40;
+      };
+      const hip = await poses(null), zoomed = await poses(12);
+      r.shotFov(null);
+      return { hip: Math.round(hip * 100) / 100, zoomed: Math.round(zoomed * 100) / 100 };
+    })()`,
+  );
+  check("through a scope a figure 100 m off takes a new pose every frame, where at the hip it takes one in four or fewer", scoped.zoomed >= 0.9 && scoped.hip <= 0.4, JSON.stringify(scoped));
   // A rope's hand round by the side (Milestone 845): blended straight from the hold the fist crossed the face, on and off
   const ropeFace = await ev<{ on: number; off: number }>(
     page,

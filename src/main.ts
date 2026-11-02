@@ -7019,7 +7019,7 @@ function frame(): void {
     // animation, their shadows and their guns follow from it
     camera.updateMatrixWorld();
     lodFrustum.setFromProjectionMatrix(lodMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-    setFigureView(camera.position, lodFrustum, framesRun, fps);
+    setFigureView(camera.position, lodFrustum, framesRun, fps, Math.tan((verticalFovFrom43(hipFov43(settings.fovScale)) * Math.PI) / 360) / Math.tan((camera.fov * Math.PI) / 360));
     // SpeedKills' haze every frame, played or not (a menu, a picture of the city): looks only, and it eases by the wall's
     // clock, since game time stands still when nothing is being played
     tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");

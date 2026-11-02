@@ -18838,3 +18838,18 @@ after that version's bake.
   choices are made from there"): the fog's near end rises a metre a metre over 30 m (world.json `atmosphere.climb`), so the
   ground under a falling player is out of it, and the map's own air holds 100 m past the fence (40). Game side.
 - **Checked:** version 127's lo, hi and max baked, 346 map checks, each new one failing with its fault put back; the walks of the stair, the stalls, the kiosk and the ring's cover by the game's own Player. verify, rules and tsc. Map files version 127: lo 193.6 MB, hi 273.8 MB, max 575.9 MB.
+
+## Milestone 846 — An enemy through a scope moves like one up close
+
+The figure LOD's bands are metres, written for what a figure is worth on screen at each: at 30 m a target, at 80 m a shape,
+beyond that a dot. A scope breaks that. An enemy 100 m off through a 4x sight fills the view as one at 25 m does, and it was
+still the dot: 15 poses a second, no eyes, its gun the merged mesh. At x8 a near-looking soldier ran in stop motion.
+
+- **By size on screen:** the page says how far the view is zoomed in from the hip's (`setFigureView`), and a figure on screen
+  is judged at its distance over that (figlod.ts `seen`, lod.json `_zoom`). At 100 m at x4 it animates every frame, its eyes
+  on. A figure off screen keeps its real distance, so an aim costs only the figures it shows, and a narrow view shows few.
+- **Checked:** five more in the figure LOD check (verify), and in the soldier stances (skfigure) on the real page: of its
+  frames a figure 100 m off takes a new pose. CHECKED_RESULT
+- **Looked at and left:** the scan at 60 frames a second on the other eight guns leaves only the end of a skydive, the same
+  on all: the body comes upright at 14 a second, 18 degrees in the first frame. That is a quick ease, not a pop, and it has to
+  be upright by the ground. DEVINOS's snap on taking off is gone with Milestone 843.
