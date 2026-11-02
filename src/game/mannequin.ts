@@ -34,6 +34,7 @@ import feelCfg from "../config/gunfeel.json";
 import { disposeSweep, newSweep, phaseMeshes, type PhaseSweep } from "./phase";
 import { airborne, type FigurePose } from "./dummy";
 import { MOVE } from "./movement";
+import { ZIPLINES } from "./traversal";
 import { solidsIn } from "./solidgrid";
 import { floorAt } from "./floors";
 import type { Solid } from "./range";
@@ -192,7 +193,7 @@ const PLUNGE = figureCfg.plunge as { fall: number; rate: number; raise: number; 
 /** a grapple's arm up at its hook point and back, a second (figure.json grapple) */
 const GRAPPLE = figureCfg.grapple as { rate: number };
 /** a zip line's hand up on the rope and back, a second, and where on the rope it holds (figure.json zipline) */
-const ZIPLINE = figureCfg.zipline as { rate: number; grip: number[]; lift: number; thigh: number; knee: number; round: number[]; roundBy: number; roundTo: number };
+const ZIPLINE = figureCfg.zipline as { rate: number; grip: number[]; lift: number; thigh: number; knee: number; round: number[]; roundBy: number; roundTo: number; steep: { sin: number; near: number; ahead: number } };
 /** a wall run's lean in and out, a second, and the most its run clip is sped up (figure.json wallRun) */
 const WALL_RUN = figureCfg.wallRun as { rate: number; mostRate: number };
 /** the skydive's body, degrees forward of upright gliding and diving, its limbs, and its ease (figure.json skydive) */
@@ -888,6 +889,9 @@ export class MannequinFigure {
   private grabW = 0;
   /** how far its left hand is up on a zip line's rope, 0 to 1, eased (figure.json zipline) */
   private zipW = 0;
+  /** a steep rope's line across (world x, z) while it rides one, and how far the body is drawn back from it, 0 to 1 */
+  private steepRope: { x: number; z: number } | null = null;
+  private steepW = 0;
   /** the left arm's reach to its knuckles held straight up at the rope, measured once it is there (reachArm) */
   private zipReach: number | null = null;
   /** its long gun on its back while something has the hands, until they have it again (Milestone 617) */
@@ -1714,7 +1718,48 @@ export class MannequinFigure {
   private ropeAt(out: THREE.Vector3): THREE.Vector3 {
     const G = ZIPLINE.grip;
     // (+x is the figure's left, +z the way it faces)
-    return this.root.localToWorld(out.set(G[0], 0, G[2])).setY((this.root.parent ?? this.root).getWorldPosition(new THREE.Vector3()).y + MOVE.ziplineHang - G[1]);
+    this.root.localToWorld(out.set(G[0], 0, G[2])).setY((this.root.parent ?? this.root).getWorldPosition(new THREE.Vector3()).y + MOVE.ziplineHang - G[1]);
+    // (a steep rope's own line: the body is drawn back from it, steepFromRope)
+    const S = this.steepRope;
+    if (S && this.steepW > 0.01) out.lerp(new THREE.Vector3(S.x, out.y, S.z), this.steepW);
+    return out;
+  }
+
+  /** a rope it rides that runs steeply up, near its place: where its line is across (world x, z), or null (figure.json zipline.steep) */
+  private steepRopeNear(): { x: number; z: number } | null {
+    const g = this.root.parent;
+    if (!g) return null;
+    const at = g.getWorldPosition(new THREE.Vector3());
+    const hy = at.y + MOVE.ziplineHang;
+    for (const line of ZIPLINES) {
+      const d = line.b.clone().sub(line.a);
+      const len = d.length();
+      if (len < 1e-3 || Math.abs(d.y) / len < ZIPLINE.steep.sin) continue;
+      // its line at the hand's height, as the game hangs a rider on it (player.ts hangAt)
+      const t = Math.max(0, Math.min(1, (hy - line.a.y) / d.y));
+      const x = line.a.x + d.x * t;
+      const z = line.a.z + d.z * t;
+      if (Math.hypot(x - at.x, z - at.z) <= ZIPLINE.steep.near) return { x, z };
+    }
+    return null;
+  }
+
+  /**
+   * On a steep rope, the body drawn back until the rope runs `steep.ahead` in front of it at the hand's side (Milestone
+   * 1020): the game hangs the rider's feet on its line, so a lift's rope ran up through the head and the chest
+   */
+  private steepFromRope(): void {
+    const S = this.steepRope;
+    const g = this.root.parent;
+    if (!S || !g || this.steepW < 0.01) return;
+    const q = g.getWorldQuaternion(new THREE.Quaternion());
+    const at = g.getWorldPosition(new THREE.Vector3());
+    // where the body's middle goes: the rope `ahead` in front of it and the grip's way to its left (+x the figure's left, +z its front)
+    const want = new THREE.Vector3(S.x, at.y, S.z).sub(new THREE.Vector3(ZIPLINE.grip[0], 0, ZIPLINE.steep.ahead).applyQuaternion(q));
+    const local = g.worldToLocal(want).sub(g.worldToLocal(at.clone()));
+    this.root.position.x += local.x * this.steepW;
+    this.root.position.z += local.z * this.steepW;
+    this.root.updateMatrixWorld(true);
   }
 
   /** pulled to a grapple's hook point (world): the left hand lets go of the gun and the arm reaches up at it */
@@ -1892,6 +1937,9 @@ export class MannequinFigure {
     // on a zip line the left hand goes up onto the rope (reachArm), off the gun
     const zipping = p.stance === "zip";
     this.zipW += ((zipping ? 1 : 0) - this.zipW) * Math.min(1, dt * ZIPLINE.rate);
+    if (zipping) this.steepRope = this.steepRopeNear();
+    this.steepW += ((zipping && this.steepRope ? 1 : 0) - this.steepW) * Math.min(1, dt * ZIPLINE.rate);
+    if (this.steepW < 0.01 && !zipping) this.steepRope = null;
     // its fall from where its group goes (an enemy's is only where its samples put it), eased over the samples' steps
     const y = this.root.parent ? this.root.parent.getWorldPosition(new THREE.Vector3()).y : 0;
     // (no faster than 60 m/s: a figure put somewhere else, a respawn, is no fall)
@@ -2251,6 +2299,7 @@ export class MannequinFigure {
         if (thigh) turnBone(thigh, fig, X_AXIS, -ZIPLINE.thigh * DEG * this.zipW);
         if (calf) turnBone(calf, fig, X_AXIS, ZIPLINE.knee * DEG * this.zipW);
       }
+    this.steepFromRope();
     // Hung from the rope by the left hand: the body raised until that arm, as straight as it goes, reaches it. The rope
     // runs ziplineHang over the feet the game moves, and from the soldier's shoulder there its arm fell 9 cm short.
     // Raised here, before the gun is placed in the right hand (raised after it, the hand went up off the grip)

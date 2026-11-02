@@ -8343,6 +8343,31 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("through a scope a figure 100 m off takes a new pose every frame, where at the hip it takes one in four or fewer", scoped.zoomed >= 0.9 && scoped.hip <= 0.4, JSON.stringify(scoped));
+  // A lift's rope in front of its rider (Milestone 1020): the game hangs the rider's feet on a rope's line, and a rope that
+  // runs straight up ran through the head and the chest, 4 cm from their middles
+  const lift = await ev<{ head: number; chest: number; hand: number }>(
+    page,
+    `(async () => {
+      const r = window.__range, T = r.THREE;
+      const { ZIPLINES } = await import("/src/game/traversal.ts");
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 3, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 150); r.figureLabManual(true);
+      r.figureLabStep(1);
+      const at = f.group.position.clone();
+      const rope = { a: new T.Vector3(at.x, at.y - 1, at.z), b: new T.Vector3(at.x, at.y + 6, at.z) };
+      ZIPLINES.push(rope);
+      r.figureLabPose(0, { speed: 3, stance: "zip", pitch: 0 });
+      r.figureLabStep(1.2);
+      f.group.updateMatrixWorld(true);
+      const across = (n) => { const v = f.mq.bone(n).getWorldPosition(new T.Vector3()); return Math.round(Math.hypot(v.x - at.x, v.z - at.z) * 100); };
+      const out = { head: across("Head"), chest: across("spine_03"), hand: across("middle_01_l") };
+      ZIPLINES.splice(ZIPLINES.indexOf(rope), 1);
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+      r.figureLabStep(1);
+      return out;
+    })()`,
+  );
+  check("on a rope that runs straight up the rope is in front of the rider, 15 cm or more from the head's and the chest's middles, the hand on it (8 cm)", lift.head >= 15 && lift.chest >= 15 && lift.hand <= 8, JSON.stringify(lift));
   // A rope's hand round by the side (Milestone 845): blended straight from the hold the fist crossed the face, on and off
   const ropeFace = await ev<{ on: number; off: number }>(
     page,

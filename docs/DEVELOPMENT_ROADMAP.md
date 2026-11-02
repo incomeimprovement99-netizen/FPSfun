@@ -18983,3 +18983,18 @@ the fallen body, the head lies 1.24 m along the fall from its place, the pelvis 
 - **Checked:** the soldier stances' edge check (skfigure) takes the feet as well as the head and pelvis, and a body on the edge
   itself. On the old code it fails (a foot 3 m over the floor below at 0.2 m in, the body over nothing on the edge, the hips and
   feet at 0.3 m past); on this one all four lie on the box, and the section passes all 346 checks.
+
+## Milestone 1020 — A lift's rope in front of its rider
+
+The city's lifts, its two express ropes, the glass building's and the well's are ropes that run straight up (neonmap.ts), ridden
+as zip lines. The game hangs a rider's feet on a rope's line (player.ts hangAt), which on a sloped zip line puts the rope over
+the head; on one that runs straight up it put the rope up through the body: 4 cm from the head's and the chest's middles, the
+glowing rope out of the top of the head, from every side (node_modules/.scratch/liftshot.mts, with the rope drawn where the city
+draws it).
+
+On a rope steeper than 53 degrees found at the rider's place (traversal.ts ZIPLINES, figure.json zipline `steep`), the body is
+drawn back until the rope runs 0.3 m in front of it at the hand's side, the left hand round it over the head (mannequin.ts
+steepFromRope; the hit volumes follow the bones, so they go with it). Sloped zip lines are as they were: theirs clears the head.
+
+- **Checked:** a new check in the soldier stances (skfigure): on the old code the head and the chest are 4 cm from the rope's line;
+  on this one 32 and 34, the hand on it, and the section passes all 347 checks.
