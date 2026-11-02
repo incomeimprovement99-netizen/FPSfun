@@ -19073,3 +19073,29 @@ bake, and made to pass the map checks over three more bakes.
   figures are gold; the base has one stair fewer; the climbs' frames 12; the gardens' tiles are not floors; a wall's top under the
   35 m hole is not the slab's.
 - **Checked:** version 130's lo, hi and max baked, all 359 map checks on main's push-out (Milestone 998), each new one failing with its fault put back; the stair, the gate, the atrium's flights, the islands, the bays, the gantry and rope 8 walked or ridden by the game's own Player. verify, rules and tsc. Map files version 130: lo 199.6 MB, hi 280.1 MB, max 582.1 MB.
+
+## Milestones 980 to 983 — Cover in sets, each district its own ground and kit, no black faces
+
+From the fresh reviews of 2026-11-01 (all four readers: mid-range the weakest play style, cover "evenly sprinkled single pieces";
+one brown cobble the largest surface in five district pictures; the poster wall, the white barrel and the black ribbed box in
+every district). Measured by a proposal agent as a dry run on version 127 and applied after version 130's bake.
+
+- **980, cover in sets** (the reviews: "cover in clusters of three to five pieces in L or U shapes, about 10 m apart"): both
+  fills, the street's and the districts', try a set of their place's own kit at each far spot before a single piece: poster
+  walls with low returns and L and U courts in the centre, crate piles and rust panels at THE WORKS, a stall under an awning
+  with racks in LANTERN ALLEYS, ticket machine rows at THE TERMINAL, cooling plant at THE STACKS, white panels at GLASS
+  HEIGHTS, dark panels with an ad screen at THE STRIP, hedge courts at THE TERRACES. Each part passes the fill's own test,
+  a set keeps off every street node and every link of the bots' grid, and single pieces fill only what no set reaches, so
+  the fills' reach (5 m in the streets, 6 m in the districts) holds. Measured: three quarters of the pieces in sets, the
+  sets about 8 m apart; rays past 30 m at a standing eye fell from 24 to 18% on the ring road and 15 to 10% in the districts.
+- **981, each district its own ground**: past the centre, each side of the straight roads its own tile: GLASS HEIGHTS the
+  pale hex of its decks, THE TERMINAL concrete tiles, THE STRIP glossy tiles, THE WORKS stained concrete with yellow lines
+  round its halls, THE CANYON worn marble, THE STACKS diamond concrete, THE TERRACES ceramic; LANTERN ALLEYS keeps the cobble.
+- **982, one kit a district**: no barrel in the cover, the ribbed box the centre's alone, the cooling units THE STACKS' alone,
+  the poster walls inside 88 m of the middle.
+- **983, no black faces** (the reviews: "black faces would swallow silhouettes"): the ribbed box's and the crate's faces are
+  metal, measured at 75 and 97% of their sides, and with nothing to reflect in shade metal draws black; they glow their own
+  colour maps, and each set's low panel carries a lit strip.
+- **Fixed on the way:** two sets kept off a squads' drop on THE STRIP's road and the club's west gate (`ways`); the drops
+  check reads the game's own step height (0.56 m, movement.json's 22 in), as the game's drop picker does, not the old 0.46.
+- **Checked:** version 131's lo, hi and max baked, the layout rerun after each with no difference, all 363 map checks, each of the four new ones failing with its fault put back; the sets photographed by day and night in every district. verify, rules and tsc. Map files version 131: lo 201.2 MB, hi 283.7 MB, max 591.8 MB.

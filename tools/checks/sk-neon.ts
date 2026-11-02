@@ -442,7 +442,7 @@ check("THE CANYON: a pad up each wall of each passage, each landing on the roof 
   // (and each with room round it, game.dropRoom: a drop falls onto the first floor under it, and drops in the rooms
   // buildings' ground floors put the squad on their roofs at 11 m, one by the Sky Ring's stair on the stair at 3.6 m)
   const R = (cfg.game as unknown as { dropRoom: number }).dropRoom;
-  const crowded = map.pois.flatMap((p) => p.drops.filter((d) => solidsIn(d.x - R, d.x + R, d.z - R, d.z + R).some((b) => b.minX < d.x + R && b.maxX > d.x - R && b.minZ < d.z + R && b.maxZ > d.z - R && b.top > 0.46)).map((d) => `${p.id} (${(d.x - BR_X).toFixed(1)}, ${(d.z - BR_Z).toFixed(1)})`));
+  const crowded = map.pois.flatMap((p) => p.drops.filter((d) => solidsIn(d.x - R, d.x + R, d.z - R, d.z + R).some((b) => b.minX < d.x + R && b.maxX > d.x - R && b.minZ < d.z + R && b.maxZ > d.z - R && b.top > MOVE.stepHeight)).map((d) => `${p.id} (${(d.x - BR_X).toFixed(1)}, ${(d.z - BR_Z).toFixed(1)})`));
   check("the squads' drops: none on or by a jump pad, each with room round it (no roof over it, nothing beside it over a step)", near.length === 0 && crowded.length === 0 && map.pois.every((p) => p.drops.length > 0), `${map.pois.reduce((n, p) => n + p.drops.length, 0)} drops${near.length ? `; by a pad: ${near.join(", ")}` : ""}${crowded.length ? `; crowded: ${crowded.join(", ")}` : ""}`);
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
@@ -5090,6 +5090,94 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const low = ZZ.filter((q) => q.a[1] - hangR < 26.95);
   check("a rope ridden up reaches its roof: a rider's feet over the rail at its top", ZZ.length === 1 && low.length === 0, `${ZZ.length} ropes, ${low.map((q) => `${q.block} feet at ${(q.a[1] - hangR).toFixed(2)} m`).join("; ") || "all clear of 26.95 m"}`);
 }
+
+// cover in sets, each district its own ground and kit, no black faces (Milestones 980 to 983, the fourteenth reviews of the
+// centre and eighth of the districts: mid-range the weakest play style, cover "evenly sprinkled"; one brown cobble the largest
+// surface in five pictures; shared props crossing the districts; "the black cover faces swallow silhouettes"). The fills'
+// own guarantee, cover in reach of every open spot, is the two checks above: this holds what they cannot see
+{
+  type Cov = { piece: string; c: number[]; yaw: number; set?: number; d?: string; half?: number[] };
+  const CH = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks;
+  const SC = (cfg as unknown as { streetCover?: Cov[] }).streetCover ?? [];
+  const DV = (cfg as unknown as { districtCover?: Cov[] }).districtCover ?? [];
+  const setsOf = (list: Cov[]) => {
+    const m = new Map<string, Cov[]>();
+    for (const q of list) if (q.set !== undefined) (m.get(`${q.set}`) ?? m.set(`${q.set}`, []).get(`${q.set}`)!).push(q);
+    return [...m.values()];
+  };
+  // (a set's middle and its reach; each set's nearest other, middle to middle: the reviews' "10 m apart")
+  const hull = (s: Cov[]) => {
+    const [x, z] = [s.reduce((a, q) => a + q.c[0], 0) / s.length, s.reduce((a, q) => a + q.c[1], 0) / s.length];
+    return { x, z, r: Math.max(...s.map((q) => Math.hypot(q.c[0] - x, q.c[1] - z))) + 1 };
+  };
+  const gaps = (sets: Cov[][]) => {
+    const H9 = sets.map(hull);
+    return H9.map((a, i) => Math.min(...H9.filter((_, j) => j !== i).map((b) => Math.hypot(a.x - b.x, a.z - b.z)))).sort((p, q) => p - q);
+  };
+  const [SS, DS] = [setsOf(SC), setsOf(DV)];
+  const share = (l: Cov[]) => l.filter((q) => q.set !== undefined).length / (l.length || 1);
+  const [gS, gD] = [gaps(SS), gaps(DS)];
+  const wide = [...SS, ...DS].filter((s) => hull(s).r > 7.5).length;
+  const CL = cfg.rules.dress as unknown as { cover: { tall: { within: number }; sets: unknown[] }; board: { piece: string }; trim: { piece: string; on: string; glow: Record<string, string> } };
+  check(
+    "the cover in sets: most of the street's and the districts' pieces in sets, each set whole in 7.5 m of its middle, the sets about 10 m apart, the median nearest 7 to 14 m",
+    CL.cover.sets.length >= 3 && share(SC) >= 0.7 && share(DV) >= 0.7 && SS.length >= 40 && DS.length >= 40 && wide === 0 && gS[gS.length >> 1] >= 7 && gS[gS.length >> 1] <= 14 && gD[gD.length >> 1] >= 7 && gD[gD.length >> 1] <= 14,
+    `${SS.length} sets in the streets, ${((share(SC)) * 100).toFixed(0)}% of its pieces, the median nearest ${(gS[gS.length >> 1] ?? 0).toFixed(1)} m; ${DS.length} in the districts, ${(share(DV) * 100).toFixed(0)}%, ${(gD[gD.length >> 1] ?? 0).toFixed(1)} m; ${wide} past 7.5 m`,
+  );
+  // (one kit a district: the barrels gone, the ribbed box the centre's, the cooling units THE STACKS', the poster sheets inside)
+  const named = (q: Cov, n: string) => q.piece.startsWith(n);
+  const barrels = [...SC, ...DV].filter((q) => named(q, "Barrel00")).length;
+  const ribbed = DV.filter((q) => named(q, "Streetdeco002")).length;
+  const cooling = [...SC, ...DV].filter((q) => named(q, "Coolbox") && q.d !== "stacks").length;
+  const outer = (CH["c-cover"]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${CL.board.piece}`) && Math.max(Math.abs(Number(q[1])), Math.abs(Number(q[3]))) >= CL.cover.tall.within + 3).length;
+  const kinds = new Map<string, Set<string>>();
+  for (const q of DV) (kinds.get(q.piece) ?? kinds.set(q.piece, new Set()).get(q.piece)!).add(q.d!);
+  const shared = [...kinds].filter(([p, ds]) => ds.size > 1 && !p.startsWith("Wall_Simple") && !p.startsWith("Fastfood") && !p.startsWith("Rack") && !p.startsWith("Window_sunshade") && !p.startsWith("VendingMachine00b")).map(([p]) => p);
+  check(
+    "one kit a district: no barrel in the cover, the ribbed box the centre's, the cooling units THE STACKS' alone, the poster sheets inside the middle",
+    barrels === 0 && ribbed === 0 && cooling === 0 && outer === 0 && shared.length === 0,
+    `${barrels} barrels, ${ribbed} ribbed boxes and ${cooling} cooling units out of place, ${outer} sheets past ${CL.cover.tall.within} m, shared ${shared.join(", ") || "none"}`,
+  );
+  // (each district its own ground: every tile past the centre worn by its side of the straight roads, the road's its own)
+  const GD = (cfg.rules.ground as unknown as { tile: string; road: string; districts: { seam: number; sides: Record<string, string> } });
+  let tiles = 0, wrong = 0, cobble = 0;
+  for (const [k, ch] of Object.entries(CH)) {
+    if (!k.startsWith("ground-")) continue;
+    for (const q of ch.place) {
+      if (!String(q[0]).endsWith(GD.tile)) continue;
+      tiles++;
+      const [x, z] = [Number(q[1]) + 5, Number(q[3]) - 5];
+      const s = GD.districts.seam;
+      const want = GD.districts.sides[(z < -s ? "n" : z > s ? "s" : "") + (x < -s ? "w" : x > s ? "e" : "")];
+      // (the road's own, in its finer tile since Milestone 988)
+      if (q[6] === GD.road || q[6] === (GD as unknown as { roadTile?: string }).roadTile) continue;
+      if (!q[6]) cobble++;
+      if ((q[6] ?? undefined) !== want) wrong++;
+    }
+  }
+  const YL = (cfg.rules.districts as unknown as { works: { chunk: string; halls: Array<{ box: number[] }>; lines: { piece: string; mat: string } } }).works;
+  const lines = (CH[YL.chunk]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${YL.lines.piece}`) && q[6] === YL.lines.mat);
+  const inHall = lines.filter((q) => YL.halls.some(({ box: [a, b, e, f] }) => Number(q[1]) > a && Number(q[1]) < b && Number(q[3]) > e && Number(q[3]) < f)).length;
+  check(
+    "each district its own ground: every tile past the centre worn by its side of the straight roads, the brown cobble LANTERN ALLEYS' alone, yellow lines round THE WORKS' halls",
+    tiles > 500 && wrong === 0 && new Set(Object.values(GD.districts.sides)).size >= 7 && cobble > 0 && cobble <= 120 && lines.length >= 30 && inHall === 0,
+    `${tiles} tiles, ${wrong} wrong, ${new Set(Object.values(GD.districts.sides)).size} grounds, ${cobble} in the cobble; ${lines.length} lengths of line, ${inHall} in a hall`,
+  );
+  // (no black faces: the ribbed box and the crate carry their own map as a glow wherever they stand with no material of their
+  // own, and each low panel of a set in a lit place its strip)
+  const WR = cfg.rules.wear as unknown as Record<string, string>;
+  const glowing = ["Streetdeco002c.prefab", "Streetdeco002.prefab", "Streetdeco002b.prefab", "Crate00.prefab"];
+  const unlit = Object.values(CH).flatMap((ch) => ch.place).filter((q) => glowing.some((n) => String(q[0]).endsWith(`/${n}`)) && !String(q[6] ?? "").includes("~#") && !q[6]).length;
+  const lowStreet = (CH["c-cover"]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${CL.trim.on}`) && Number(q[8]) < 1).length;
+  const LOW = lowStreet + DV.filter((q) => q.piece === CL.trim.on && CL.trim.glow[q.d!]).length;
+  const strips = Object.values(CH).flatMap((ch) => ch.place).filter((q) => String(q[0]).endsWith(`/${CL.trim.piece}`) && (q[6] === undefined || Object.values(CL.trim.glow).includes(String(q[6]))) && Number(q[2]) > 1.4 && Number(q[2]) < 2.4).length;
+  check(
+    "no black faces: the ribbed box and the crate glowing their own maps wherever they stand, each low panel of a set with its lit strip",
+    glowing.every((n) => (WR[n] ?? "").split(";").every((r) => r.includes("~#"))) && unlit === 0 && strips >= LOW * 0.9 && LOW > 0,
+    `${unlit} left unlit, ${strips} strips for ${LOW} panels`,
+  );
+}
+
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

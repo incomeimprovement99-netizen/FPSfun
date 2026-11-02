@@ -1114,6 +1114,16 @@ cfg.game.beacons = (R.streets.beacons as string[]).map((id) => {
   return [+p[0].toFixed(2), +p[1].toFixed(2)];
 });
 
+// Each district its own ground (rules.ground.districts, Milestone 981; the districts' eighth review: "each district its own
+// ground", one brown cobble the largest surface in five of its pictures). The ground's tile past the ring road, worn by its
+// side of the straight roads (`seam`): the eye reads a road as where one place stops, and the sectors' own line, 50 m out,
+// runs through a block's paving. The tiles past the centre lie in chunks of their own, out of the batches
+const groundOf = (x: number, z: number): { mat?: string } => {
+  const G = R.ground.districts as { seam: number; sides: Record<string, string> } | undefined;
+  if (!G || Math.max(Math.abs(x), Math.abs(z)) < R.centre) return {};
+  const mat = G.sides[(z < -G.seam ? "n" : z > G.seam ? "s" : "") + (x < -G.seam ? "w" : x > G.seam ? "e" : "")];
+  return mat ? { mat } : {};
+};
 // the ground itself, less the building footprints that keep their own floor
 /** the tiles left out, a footprint's: the hole in the ground its basement stands in */
 const holes: Array<[number, number, number, number]> = [];
@@ -1128,7 +1138,7 @@ for (let x = -R.extent; x < R.extent; x += T)
     const sector = sectorAt(cx, cz);
     const chunk = sector === "c" ? "c-ground" : `ground-${sector}`;
     // (the base is 10 m square from its pivot toward -z: placed by its middle)
-    placeAt(chunk, sector, R.ground.tile, cx, cz, 0, "g", road(cx, cz) ? { mat: R.ground.roadTile ?? R.ground.road } : {});
+    placeAt(chunk, sector, R.ground.tile, cx, cz, 0, "g", road(cx, cz) ? { mat: R.ground.roadTile ?? R.ground.road } : groundOf(cx, cz));
   }
 // The court's wall is one-sided, its face toward `faces` in its own frame (measured off its triangles): turned so the face
 // looks back into the court or the hall. Turned 90 degrees at a time, its +x goes to -z, -x, +z (tools/import-neon.ts place)
@@ -2269,6 +2279,18 @@ function streetGraph() {
     held,
     /** whether this piece would leave the street in more pieces */
     splits: (o: OBox) => piecesOf(cutBy(o), covers(o)) > pieces,
+    /**
+     * whether this piece would stand on a street node or across a link along the grid's lines that is still whole: a set's
+     * parts keep off them (Milestone 980). `splits` is no bar to a long way round: sets let through by it alone left the
+     * street one network with a node in THE TERRACES' sector 54 s from a standing sector, against a 31 s warning. A set
+     * in a cell of the 10 m grid cuts only that cell's diagonals, and every way along the grid stays as it was
+     */
+    crosses: (o: OBox) => {
+      // (only the links about it: asked of every spot round a far point, a walk of them all took the fill past 30 minutes)
+      const reach = Math.hypot(o.hu, o.hv) + body + GG.step;
+      const about = (q: Pt) => Math.abs(q[0] - o.c[0]) < reach && Math.abs(q[1] - o.c[1]) < reach;
+      return covers(o).length > 0 || gl.some(([i, j], k) => about(gn[i]) && (gn[i][0] === gn[j][0] || gn[i][1] === gn[j][1]) && !cut.has(k) && !gone.has(i) && !gone.has(j) && hits(o, gn[i], gn[j]));
+    },
     /**
      * whether this piece would stand across any link, cut or not, of a street node the model has off the main network,
      * or on such a node: the model's guess at a link is wrong both ways, and a pair it took for cut off was joined in
@@ -3682,6 +3704,41 @@ const STREET_WALL_BOXES: OBox[] = [];
     console.log(`the street walls: ${walls.length} buildings, ${(tris / 1000).toFixed(0)}k triangles (${[...by].map(([k, v]) => `${k} ${v}`).join(", ")}; ${JSON.stringify(Object.fromEntries(why))} tried)`);
   }
 }
+// Cover in sets (rules.dress.cover.sets, rules.dress.districtCover.sets, Milestone 980; the fourteenth reviews: mid-range the
+// weakest play style, cover "evenly sprinkled", asked for "in clusters of three to five, L or U shapes, 10 m apart"). A set's
+// parts [piece, along, across, turn, scale, foot, how]: each piece's middle in the set's own metres, "g" drawn only. Every
+// part on the ground must fit as a single piece does, by the fill's own test; the test reads what stands already, so a set's
+// parts may stand closer to each other than `clear`, which is what makes them a set. All of a set or none of it: a set with a
+// part short of room is a set the eye reads as a mistake, and the kits end on sets of three.
+type CoverSet = { id: string; last?: boolean; parts: Array<[string, number, number, number, number?, number?, ("s" | "g")?]> };
+type SetPart = { name: string; scale: number; y: number; yaw: number; how: "s" | "g"; o: OBox };
+/** which of a far spot's 161 spots out to 5 m a district's set is tried at: every second bearing and the far spot itself. Every
+ * part of a set at every turn costs the fill's test its thousand cells; a set stands only inside a cell of the bots' grid, so
+ * fewer still (every second ring too) missed that window, 77 sets for the street's rule's 113 */
+const everySecond = (k: number) => k === 0 || (k - 1) % 2 === 0;
+function coverSet(kit: CoverSet[], rndS: () => number, x: number, z: number, turns: number[], fits: (o: OBox, p: SetPart) => boolean, street = true): SetPart[] | null {
+  // (the kit in a seeded order, the tight sets marked `last` after the rest: they are for nooks, and first they took the open ground)
+  for (const S of [...kit].sort(() => rndS() - 0.5).sort((a, b) => Number(!!a.last) - Number(!!b.last)))
+    for (const turn of turns) {
+      const parts = S.parts.map(([name, along, across, yaw, scale = 1, y = 0, how = "s"]): SetPart => {
+        const row = piece(name).row;
+        const [ox, oz] = rotY(turn, along, across);
+        const t = turn + yaw;
+        return { name, scale, y, yaw: t, how, o: { c: [x + ox, z + oz], u: rotY(t, 1, 0), v: rotY(t, 0, 1), hu: (row.size![0] / 2) * scale, hv: (row.size![2] / 2) * scale, top: y + row.size![1] * scale } };
+      });
+      const ground = parts.filter((p) => !p.y && p.how !== "g");
+      // (the street model last, and across a set only when all of it fits: read part by part it took the fill from 2 minutes
+      // to past 20. Off the grid's lines first, the cheapest of its three)
+      if (ground.every((p) => fits(p.o, p)) && (!street || ground.every((p) => !STREET_GRAPH?.crosses(p.o) && !STREET_GRAPH?.splits(p.o) && !STREET_GRAPH?.strands(p.o)))) return parts;
+    }
+  return null;
+}
+/** a low panel's lit strip along its top (rules.dress.trim, Milestone 983): a mid-value edge round what a dark face hides */
+function coverTrim(chunk: string, p: SetPart, foot: number, where: string): void {
+  const TR = R.dress.trim as { piece: string; on: string; glow: Record<string, string> } | undefined;
+  if (!TR?.glow[where] || p.name !== TR.on || p.scale === 1) return;
+  placeTurned(chunk, TR.piece, p.o.c[0], p.o.c[1], p.yaw, "g", foot + p.y + piece(p.name).row.size![1] * p.scale - piece(TR.piece).row.min![1], TR.glow[where]);
+}
 // Cover down the streets (rules.dress.cover; the centre's fourth review: "cover every 8 to 12 m in the streets and
 // plaza", its shots of the streets open with little in them). From every open point of the streets, a curve's or the
 // Loop's road and pavements and the ring road from its inner pavement out, something a crouched body hides behind within
@@ -3695,7 +3752,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // next farthest, until every point has cover or no piece fits by it. Measured on the last bake's collision and the
 // street walls above, and laid last (the bake lists its boxes in `laid`), so the next run measures the same streets
 {
-  const CO = (R.dress as { cover?: { chunk: string; far: number; near: number; clear: number; headroom: number; road: string[]; pave: string[]; tall: { piece: string; every: number }; most: number; seed: number; nameView: number } }).cover;
+  const CO = (R.dress as { cover?: { chunk: string; far: number; near: number; clear: number; headroom: number; road: string[]; pave: string[]; tall: { piece: string; every: number; within?: number; bare?: number }; most: number; seed: number; nameView: number; sets?: CoverSet[]; setTries?: number } }).cover;
   if (CO) {
     const rndC = seeded(CO.seed);
     const L = R.low;
@@ -3789,7 +3846,7 @@ const STREET_WALL_BOXES: OBox[] = [];
       return Math.hypot(q[0] - a[0] - (b[0] - a[0]) * t, q[1] - a[1] - (b[1] - a[1]) * t);
     };
     const why = new Map<string, number>();
-    const fits = (o: OBox): boolean => {
+    const fits = (o: OBox, quick = false): boolean => {
       const r = Math.hypot(o.hu, o.hv);
       const [x, z] = o.c;
       const k = !cellsOf(o).every((c) => street[c] && open(c)) ? "street"
@@ -3806,12 +3863,12 @@ const STREET_WALL_BOXES: OBox[] = [];
         : ((CO as { keep?: number[][] }).keep ?? []).some(([kx, kz, kr]) => Math.hypot(kx - x, kz - z) < r + kr) ? "keep"
         // (nor across a link of a node the model has off the main network: its guess at a link is wrong both ways, and a
         // kiosk it took to cut nothing shut two street nodes in at the bake)
-        : STREET_GRAPH?.splits(o) || STREET_GRAPH?.strands(o) ? "graph"
+        : !quick && (STREET_GRAPH?.splits(o) || STREET_GRAPH?.strands(o)) ? "graph"
         : "ok";
       why.set(k, (why.get(k) ?? 0) + 1);
       return k === "ok";
     };
-    const placed: Array<{ piece: string; c: Pt; yaw: number; half?: number[] }> = [];
+    const placed: Array<{ piece: string; c: Pt; yaw: number; half?: number[]; set?: number }> = [];
     // (no tall board on the ring road in front of a district's name, `nameView` either side of it, from the ring's inner
     // edge out to the name: from right behind a 3 m board, 2.5 m off, no name over a district's plaza shows, and on the
     // north side two of them hid THE STACKS' from three of seven points along the road)
@@ -3824,6 +3881,9 @@ const STREET_WALL_BOXES: OBox[] = [];
       );
     const tried = new Uint8Array(N * N);
     let left = 0;
+    let setsLaid = 0;
+    // (far spots running that took no set: past `setTries` the fill is down to nooks a set has no room in, single pieces only)
+    let noSet = 0;
     for (let n = 0; n < CO.most; n++) {
       field();
       let best = -1;
@@ -3834,16 +3894,49 @@ const STREET_WALL_BOXES: OBox[] = [];
       const spots: Pt[] = [[bx, bz]];
       for (let r = C; r <= CO.near + 1e-6; r += C) for (let a = 0; a < 16; a++) spots.push([bx + r * Math.sin((a * Math.PI) / 8), bz + r * Math.cos((a * Math.PI) / 8)]);
       let done = false;
-      for (const [x, z] of spots) {
+      for (const spot of spots) {
+        const [x, z] = spot;
         const m = Math.max(Math.abs(x), Math.abs(z));
         const ns = SF.nearest(x, z, 20);
         // (the street's way here: along its curve or the Loop, or along the ring road's side)
         const ring = m >= L.edge && (!ns || ns.d > ns.street.half + CV.pave);
         const t: Pt = ring ? (Math.abs(x) > Math.abs(z) ? [0, 1] : [1, 0]) : ns ? ns.t : [1, 0];
         const carriage = onRoad(x, z) < 0 || m >= R.ring[0];
+        // (a set where one fits, its long side along the street; the poster wall inside `tall.within` of the middle, and from
+        // `tall.bare` out the same wall bare: it stood on the ring road in every district's picture from it, Milestone 982.
+        // Between the two no wall: a bare one a wall's half length off the centre's roads stood on them, over a parked car)
+        const posters = m < (CO.tall.within ?? Infinity);
+        const wallHere = posters || m >= (CO.tall.bare ?? 0);
+        const isWall = (p: SetPart) => p.scale === 1 && p.name === CO.tall.piece;
+        const along = yawToward(t[0], t[1]) + 90;
+        // (a look at the half-metre cells about the spot first: most spots round a far point in a nook have no room, and the
+        // fill's own test of every part of every set at each turn costs a hundred thousand of its cells)
+        const room = (m0: number) => {
+          for (let i = Math.max(0, Math.floor((x - m0 + H) / C)); i <= Math.min(N - 1, Math.floor((x + m0 + H) / C)); i++)
+            for (let j = Math.max(0, Math.floor((z - m0 + H) / C)); j <= Math.min(N - 1, Math.floor((z + m0 + H) / C)); j++) if (body[i * N + j]) return false;
+          return true;
+        };
+        const got = CO.sets && noSet < (CO.setTries ?? Infinity) && room(CO.clear - 0.5) ? coverSet(CO.sets, rndC, x, z, [along, along + 180], (o, p) => !(isWall(p) && (inView(x, z) || !wallHere)) && fits(o, true)) : null;
+        if (got) {
+          for (const p of got) {
+            const row = piece(p.name).row;
+            const b = placeTurned(CO.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, p.y - row.min![1] * p.scale, undefined, p.scale);
+            if (p.how === "g") continue;
+            const board = posters && isWall(p);
+            if (board) dressBoard(CO.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, 0);
+            coverTrim(CO.chunk, p, 0, "centre");
+            if (!p.y) STREET_GRAPH?.add(b);
+            for (const c of cellsOf(b)) body[c] = cover[c] = 1;
+            placed.push({ piece: p.name, c: [+p.o.c[0].toFixed(3), +p.o.c[1].toFixed(3)], yaw: +p.yaw.toFixed(2), set: setsLaid, ...(board ? { half: [+(row.size![0] / 2).toFixed(3), +(row.size![2] / 2).toFixed(3)] } : {}) });
+          }
+          setsLaid++;
+          noSet = -1;
+          done = true;
+          break;
+        }
         const pool = carriage ? (placed.length % CO.tall.every === CO.tall.every - 1 ? [CO.tall.piece, ...CO.road] : [...CO.road].sort(() => rndC() - 0.5)) : [...CO.pave].sort(() => rndC() - 0.5);
         for (const name of pool) {
-          if (name === CO.tall.piece && inView(x, z)) continue;
+          if (name === CO.tall.piece && (inView(x, z) || !wallHere)) continue;
           const row = piece(name).row;
           const along = yawToward(t[0], t[1]) + (row.size![2] >= row.size![0] ? 0 : 90);
           for (const yaw of [along, along + 90]) {
@@ -3852,11 +3945,11 @@ const STREET_WALL_BOXES: OBox[] = [];
             if (!fits(o)) continue;
             // (solid, "s", as the street walls: the bake lists a solid placement's boxes in `laid`, an open one's it merges)
             const b = placeFaced(CO.chunk, name, x, z, yaw, "s", -row.min![1]);
-            if (name === CO.tall.piece) dressBoard(CO.chunk, name, x, z, yaw, 0);
+            if (name === CO.tall.piece && posters) dressBoard(CO.chunk, name, x, z, yaw, 0);
             STREET_GRAPH?.add(b);
             for (const c of cellsOf(b)) body[c] = cover[c] = 1;
             // (the tall boards with their half sizes, as the median's: the road check knows them by these)
-            placed.push({ piece: name, c: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2), ...(name === CO.tall.piece ? { half: [+(row.size![0] / 2).toFixed(3), +(row.size![2] / 2).toFixed(3)] } : {}) });
+            placed.push({ piece: name, c: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2), ...(name === CO.tall.piece && posters ? { half: [+(row.size![0] / 2).toFixed(3), +(row.size![2] / 2).toFixed(3)] } : {}) });
             done = true;
             break;
           }
@@ -3864,6 +3957,7 @@ const STREET_WALL_BOXES: OBox[] = [];
         }
         if (done) break;
       }
+      noSet++;
       // (no piece fits by it: the far point and its square metre left)
       if (!done) for (const c of cellsOf({ c: [bx, bz], u: [1, 0], v: [0, 1], hu: 0.5, hv: 0.5, top: 0 })) tried[c] = 1;
     }
@@ -3877,7 +3971,7 @@ const STREET_WALL_BOXES: OBox[] = [];
       }
     cfg.streetCover = placed;
     const tris = placed.reduce((a, q) => a + piece(q.piece).row.tris, 0);
-    console.log(`the street cover: ${placed.length} pieces, ${(tris / 1000).toFixed(0)}k triangles; ${((left / streetN) * 100).toFixed(1)}% of the open street over ${CO.far} m from cover, the farthest ${farthest.toFixed(1)} m (${JSON.stringify(Object.fromEntries(why))} tried)`);
+    console.log(`the street cover: ${placed.length} pieces, ${setsLaid} sets, ${(tris / 1000).toFixed(0)}k triangles; ${((left / streetN) * 100).toFixed(1)}% of the open street over ${CO.far} m from cover, the farthest ${farthest.toFixed(1)} m (${JSON.stringify(Object.fromEntries(why))} tried)`);
   }
 }
 // LANTERN ALLEYS (rules.districts.lantern; the districts plan's north-east district, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md):
@@ -6285,9 +6379,11 @@ function onNode(o: OBox): boolean {
 // Measured on the last bake's collision, laid last (the bake lists its boxes in `laid` and the next run leaves them
 // out), so the next run measures the same ground.
 {
-  const DC = (R.dress as { districtCover?: { chunk: string; far: number; farBy?: Record<string, number>; near: number; clear: number; headroom: number; tall: number; band: number[]; crate: string; most: number; seed: number; levels: Array<{ y: number; far?: number; districts?: string[]; rect?: number[]; pieces?: string[] }>; nameView: number; pieces: Record<string, string[]>; sectors: Record<string, string> } }).districtCover;
+  const DC = (R.dress as { districtCover?: { chunk: string; far: number; farBy?: Record<string, number>; near: number; clear: number; headroom: number; tall: number; band: number[]; crate: string; most: number; seed: number; levels: Array<{ y: number; far?: number; districts?: string[]; rect?: number[]; pieces?: string[] }>; nameView: number; pieces: Record<string, string[]>; sectors: Record<string, string>; sets?: Record<string, CoverSet[]>; setTries?: number } }).districtCover;
   if (DC) {
     const rndD = seeded(DC.seed);
+    let setsLaid = 0;
+    const CAP = (R.collision as { caps: { pieces: string[]; top: number } }).caps;
     const C = 0.5, H = DC.band[1] + 2;
     const N = Math.round((2 * H) / C);
     const mid = (k: number): Pt => [-H + (Math.floor(k / N) + 0.5) * C, -H + ((k % N) + 0.5) * C];
@@ -6340,7 +6436,7 @@ function onNode(o: OBox): boolean {
       const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * (b[0] - a[0]) + (q[1] - a[1]) * (b[1] - a[1])) / l2));
       return Math.hypot(q[0] - a[0] - (b[0] - a[0]) * t, q[1] - a[1] - (b[1] - a[1]) * t);
     };
-    const placed: Array<{ piece: string; c: Pt; yaw: number; y: number; d: string }> = [];
+    const placed: Array<{ piece: string; c: Pt; yaw: number; y: number; d: string; set?: number }> = [];
     const report: string[] = [];
     for (const L of DC.levels) {
       const y0 = L.y;
@@ -6404,7 +6500,7 @@ function onNode(o: OBox): boolean {
         return out;
       };
       const why = new Map<string, number>();
-      const fits = (o: OBox): boolean => {
+      const fits = (o: OBox, quick = false): boolean => {
         const r = Math.hypot(o.hu, o.hv);
         const [x, z] = o.c;
         // (all of it inside the band: past the grid's edge a piece has no cells to be refused on, and one was laid 390 times)
@@ -6420,13 +6516,16 @@ function onNode(o: OBox): boolean {
           : ends.some(([ex, ez]) => Math.hypot(ex - x, ez - z) < r + 6) ? "zip"
           : lifts.some((q) => seg(o.c, q.ring, q.car) < r + R.lifts.clear) ? "lift"
           : walkIns.some((q) => Math.hypot(q.door[0] - x, q.door[1] - z) < r + 3) ? "door"
-          : y0 === 0 && (STREET_GRAPH?.splits(o) || STREET_GRAPH?.strands(o)) ? "graph"
+          : y0 === 0 && !quick && (STREET_GRAPH?.splits(o) || STREET_GRAPH?.strands(o)) ? "graph"
           : "ok";
         why.set(k, (why.get(k) ?? 0) + 1);
         return k === "ok";
       };
       const tried = new Uint8Array(N * N);
       const before = placed.length;
+      // (as the street's fill: past `setTries` far spots running with no set, single pieces only. Each such spot asks every
+      // set at every turn at 97 spots round it, and the fill took past 30 minutes on spots no set could have)
+      let noSet = 0;
       // (a level's own `pieces`, Milestone 975, none on THE TERRACES' tiers: their cover is their beds' and the pergolas')
       for (let n = 0; n < DC.most && !(L.pieces && !L.pieces.length); n++) {
         field();
@@ -6440,7 +6539,34 @@ function onNode(o: OBox): boolean {
         const spots: Pt[] = [[bx, bz]];
         for (let r = C; r <= DC.near + 1e-6; r += C) for (let a = 0; a < 16; a++) spots.push([bx + r * Math.sin((a * Math.PI) / 8), bz + r * Math.cos((a * Math.PI) / 8)]);
         let done = false;
-        for (const [x, z] of spots) {
+        for (const spot of spots) {
+          const [x, z] = spot;
+          // (a set of the district's own kit where one fits. A part counts as cover only past `tall`, as the check counts it,
+          // a planter by its box: a set's low racks stop a shot at the knees and hide nobody)
+          // (a look at the half-metre cells about the spot first, as the street's fill does)
+          const room = (m0: number) => {
+            for (let i = Math.max(0, Math.floor((x - m0 + H) / C)); i <= Math.min(N - 1, Math.floor((x + m0 + H) / C)); i++)
+              for (let j = Math.max(0, Math.floor((z - m0 + H) / C)); j <= Math.min(N - 1, Math.floor((z + m0 + H) / C)); j++) if (body[i * N + j]) return false;
+            return true;
+          };
+          // (none on a level with its own `pieces`: terraces.py, version 130, gives THE TERRACES' tiers their own, and none)
+          const got = DC.sets?.[district] && !(L as { pieces?: string[] }).pieces && noSet < (DC.setTries ?? Infinity) && room(DC.clear - 0.5) && everySecond(spots.indexOf(spot)) ? coverSet(DC.sets[district], rndD, x, z, [0, 90, 180, 270], (o) => fits(o, true), y0 === 0) : null;
+          if (got) {
+            for (const p of got) {
+              const row = piece(p.name).row;
+              placeTurned(DC.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, y0 + p.y - row.min![1] * p.scale, (DC as unknown as { mats?: Record<string, Record<string, string>> }).mats?.[district]?.[p.name], p.scale);
+              if (p.how === "g") continue;
+              coverTrim(DC.chunk, p, y0, district);
+              if (y0 === 0 && !p.y) STREET_GRAPH?.add(p.o);
+              const tall = (CAP.pieces.includes(p.name) ? CAP.top : p.o.top) > DC.tall;
+              for (const c of cellsOf(p.o)) (body[c] = 1), tall && (cover[c] = 1);
+              placed.push({ piece: p.name, c: [+p.o.c[0].toFixed(3), +p.o.c[1].toFixed(3)], yaw: +p.yaw.toFixed(2), y: y0 + p.y, d: district, set: setsLaid });
+            }
+            setsLaid++;
+            noSet = -1;
+            done = true;
+            break;
+          }
           for (const name of pool) {
             // (a set of crates: two of `crate` side by side and a third on them, as THE CANYON's market lays them)
             const crates = name === "crates";
@@ -6459,7 +6585,11 @@ function onNode(o: OBox): boolean {
                 placeTurned(DC.chunk, name, x, z, yaw, "s", y0 - row.min![1], (DC as unknown as { mats: Record<string, Record<string, string>> }).mats[district][name]);
               } else placeFaced(DC.chunk, name, x, z, yaw, "s", y0 - row.min![1]);
               if (y0 === 0) STREET_GRAPH?.add(o);
-              for (const c of cellsOf(o)) body[c] = cover[c] = 1;
+              for (const c of cellsOf(o)) body[c] = 1;
+              // (cover only where it stands past `tall`: of a pile's two columns the one with the third crate on it, as the
+              // check counts it. Over both, THE WORKS' 34 piles left 1.8% of its ground past its 5 m)
+              const [ox2, oz2] = rotY(yaw, row.size![0] / 2 + 0.01, 0);
+              for (const c of cellsOf(crates ? { ...o, c: [x - ox2, z - oz2], hu: row.size![0] / 2 } : o)) cover[c] = 1;
               placed.push({ piece: name, c: [+x.toFixed(3), +z.toFixed(3)], yaw, y: y0, d: district });
               done = true;
               break;
@@ -6468,6 +6598,7 @@ function onNode(o: OBox): boolean {
           }
           if (done) break;
         }
+        noSet++;
         if (!done) for (const c of cellsOf({ c: [bx, bz], u: [1, 0], v: [0, 1], hu: 0.5, hv: 0.5, top: 0 })) tried[c] = 1;
       }
       field();
@@ -6483,7 +6614,24 @@ function onNode(o: OBox): boolean {
       report.push(`at ${y0} m ${placed.length - before} pieces: ${[...per].map(([d, st]) => `${d} ${((st.far / st.open) * 100).toFixed(1)}% past ${L.far ?? DC.far} m, farthest ${st.max.toFixed(1)}`).join("; ")} (${JSON.stringify(Object.fromEntries(why))})`);
     }
     cfg.districtCover = placed;
-    console.log(`the districts' cover: ${placed.length} pieces; ${report.join(" | ")}`);
+    console.log(`the districts' cover: ${placed.length} pieces, ${setsLaid} sets; ${report.join(" | ")}`);
+  }
+}
+// THE WORKS' yard lines (rules.districts.works.lines, Milestone 981; the districts' eighth review: "oily concrete with yellow
+// lines"): painted on its concrete round each hall, the pack's road line worn in its yellow paint, drawn only. Each span of
+// `at` [x0, z0, x1, z1] laid in lengths of the line, a length scaled to end on the span's end
+{
+  const YL = (R.districts as { works?: { chunk: string; lines?: { piece: string; mat: string; y: number; at: number[][] } } }).works;
+  if (YL?.lines) {
+    const len = piece(YL.lines.piece).row.size![0];
+    let laid = 0;
+    for (const [x0, z0, x1, z1] of YL.lines.at) {
+      const span = Math.hypot(x1 - x0, z1 - z0);
+      const k = Math.ceil(span / len);
+      const yaw = (Math.atan2(-(z1 - z0), x1 - x0) * 180) / Math.PI;
+      for (let i = 0; i < k; i++, laid++) placeTurned(YL.chunk, YL.lines.piece, x0 + ((x1 - x0) * (i + 0.5)) / k, z0 + ((z1 - z0) * (i + 0.5)) / k, yaw, "g", YL.lines.y, YL.lines.mat, span / k / len);
+    }
+    console.log(`THE WORKS' yard lines: ${YL.lines.at.length} spans, ${laid} lengths`);
   }
 }
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
