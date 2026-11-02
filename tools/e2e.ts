@@ -8275,6 +8275,35 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     pops.slide <= 25 && pops.lean <= 15 && pops.gun <= 20 && pops.land <= 16,
     `pelvis ${pops.slide} cm in a frame, gun ${pops.gun} cm, chest ${pops.lean} degrees, landing ${pops.land} cm`,
   );
+  // A reload an enemy can read (Milestone 844): DEVINOS's left hand under the tube's mouth (the shared key left it 17 cm off
+  // to the side, the arm straight and the wrist bent 86 degrees), REZ turned toward the hand (it stood still for a second)
+  const loads = await ev<{ wrist: number; off: number; turn: number }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      const mid = (weapon) => {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon, look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        for (let i = 0; i < 900 && !(f.mq && f.mq.gunObject && f.mq.bones.pelvis); i++) r.figureLabStep(1 / 60);
+        r.figureLabStep(1);
+        const q0 = f.mq.gunObject.getWorldQuaternion(new T.Quaternion());
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true, weapon });
+        r.figureLabStep(0.3 * r.weaponTimes(weapon).reloadEmpty);
+        f.group.updateMatrixWorld(true);
+        const at = (n) => f.mq.bone(n).getWorldPosition(new T.Vector3());
+        const palm = at("hand_l").lerp(at("middle_01_l"), 0.5);
+        return {
+          wrist: at("hand_l").sub(at("lowerarm_l")).angleTo(at("middle_01_l").sub(at("hand_l"))) * 180 / Math.PI,
+          off: Math.abs(f.mq.gunObject.worldToLocal(palm).x) * 100,
+          turn: q0.angleTo(f.mq.gunObject.getWorldQuaternion(new T.Quaternion())) * 180 / Math.PI,
+        };
+      };
+      const tube = mid("launcher"), mag = mid("shotgun");
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+      return { wrist: Math.round(tube.wrist), off: Math.round(tube.off), turn: Math.round(mag.turn) };
+    })()`,
+  );
+  check("a reload reads: DEVINOS's left hand under its tube (6 cm of its middle) with the wrist 40 degrees at most, and REZ turned 20 or more toward the hand", loads.wrist <= 40 && loads.off <= 6 && loads.turn >= 20, JSON.stringify(loads));
   // A salute's hand at the brow (Milestone 842): swung about the figure's axes its fingertips stopped 20 cm off, at the collar
   const salute = await ev<number>(
     page,

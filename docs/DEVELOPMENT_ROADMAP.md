@@ -18728,3 +18728,21 @@ It found three more that no film at 10 frames a second can show.
 - **Left:** the hand from the skydive to a jump leans the chest 18 degrees in a frame, on every gun, and is rare.
 - **Checked:** the no-pop check in the soldier stances (skfigure) also holds the slide's gun to 20 cm in a frame and a landing
   to 16. On the old code it fails (the gun 26 cm, a landing 24); on this one it passes, the gun 12 and a landing 10, and the section passes all 342 checks.
+
+## Milestone 844 — DEVINOS and REZ reload where an enemy can read it
+
+The last two guns' film, looked at sheet by sheet, and DEVINOS's own frames. Every other gun's reload turns its magazine to the
+left hand; these two had numbers that did not suit them (node_modules/.scratch/reloadfit.mts: every frame measured, three sides
+photographed, each candidate through `rifleTune`).
+
+- **DEVINOS:** it had no reload of its own, so it took the shared key: the left hand to point at the magazine, which here is
+  the rocket at the tube's mouth, past the reach of an arm. The arm stood straight, the wrist bent 86 to 88 degrees and the
+  fingers pointed at the floor. The hand goes palm up under the tube's mouth now, the fingers cupped, as the first person's
+  goes under the rocket, the gun tipped down 14 degrees to bring it in reach, and rides up with the new rocket as it phases in.
+  The wrist is 25 degrees at most.
+- **REZ:** its turn was 0 and 4 degrees, with the magazine next to the left hand's hold, so from most sides nothing moved for
+  over a second and the 80% frame matched the 0%. It turns 24 and 10, as the others do, and the magazine shows.
+- **Checked:** a new check in the soldier stances (skfigure) fails on the old numbers (the wrist 86 degrees, the hand 17 cm to the side, REZ turned 4) and passes on these (23, 0 and 26), and the section passes all 343 checks.
+
+The film's other findings, looked at and left: hands round nothing for 0.2 s in a swap is the phase; REZ's bulk hides the face
+from the nose down when aimed, as a gun that size will; the tuck in a jump is stiff but possible.
