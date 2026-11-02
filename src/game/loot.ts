@@ -791,12 +791,18 @@ export class LootField {
   }
 
   /** draw only what is near; the items turn slowly (their boxes, in the batches) */
+  /**
+   * Items keyed at or past this are not drawn: the killcam's replay is of a moment before they were on the floor, and the
+   * guns and echo you dropped as you went down lay at the feet of your figure standing in it (main.ts, Milestone 999)
+   */
+  hideFrom = Infinity;
+
   update(cam: THREE.Vector3, now: number): void {
     if (this.headless) return;
     const far2 = cfg.drawDistance * cfg.drawDistance;
     for (const d of this.drops.values()) {
       const d2 = d.pos.distanceToSquared(cam);
-      const v = d2 < far2;
+      const v = d2 < far2 && d.key < this.hideFrom;
       d.obj.visible = v;
       if (!v) continue;
       this.drawBatched(d, now, d2 < CORE_DETAIL2, Math.sqrt(d2));

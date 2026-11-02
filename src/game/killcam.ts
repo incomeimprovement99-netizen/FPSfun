@@ -53,6 +53,8 @@ export interface ActorState {
 interface Frame {
   t: number;
   actors: ActorState[];
+  /** the battle royale's next loot key then: an item at or past it was not on the floor yet (loot.ts hideFrom) */
+  loot?: number;
 }
 
 interface ShotEvent {
@@ -61,6 +63,8 @@ interface ShotEvent {
   o: THREE.Vector3;
   d: THREE.Vector3;
   weapon: string;
+  /** yours or your side's: drawn again in the team's colour, as it was */
+  ally: boolean;
 }
 
 export const KILLCAM = cfg;
@@ -71,15 +75,15 @@ export class Recorder {
   private nextAt = 0;
 
   /** a frame, if one is due (30 a second) */
-  sample(t: number, actors: () => ActorState[]): void {
+  sample(t: number, actors: () => ActorState[], loot?: number): void {
     if (t < this.nextAt) return;
     this.nextAt = t + 1 / cfg.recordHz;
-    this.frames.push({ t, actors: actors() });
+    this.frames.push({ t, actors: actors(), loot });
     this.trim(t);
   }
 
-  shot(t: number, id: number, o: THREE.Vector3, d: THREE.Vector3, weapon: string): void {
-    this.shots.push({ t, id, o: o.clone(), d: d.clone(), weapon });
+  shot(t: number, id: number, o: THREE.Vector3, d: THREE.Vector3, weapon: string, ally = false): void {
+    this.shots.push({ t, id, o: o.clone(), d: d.clone(), weapon, ally });
     this.trim(t);
   }
 
@@ -147,6 +151,8 @@ export class Killcam {
   private weapons = new Map<string, ResolvedWeapon>();
   /** the killer fired this frame: the gun in view kicks */
   firedThisFrame = false;
+  /** where the killer's rounds leave: the muzzle of the gun in view (main.ts); null leaves them at the eye */
+  killerMuzzle: (() => THREE.Vector3 | null) | null = null;
 
   constructor(
     private scene: THREE.Scene,
@@ -254,14 +260,19 @@ export class Killcam {
       g = new Dummy(0, 0, 0, { armed: a.weapon || undefined, respawn: false, skin: a.soldier ? { ...op, soldier: a.soldier } : op, noBase: true });
       g.group.name = `killcam:${a.id}`;
       this.scene.add(g.group);
+      // The soldier on before its shaders are asked for: a figure puts it on at its first update, so this compiled its hit
+      // volumes alone, showed it at once, and the soldier and its gun were built on the frame they were first drawn
+      // (Milestone 999). Built one a frame already, it costs no frame more.
+      g.dressNow();
       if (this.prepare) {
         const id = a.id;
-        const gen = this.gen;
+        const mine = g;
         this.pending.add(id);
         void this.prepare(g.group)
           .catch(() => undefined)
           .finally(() => {
-            if (gen === this.gen) this.pending.delete(id);
+            // (this figure's, still the one shown: an older one's, rebuilt for a new gun, let the new one show unbuilt)
+            if (this.ghosts.get(id) === mine) this.pending.delete(id);
           });
       }
       this.ghosts.set(a.id, g);
@@ -296,14 +307,38 @@ export class Killcam {
       g.setPose({ speed: a.speed, stance: a.stance, pitch: a.pitch, ads: a.ads ?? 0 });
       g.update(this.t, dt);
     }
+    return true;
+  }
+
+  /**
+   * The rounds the replay has reached, fired again, once the camera is posed (pose): the killer's leave the gun in view
+   * where it now is. They were drawn unlike the rounds they replay (Milestone 999): from the eye, on the line of sight,
+   * where a tracer is never seen; every one enemy red, yours and your squad's too; a rocket bursting on a live figure
+   * standing where it is now, not on the replay's; and each round's hole marked a second time.
+   */
+  refire(): void {
     this.firedThisFrame = false;
+    if (!this.active || !this.rec) return;
     for (const s of this.rec.shots) {
       if (s.t <= this.firedTo || s.t > this.t) continue;
-      this.projectiles.fire(s.o.clone(), s.d.clone(), this.weapon(s.weapon), true);
+      const g = this.ghosts.get(s.id);
+      const from = s.id === this.killerId ? (this.killerMuzzle?.() ?? null) : (g?.muzzleWorld() ?? null);
+      const figures = [...this.ghosts.values()].filter((o) => o !== g && o.group.visible && !o.knocked).flatMap((o) => o.hitMeshes.filter((m) => m.visible));
+      this.projectiles.fire(s.o.clone(), s.d.clone(), this.weapon(s.weapon), true, 1, 1, from, null, { ally: s.ally, replay: figures });
       if (s.id === this.killerId) this.firedThisFrame = true;
     }
     this.firedTo = this.t;
-    return true;
+  }
+
+  /** the loot key the replay's moment had reached: an item at or past it was not there yet (main.ts gives it the battle royale's field) */
+  get lootFrom(): number {
+    const f = this.rec?.frames ?? [];
+    let at: number | undefined;
+    for (const fr of f) {
+      if (fr.t > this.t) break;
+      at = fr.loot;
+    }
+    return at ?? Infinity;
   }
 
   /** how far into the sights the killer was, this frame of the replay (0..1) */
@@ -335,6 +370,7 @@ export class Killcam {
 
   stop(): void {
     this.active = false;
+    this.firedThisFrame = false;
     for (const g of this.ghosts.values()) g.dispose();
     this.ghosts.clear();
     this.ghostKey.clear();

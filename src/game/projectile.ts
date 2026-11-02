@@ -109,6 +109,11 @@ export interface Firer {
   /** a teammate's round: drawn in the team's colour (hud.json tracers ally), not the enemy's red */
   ally?: boolean;
   onBurst?: (at: THREE.Vector3, travelled: number) => void;
+  /**
+   * A round the killcam fires again (killcam.ts refire): it stops on the replay's figures, these hit volumes, and not on
+   * the live ones standing where they are now, and it marks no hole, the round having marked its own when it was fired
+   */
+  replay?: THREE.Mesh[];
 }
 
 export interface ImpactEvent {
@@ -428,10 +433,11 @@ export class ProjectileSystem {
           // on its own shooter (Firer)
           let stop: THREE.Vector3 | null = null;
           const far = Math.min(len, wallAt);
-          if (len > 0 && meshes.length) {
+          const pool = b.firer?.replay ?? meshes;
+          if (len > 0 && pool.length) {
             this.ray.set(prev, unit);
             this.ray.far = far;
-            for (const hit of this.ray.intersectObjects(meshes, false)) {
+            for (const hit of this.ray.intersectObjects(pool, false)) {
               if (b.firer?.figure && owner.get(hit.object) === b.firer.figure) continue;
               stop = hit.point.clone();
               break;
@@ -439,7 +445,7 @@ export class ProjectileSystem {
           }
           // Someone else's stops on you too: you are no figure here, and it had flown through you to burst behind you (a
           // bot's, on the host's page, did its damage there). Not one that left from inside you (a test's, as if not yours).
-          const me = b.visual && !stop && len > 0 ? (this.self?.() ?? null) : null;
+          const me = b.visual && !stop && len > 0 && !b.firer?.replay ? (this.self?.() ?? null) : null;
           if (me && bodyGap(b.origin, me.feet, me.low) > 0) {
             const k = bodyAlong(prev, unit, far, me.feet, me.low);
             if (k < Infinity) stop = prev.clone().addScaledVector(unit, k);
@@ -459,7 +465,9 @@ export class ProjectileSystem {
         if (b.visual) {
           // someone else's shot: it only needs to stop where it would
           // and it marks where it stopped, as a round of your own does
-          if (wallAt < Infinity) this.onVisualImpact?.(prev.clone().addScaledVector(unit, wallAt), wallNormal!, b.weapon.id);
+          if (b.firer?.replay) {
+            // (marked when it was fired)
+          } else if (wallAt < Infinity) this.onVisualImpact?.(prev.clone().addScaledVector(unit, wallAt), wallNormal!, b.weapon.id);
           else if (b.pos.y <= this.floorY + floorAt(b.pos.x, b.pos.z)) this.onVisualImpact?.(b.pos.clone(), new THREE.Vector3(0, 1, 0), b.weapon.id);
           if (wallAt < Infinity || b.pos.y <= this.floorY + floorAt(b.pos.x, b.pos.z) || b.age > b.weapon.projectile.lifetime) dead = true;
           continue;

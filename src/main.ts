@@ -1719,6 +1719,8 @@ const recorder = new Recorder();
 const killcam = new Killcam(scene, projectiles);
 // (its figures' shaders compiled off the page's thread, each figure shown once they are in: killcam.ts)
 if (!NO_RENDER) killcam.prepare = (o) => compileSafely(renderer, o, camera, scene);
+// (the killer's rounds leave the gun in view, as yours do)
+killcam.killerMuzzle = () => onScreenAsWorld(viewModel.muzzleWorld());
 /** the killer's gun in view is drawn once its shaders are compiled (killcam.ts prepare: first drawn, they froze the frame) */
 let killcamGunReady = true;
 /** which killcam's gun is being compiled: an older one's finishing does not show a newer one's */
@@ -5133,7 +5135,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   };
   d.onEliminated = (by) => onEliminated(d, by);
   d.onShotFired = (id, o, dir, w) => {
-    recorder.shot(realNow(), id, o, dir, w);
+    recorder.shot(realNow(), id, o, dir, w, id === d.id || (d instanceof Duel && d.isAlly(id)));
     if (id === d.id) return;
     const t = realNow();
     if (t - (lastShotSound.get(id) ?? -1) > 0.03) {
@@ -8160,9 +8162,11 @@ function step(): void {
       killcam.pose(camera);
       camera.fov = verticalFovFrom43(hipH);
       camera.updateProjectionMatrix();
+      killcam.refire();
     }
     if (!killcam.active && recap) recapShownAt = now;
   } else if (recap && (input.pressedNow("jump") || input.pressedNow("interact") || !duel || (duel.phase === "fight" && duel.alive))) recap = null;
+  if (duel instanceof BrMatch && duel.lootField) duel.lootField.hideFrom = killcam.active ? killcam.lootFrom : Infinity;
 
   // the range's tooling: moving dummies, the ones that shoot back, the drill, the trainer
   if (!duel) {
@@ -8338,10 +8342,14 @@ function step(): void {
   // the killcam's recording: you and everyone else, 30 times a second
   if (duel) {
     const d = duel;
-    recorder.sample(wall, () => [
-      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: player.figureStance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive, soldier: mySoldierCode() ?? undefined },
-      ...d.actorStates(),
-    ]);
+    recorder.sample(
+      wall,
+      () => [
+        { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: player.figureStance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive, soldier: mySoldierCode() ?? undefined },
+        ...d.actorStates(),
+      ],
+      d instanceof BrMatch ? d.lootField?.keyNext : undefined
+    );
   }
 
 
@@ -8404,10 +8412,13 @@ function step(): void {
   audio.setListener(camera.position, earFwd, earUp);
   const hiddenForReplay: THREE.Object3D[] = [];
   if (killcam.active && duel) {
-    for (const a of duel.avatars) {
-      if (a.group.visible) {
-        a.group.visible = false;
-        hiddenForReplay.push(a.group);
+    // the live figures, and what is theirs now that was not then: a gun dropped as they went down lay on the floor before
+    // it, and a squad mate's ghost stood beside their own figure in the replay (Milestone 999)
+    const now3d = [...duel.avatars.flatMap((a) => [a.group, a.droppedGun]), ...[...ghostFigs.values()].map((m) => m.group)];
+    for (const o of now3d) {
+      if (o?.visible) {
+        o.visible = false;
+        hiddenForReplay.push(o);
       }
     }
   }

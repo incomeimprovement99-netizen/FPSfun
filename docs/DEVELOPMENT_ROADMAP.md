@@ -14387,6 +14387,19 @@ chest. A held menu drove the frame rate to 1000. A mantle's bounds test missed t
 
 - **Checked:** tsc, verify, rules; sk-moves; the review's probes; e2e range, speedkills, skship, pad, duel.
 
+## Milestone 999 — The killcam's rounds, figures and floor
+
+From the review of the killcam and long sessions. The replay fired its rounds again from each shooter's eye, on the line of sight, where a tracer is never seen,
+all of them enemy red, yours and your squad's too; a replayed rocket burst on a live figure standing where it is now; and every round marked its hole a second
+time. They leave the muzzle now, the killer's from the gun in view and the others' from their figures, in the colour you saw them in, stop on the replay's
+figures, and mark nothing. Each figure's shaders were compiled before it had put its soldier on, on its hit volumes alone, so the soldier and its gun were built
+on the frame they were first drawn; it is dressed first. And what is there now showed in the past: the guns and echo you dropped as you went down lay at the
+feet of your figure standing in the replay, a live figure's dropped gun lay on the floor before it fell, and a squad mate's ghost stood beside their figure. The
+recording keeps the battle royale's next loot key with each frame, and items past the replay moment's key are not drawn (killcam.ts, projectile.ts, loot.ts,
+main.ts).
+
+- **Checked:** tsc, verify, rules; sk-killcam (six new checks, each failing with its fault put back); e2e bots, skhunt, brsolo, speedkills.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
