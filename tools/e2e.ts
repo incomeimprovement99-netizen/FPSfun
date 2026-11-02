@@ -7986,14 +7986,16 @@ async function figureStancesTest(browser: Browser): Promise<void> {
   // it flat in the air, the head 3.2 m over the floor below; its head and pelvis end on the box, under 0.4 m over it
   // (and with its middle 0.3 m out past the edge, over nothing, as a body can stand: the fall turns onto the box and its head
   // lies there, Milestone 838. Its hips stay past the edge: a fall turns about the body's place, which is over nothing)
-  const ledged = await ev<Array<{ back: number; head: number; pelvis: number }>>(
+  // (Milestone 849: and the whole body on the box: with its middle 0.3 m past the edge its hips and legs lay flat in the air,
+  // 3 m over the floor below, and stood on the edge itself it lay along it; it slides onto the box as it falls)
+  const ledged = await ev<Array<{ back: number; head: number; pelvis: number; feet: number }>>(
     page,
     `(async () => {
       const r = window.__range, T = r.THREE;
       const { RANGE_SOLIDS } = await import("/src/game/range.ts");
       const { rebuildSolidGrid } = await import("/src/game/solidgrid.ts");
       const out = [];
-      for (const back of [0.2, 0.6, -0.3]) {
+      for (const back of [0.2, 0.6, 0, -0.3]) {
         r.player.teleport(0, 0, 0, 0, 0);
         r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 4, 0); r.figureLabManual(true);
         const at = f.group.position.clone();
@@ -8008,14 +8010,14 @@ async function figureStancesTest(browser: Browser): Promise<void> {
         for (let i = 0; i < 50; i++) r.figureLabStep(0.05);
         // (over what is under it: the box's top where it is over the box, the floor below past it)
         const over = (n) => { const v = f.mq.bone(n).getWorldPosition(new T.Vector3()); const onBox = v.x >= box.minX && v.x <= box.maxX && v.z >= box.minZ && v.z <= box.maxZ; return Math.round((v.y - (onBox ? box.top : at.y)) * 100) / 100; };
-        out.push({ back, head: over("Head"), pelvis: over("pelvis") });
+        out.push({ back, head: over("Head"), pelvis: over("pelvis"), feet: Math.max(over("foot_l"), over("foot_r")) });
         RANGE_SOLIDS.splice(RANGE_SOLIDS.indexOf(box), 1);
         rebuildSolidGrid();
       }
       return out;
     })()`,
   );
-  check("nor off an edge into the air: its back 0.2 and 0.6 m from a 3 m box's edge, its head and pelvis end on the box (under 0.4 m over it), and with its middle 0.3 m past the edge its head does", ledged.length === 3 && ledged.every((l) => l.head < 0.4 && (l.back < 0 || l.pelvis < 0.4)), JSON.stringify(ledged));
+  check("nor off an edge into the air: its back 0.2 and 0.6 m from a 3 m box's edge, on it and with its middle 0.3 m past it, its head, pelvis and feet end on the box (under 0.4 m over it)", ledged.length === 4 && ledged.every((l) => l.head < 0.4 && l.pelvis < 0.4 && l.feet < 0.4), JSON.stringify(ledged));
   // but a flight of stairs is a floor: read as an edge against the feet, a fall was turned off it, in a stairwell into its wall
   const flight = await ev<number>(
     page,

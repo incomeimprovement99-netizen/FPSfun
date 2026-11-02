@@ -16,7 +16,6 @@ import { MannequinFigure, useMannequin } from "./mannequin";
 import { CloakShell, MateOutline, Outline, ShieldShell } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
 import { solidHit } from "./projectile";
-import { MOVE } from "./movement";
 import { solidsIn } from "./solidgrid";
 import { floorAt } from "./floors";
 import type { Solid } from "./range";
@@ -49,7 +48,7 @@ const RESPAWN_S = 1.2;
 const FALL_S = 0.32;
 /** a death turned away from the shot: how long a hit counts, how near the middle is no side, how fast it turns (figure.json death) */
 const DEG = Math.PI / 180;
-const DEATH = figureCfg.death as { hitFor: number; near: number; turnRate: number; room: number; roomUp: number; roomStep: number; ledge: number; probe: number };
+const DEATH = figureCfg.death as { hitFor: number; near: number; turnRate: number; room: number; roomUp: number; roomStep: number; ledge: number; probe: number; feet: number; side: number; slide: number[] };
 /** the solids under a fall's line, filled per query (solidsIn's scratch list) */
 const UNDER: Solid[] = [];
 /** the highest floor at (x, z) no higher than y (a top, or the world's own floor) */
@@ -312,6 +311,8 @@ export class Dummy {
    */
   private hitFrom: { x: number; z: number; at: number } | null = null;
   private fallYaw: number | null = null;
+  /** where a fall slides the body onto its floor (roomToFall): from where it stood, by how much, the way it falls */
+  private fallSlide: { from: THREE.Vector3; by: number } | null = null;
   private flash = 0;
   private headFlash = 0;
   /** a leg hit flashes blue: the flash's colour says which zone you hit */
@@ -1228,43 +1229,51 @@ export class Dummy {
    */
   private roomToFall(): void {
     const want = this.fallYaw ?? this.group.rotation.y;
+    this.fallSlide = null;
     const from = this.group.position.clone();
     from.y += DEATH.roomUp;
     const back = new THREE.Vector3();
     const feet = this.group.position.y;
+    // (across the body's width: the lowest of the line and `side` either side of it, so a body is not laid along an edge)
+    const floorAcross = (x: number, z: number, sx: number, sz: number) => Math.min(floorUnder(x, z, feet + DEATH.roomUp), floorUnder(x + sx * DEATH.side, z + sz * DEATH.side, feet + DEATH.roomUp), floorUnder(x - sx * DEATH.side, z - sz * DEATH.side, feet + DEATH.roomUp));
     // Up to a wall, or to the last place along the line before the floor drops away: an edge it would lie out past. Each
     // look is against the one before, so a flight of stairs is a floor to lie down (against the feet it read as an edge, and
     // the fall was turned into the stairwell's wall), and from the first floor it finds: a body can stand with its middle
-    // 0.39 m out past its edge, over nothing, and every way then had no room. Looked at a step past the room it needs: the
-    // head lies 1.2 m back and has a size.
-    const roomAt = (yaw: number) => {
+    // 0.39 m out past its edge, over nothing. Looked at a step past the room it needs: the head lies 1.2 m back and has a
+    // size. And from the feet, `feet` behind its place, slid `slide` m along the way: the whole body on its floor (Milestone
+    // 849: looked at from its middle on, a body over an edge lay with its hips and legs flat in the air)
+    const roomAt = (yaw: number, slide = 0) => {
       const dx = -Math.sin(yaw);
       const dz = -Math.cos(yaw);
-      const wall = solidHit(from, back.set(dx, 0, dz), DEATH.room);
+      const wall = solidHit(from, back.set(dx, 0, dz), DEATH.room + slide);
+      if (wall < slide + DEATH.probe) return 0;
       let floor: number | null = null;
-      for (let d = DEATH.probe; d <= DEATH.room + DEATH.probe + 1e-6; d += DEATH.probe) {
-        const under = floorUnder(from.x + dx * d, from.z + dz * d, feet + DEATH.roomUp);
+      for (let d = slide - DEATH.feet; d <= slide + DEATH.room + DEATH.probe + 1e-6; d += DEATH.probe) {
+        const under = floorAcross(from.x + dx * d, from.z + dz * d, -dz, dx);
         if (floor === null) {
-          if (feet - under <= DEATH.ledge) floor = under;
-          else if (d > MOVE.radius + DEATH.probe) return 0;
-        } else if (floor - under > DEATH.ledge) return Math.min(wall, d - DEATH.probe);
+          if (feet - under > DEATH.ledge) return 0;
+          floor = under;
+        } else if (floor - under > DEATH.ledge) return Math.max(0, Math.min(wall, d - DEATH.probe) - slide);
         else floor = under;
       }
-      return floor === null ? 0 : wall;
+      return wall - slide;
     };
-    if (roomAt(want) >= DEATH.room) return;
-    let best = { yaw: want, room: roomAt(want) };
-    for (let k = DEATH.roomStep; k <= 180; k += DEATH.roomStep)
-      for (const s of k < 180 ? [1, -1] : [1]) {
-        const yaw = want + s * k * DEG;
-        const room = roomAt(yaw);
-        if (room >= DEATH.room) {
-          this.fallYaw = yaw;
-          return;
+    // the nearest way round with the room, as it stands, then slid the least that gives one; the most room if none
+    let best = { yaw: want, room: roomAt(want), slide: 0 };
+    for (const slide of [0, ...DEATH.slide])
+      for (let k = 0; k <= 180; k += DEATH.roomStep)
+        for (const s of k > 0 && k < 180 ? [1, -1] : [1]) {
+          const yaw = want + s * k * DEG;
+          const room = roomAt(yaw, slide);
+          if (room >= DEATH.room) {
+            this.fallYaw = yaw;
+            if (slide > 0) this.fallSlide = { from: this.group.position.clone(), by: slide };
+            return;
+          }
+          if (room > best.room) best = { yaw, room, slide };
         }
-        if (room > best.room) best = { yaw, room };
-      }
     this.fallYaw = best.yaw;
+    if (best.slide > 0) this.fallSlide = { from: this.group.position.clone(), by: best.slide };
   }
 
   /** knocked by something other than a hit here (the 1v1 opponent going down) */
@@ -1295,6 +1304,7 @@ export class Dummy {
     this.setTier(this.tier);
     this.knocked = false;
     this.fall = 0;
+    this.fallSlide = null;
     this.group.rotation.x = 0;
     if (this.mq) this.mq.root.rotation.x = 0;
     this.group.visible = true;
@@ -1484,6 +1494,12 @@ export class Dummy {
       }
       const t = this.fall;
       const ease = t < 0.82 ? Math.pow(t / 0.82, 2) : 1 - Math.sin(((t - 0.82) / 0.18) * Math.PI) * 0.06;
+      // slid onto its floor as it goes, the way it falls (roomToFall)
+      const S = this.fallSlide;
+      if (S && this.fallYaw !== null) {
+        const k = S.by * Math.min(1, t / 0.82);
+        this.group.position.set(S.from.x - Math.sin(this.fallYaw) * k, S.from.y, S.from.z - Math.cos(this.fallYaw) * k);
+      }
       this.group.rotation.x = (-Math.PI / 2 + 0.2) * ease;
       // the mannequin's death clip puts it on the floor itself: the hit zones
       // topple, the mannequin is turned back upright to play it

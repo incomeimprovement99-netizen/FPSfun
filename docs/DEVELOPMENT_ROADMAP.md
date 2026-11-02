@@ -18963,3 +18963,23 @@ lod.json `_zoom`); off screen nothing changes, so the cost is the few figures a 
 
 - **Checked:** the figure LOD check (verify): zoomed in four times a figure 100 m off casts one, and one behind the camera does
   not; on Milestone 846's code the first fails.
+
+## Milestone 849 — A body down at an edge lies wholly on its floor
+
+A body can stand with its middle up to 0.41 m out past an edge (its hull's square still on it). Milestone 837 kept a fall's
+head off the air, turning the fall onto the floor, but it turns about the body's place, so the hips and legs lay flat in the air
+past the edge, 3 m over the floor below on a 3 m box; one that stood on the edge itself lay along it, half over nothing, and
+one 0.2 m in lay sideways with a foot out past it (node_modules/.scratch/deathedge.mts, eight cases, with pictures). Measured off
+the fallen body, the head lies 1.24 m along the fall from its place, the pelvis 0.57, the feet 0.18 to 0.21 behind and 0.17 to
+0.24 either side.
+
+- **The line a body lies on** is looked at from its feet to its head and across its width (figure.json death `feet`, `side`):
+  any of it over a drop and that way has no room.
+- **With no way that has room where it stands, it slides onto the floor as it falls**, the least of `slide` that gives one (up to
+  0.75 m: the most a middle can be out past an edge, and its feet behind that), over the fall's own 0.26 s (dummy.ts
+  roomToFall `fallSlide`). All eight cases now lie whole on the box, head, pelvis and feet.
+- **Your own soldier**, seen in the third person, is no longer put back where you stood each frame once down (main.ts), as its
+  turn already was not.
+- **Checked:** the soldier stances' edge check (skfigure) takes the feet as well as the head and pelvis, and a body on the edge
+  itself. On the old code it fails (a foot 3 m over the floor below at 0.2 m in, the body over nothing on the edge, the hips and
+  feet at 0.3 m past); on this one all four lie on the box, and the section passes all 346 checks.
