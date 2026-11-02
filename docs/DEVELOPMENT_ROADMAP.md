@@ -14346,6 +14346,15 @@ and K worked in a match (rangetools.ts, tutorial.ts, course.ts, mergeprofile.ts,
 
 - **Checked:** tsc, verify, rules; arena rules; e2e range, finish, sktutorial, page.
 
+## Milestone 995 — The range's wall and map
+
+The spray wall drew one gold dot for a whole magazine of a semi gun (BOOG, DEVINOS, APUHTHEE, BIGANTLER), its reference holding the trigger down; it pulls
+and lets go now, as fast as the gun fires. Its line said "Y clears" whatever was bound. And the range's M map was the whole world once the city's boxes were
+in; it is the range's own. The live check also reads the host's code by the status's words on a timer, where right after a restart it waited 30 s for an
+element the page was already showing (rangetools.ts, main.ts, tools/live-check.ts).
+
+- **Checked:** tsc, verify, rules; e2e range.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

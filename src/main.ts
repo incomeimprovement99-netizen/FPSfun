@@ -3453,6 +3453,8 @@ const panelKeysNow = (): void => {
   if (said === panelKeysSaid) return;
   panelKeysSaid = said;
   setPanelKeys(panelLabel);
+  sprayWall.clearKey = panelLabel("resetDummies");
+  sprayWall.clear();
 };
 /**
  * The keys on screen (keyhints.json, hud.ts drawKeyHints): up for everyone until
@@ -8514,7 +8516,8 @@ function step(): void {
     // the battle royale's map, except in the Gulag's room, where the minimap shows the room
     // (a mode's arena its own map: over the whole world NEON YARD was 27 x 36 px, the arrow as big as it, Milestone 967)
     // (a lobby's wait is in the range: the city's map put your arrow off its edge, Milestone 968)
-    mapRegion: duel instanceof BrMatch && duel.phase !== "waiting" && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : ((cityMap() ?? gulagRoom())?.bounds ?? undefined),
+    // (and the range's, out of a match: once the city's boxes were in, the range's M map was the whole world, Milestone 995)
+    mapRegion: duel instanceof BrMatch && duel.phase !== "waiting" && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : ((cityMap() ?? gulagRoom())?.bounds ?? (duel ? undefined : RANGE_BOUNDS)),
     // the drop shows the map by itself for its first moments, then it steps
     // aside so you can see the ground you are steering onto; M opens it any
     // time. Only while you are still in the air: a guest who lands before the

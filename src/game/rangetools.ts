@@ -189,6 +189,8 @@ export interface SprayPattern {
 
 export class SprayWall {
   readonly group = new THREE.Group();
+  /** the reset key as bound (main.ts panelKeysNow): it said Y whatever was bound, Milestone 995 */
+  clearKey = "Y";
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly tex: THREE.CanvasTexture;
@@ -259,7 +261,7 @@ export class SprayWall {
     }
     c.fillStyle = "#9aa4ad";
     c.font = "bold 18px Segoe UI, sans-serif";
-    c.fillText("SPRAY WALL  ·  20 m from the yellow mark  ·  white: your hits  ·  gold: the gun with no compensation, its rings the spread  ·  Y clears", 12, 24);
+    c.fillText(`SPRAY WALL  ·  20 m from the yellow mark  ·  white: your hits  ·  gold: the gun with no compensation, its rings the spread  ·  ${this.clearKey} clears`, 12, 24);
     this.tex.needsUpdate = true;
     this.marks = 0;
     this.shown = { hits: [], want: [], cone: 0, band: [] };
@@ -292,7 +294,10 @@ export class SprayWall {
       let r = 0.37 + run * 0.061;
       const rnd = () => ((r = (r * 9301 + 49297) % 233280), r / 233280);
       for (let i = 0; i < 144 * 12 && out.length < w.clipSize; i++) {
-        for (const s of st.update(dt, (t += dt), true, ads, "stand", "still", false, false, rnd)) {
+        // (a semi gun's trigger pulled and let go, as fast as it fires: held, BOOG, DEVINOS, APUHTHEE and BIGANTLER drew one gold dot
+        // for a whole magazine, Milestone 995)
+        const pull = !w.semiAuto || i % 2 === 0;
+        for (const s of st.update(dt, (t += dt), pull, ads, "stand", "still", false, false, rnd, pull)) {
           out.push({ pitch: perm.p + s.kick.preSoftPitchUp, yaw: perm.y + s.kick.preSoftYawLeft });
           perm = { p: perm.p + s.kick.permPitchUp, y: perm.y + s.kick.permYawLeft };
         }
