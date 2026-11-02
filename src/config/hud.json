@@ -256,6 +256,7 @@
       {
         "id": "normal",
         "label": "Normal colour vision",
+        "place": "#ffd23c",
         "enemy": "#ff4b3e",
         "ally": "#7ddc8a",
         "damage": "255,60,50",
@@ -265,6 +266,7 @@
       {
         "id": "deuteranopia",
         "label": "Deuteranopia (red-green)",
+        "place": "#ffffff",
         "enemy": "#ff9d1a",
         "ally": "#3db4ff",
         "damage": "255,157,26",
@@ -274,6 +276,7 @@
       {
         "id": "protanopia",
         "label": "Protanopia (red-green)",
+        "place": "#ffffff",
         "enemy": "#ffb21a",
         "ally": "#3d8bff",
         "damage": "255,178,26",
@@ -283,6 +286,7 @@
       {
         "id": "tritanopia",
         "label": "Tritanopia (blue-yellow)",
+        "place": "#ffd23c",
         "enemy": "#ff3d6e",
         "ally": "#2fd9c6",
         "damage": "255,61,110",

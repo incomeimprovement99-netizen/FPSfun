@@ -14321,6 +14321,19 @@ had no button at all (brplay.ts, loot.ts, main.ts, binds.ts).
 
 - **Checked:** tsc, verify, rules; hudfit; e2e speedkills, skhunt.
 
+## Milestone 993 — The controls, from a review of the settings
+
+A pad's aim bent onto the axes, its deadzone and curve working axis by axis; both work on the stick's direction now, and a full diagonal is full speed. The
+trigger's 35% line never applied. A device resting off centre, a flight stick or a pedal, spun the view with nothing touched; a non-standard device's axes off
+centre as it arrives are at rest. A pad's session left the keyboard, the mouse and Esc dead; they work, and a click takes the mouse back. A on Resume also jumped,
+out of the ship's doors. The Range preset had no map or ping. Up and down reach every box in a row, half of them never lit before; Graphics no longer reloads the
+page on a push of the stick. Clicking off a key chip took Fire off Left click. After Esc, Esc the next menu's first key threw you back in. There was no invert:
+Settings has one, for mouse and pad. In the red-green modes an enemy ping and a place ping were one colour. Graphics dropped a group's friends with no word. A bound side
+button left the page. The ADS snap fired on the press out of the sights. A pad unplugged says so. ArrowRight and BracketRight went missing from the keys panel. The loot
+card ran off a narrow window. F8 lost the neon night (gamepad.ts, input.ts, binds.ts, padnav.ts, palette.ts, hud.ts, main.ts).
+
+- **Checked:** tsc, verify, rules; hudfit; e2e page, pad.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

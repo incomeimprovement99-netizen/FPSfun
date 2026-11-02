@@ -46,6 +46,8 @@ export class PadNav {
       this.clear();
       return;
     }
+    // (a box drawn afresh, as the preset row is after a step, keeps its place: the next step lit the top of the tab)
+    if (this.focused && !this.focused.isConnected && this.focused.id) this.focus(document.getElementById(this.focused.id));
     if (this.focused && (!root.contains(this.focused) || !visible(this.focused))) this.clear();
     const dir = this.direction(pad);
     let moved: Dir | null = null;
@@ -72,7 +74,9 @@ export class PadNav {
     if (moved && this.focused) {
       // a box's value goes left and right; up and down always move
       if ((moved === "left" || moved === "right") && this.adjust(this.focused, moved === "right" ? 1 : -1)) return;
-      const to = nearest(root, this.focused, moved);
+      // (up and down go through a row of boxes one at a time: by where they stood on the screen, half of those rows were never
+      // lit, Hit sounds and most of ADS per optic among them, Milestone 993)
+      const to = this.alongRow(root, this.focused, moved) ?? nearest(root, this.focused, moved);
       if (to) this.focus(to);
     }
     if (pad.rawPressed.has(A) && this.focused) {
@@ -91,8 +95,19 @@ export class PadNav {
     return null;
   }
 
+  /** the next box in this one's row, in the order they are written */
+  private alongRow(root: HTMLElement, from: HTMLElement, dir: Dir): HTMLElement | null {
+    if (dir !== "up" && dir !== "down") return null;
+    const row = from.closest(".opticAdsBox, .row");
+    if (!row) return null;
+    const boxes = [...root.querySelectorAll<HTMLElement>("select, input")].filter((el) => row.contains(el) && visible(el));
+    return boxes[boxes.indexOf(from) + (dir === "down" ? 1 : -1)] ?? null;
+  }
+
   /** a box's value a step on or back (a select's option, a number's step); false when it is not a box */
   private adjust(el: HTMLElement, step: 1 | -1, wrap = false): boolean {
+    // (not one that reloads the page: a push of the stick along Graphics did, at once. Its A steps it)
+    if (!wrap && el.dataset.padPress !== undefined) return false;
     if (el instanceof HTMLSelectElement) {
       const n = el.options.length;
       if (!n) return true;

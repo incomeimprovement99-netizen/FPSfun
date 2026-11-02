@@ -184,7 +184,7 @@ console.log("\nA city that does not come, a page that goes away (src/main.ts, sr
   check("the city's limit is on nothing coming", /Math\.max\(show\.at, show\.city \? cityMovedAt : -Infinity\)/.test(main));
   check("an Alt-Tab does not end the wait for the city", /show\.stage === "load" && show\.city && !\(cityIn && brWarm === "done"\)/.test(main));
   check("a GPU reset retakes the roads' picture, and one that stays gone says so", /webglcontextrestored[\s\S]{0,260}retakeReflection\(\)/.test(main) && /introCfg\.show\.gfxGone,/.test(main));
-  check("a Graphics preset is refused in a match", /addEventListener\("change", \(\) => \{\s+\/\/[^\n]*\n\s+if \(duel\) \{\s+qualitySel\.value = quality\.preset;/.test(main));
+  check("a Graphics preset is refused in a match", /if \(duel \|\| hosting \|\| party \|\| hangout\) \{\s+qualitySel\.value = quality\.preset;/.test(main));
 }
 
 console.log("\nThe maps and marks (src/game/hud.ts, src/main.ts, src/game/brmatch.ts)");
@@ -246,6 +246,23 @@ console.log("\nThe maps and marks (src/game/hud.ts, src/main.ts, src/game/brmatc
   const seen = reachRows([row(1), row(2)] as never, { x: 0, y: 0, z: 0 }, (d) => d.pos.x < 1.5);
   check("the reach list leaves out what a wall hides, and a row says its level", seen.length === 1 && / LEVEL 3$/.test(seen[0].label), JSON.stringify(seen.map((s) => s.label)));
   check("a gun's prompt says SWAP FOR and FUSE", /`SWAP FOR \$\{row\.label\}`/.test(bp) && /TO LEVEL \$\{does\.to\}/.test(bp));
+  // (Milestone 993) a stick keeps its direction, and a full diagonal is full speed
+  const { padRadial } = await import("../../src/game/gamepad");
+  const small = padRadial({ deadzone: 0.15, outerDeadzone: 0.02 }, 0.15, -0.26);
+  const off = (Math.atan2(small.x, -small.y) * 180) / Math.PI;
+  const edge = padRadial({ deadzone: 0.15, outerDeadzone: 0.02 }, 0.7071, 0.7071);
+  check("a stick keeps its direction through the deadzone, and its diagonal its speed", Math.abs(off - 30) < 0.5 && Math.hypot(edge.x, edge.y) > 0.98, `${off.toFixed(1)} degrees, ${Math.hypot(edge.x, edge.y).toFixed(2)} at the edge`);
+  const page = read("ui/binds.ts");
+  check("a click off the waiting chip is a click, not Left click bound", /e\.button === 0 && !chip\.contains\(e\.target as Node\)/.test(page));
+  check("the lock arriving ends the wait to go back in", /if \(locked\) wantResume = false;/.test(m));
+  const tiny = make(960, 1040) as unknown as { drawLootCard(s: unknown, u: number): void };
+  setHudScale(1.4);
+  ops.length = 0;
+  tag = "narrow";
+  tiny.drawLootCard({ lootCard: lootCardView({ kind: "weapon", id: "mastiff", n: 1, rarity: "epic", fusion: 2 }, { slots: [{ id: "r97", empty: false, fusion: 0, clip: 19 }, { id: "sentinel", empty: false, fusion: 0, clip: 4 }], active: 0 } as never, "full" as never) }, (1040 / 1080) * 1.4);
+  setHudScale(1);
+  const rightEdge = Math.max(...ops.filter((o) => o.tag === "narrow" && o.text).map((o) => o.x ?? 0));
+  check("in half a screen at a large HUD size the loot card stays on the screen", rightEdge <= 960, `its right edge ${rightEdge.toFixed(0)} of 960`);
   const { ammoWarning } = await import("../../src/game/hud");
   check("no ammo words on a gun that has heat", ammoWarning(0, 24, true) === null && /ammoWarning\(s\.clip, s\.clipSize, s\.reloading \|\| !!s\.heat\)/.test(h));
 }

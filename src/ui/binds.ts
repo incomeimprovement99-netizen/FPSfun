@@ -249,6 +249,9 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
     };
     const onMouse = (e: MouseEvent) => {
       if (e.button > 4) return;
+      // A left click binds on the chip itself. Anywhere else it is a click: on a tab or Resume it took Fire off Left click, and
+      // the note saying so sat on a panel no longer shown (Milestone 993).
+      if (e.button === 0 && !chip.contains(e.target as Node)) return finish(null);
       e.preventDefault();
       e.stopPropagation();
       finish(`mouse${e.button}`);

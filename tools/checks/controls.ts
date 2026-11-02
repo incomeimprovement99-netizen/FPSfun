@@ -77,7 +77,7 @@ const doc = {
   removeEventListener: (t: string, f: (e: unknown) => void) => void (docListeners[t] = (docListeners[t] ?? []).filter((x) => x !== f)),
 };
 g.document = doc;
-const pad = { id: "Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e)", index: 0, connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })) };
+const pad = { id: "Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e)", index: 0, connected: true, mapping: "standard", axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })) };
 Object.defineProperty(globalThis.navigator, "getGamepads", { value: () => [pad], configurable: true });
 
 const { initBindsUi } = await import("../../src/ui/binds");

@@ -17,6 +17,8 @@ export type VisionMode = "normal" | "deuteranopia" | "protanopia" | "tritanopia"
 export interface Palette {
   /** an enemy: a ping, a kill feed line that is not yours */
   enemy: string;
+  /** a place: a ping, a mark to go to */
+  place: string;
   /** your side: a team mate's plate, your own kill in the feed */
   ally: string;
   /** a hit landing on you: the damage direction arcs, as "r,g,b" */
@@ -32,7 +34,7 @@ export const HUD_SCALES = CFG.scales as number[];
 const KEY = "range.access.v1";
 
 /** the live palette: the HUD reads it every frame, so a change shows at once */
-export const P: Palette = { enemy: VISION_MODES[0].enemy, ally: VISION_MODES[0].ally, damage: VISION_MODES[0].damage, feedEnemy: VISION_MODES[0].feedEnemy, feedAlly: VISION_MODES[0].feedAlly };
+export const P: Palette = { enemy: VISION_MODES[0].enemy, place: VISION_MODES[0].place, ally: VISION_MODES[0].ally, damage: VISION_MODES[0].damage, feedEnemy: VISION_MODES[0].feedEnemy, feedAlly: VISION_MODES[0].feedAlly };
 
 export const access = { vision: "normal" as VisionMode, hudScale: 1 };
 
@@ -40,6 +42,7 @@ export function setVision(mode: VisionMode): void {
   const m = VISION_MODES.find((v) => v.id === mode) ?? VISION_MODES[0];
   access.vision = m.id;
   P.enemy = m.enemy;
+  P.place = m.place;
   P.ally = m.ally;
   P.damage = m.damage;
   P.feedEnemy = m.feedEnemy;

@@ -103,7 +103,9 @@ export class Input {
     this.rawMouse = raw;
     document.addEventListener("mousedown", (e) => {
       this.device = "keyboard";
-      if (!this.locked) return;
+      // (a click in a pad's session takes the mouse back: W, clicks and Esc were all dead until Start, Milestone 993)
+      if (this.padPlaying && !this.locked) void this.lock(true);
+      if (!this.locked && !this.padPlaying) return;
       if (e.button < 5) {
         this.mouseDown[e.button] = true;
         this.mousePressed[e.button] = true;
@@ -112,12 +114,14 @@ export class Input {
     });
     document.addEventListener("mouseup", (e) => {
       if (e.button < 5) this.mouseDown[e.button] = false;
+      // (a mouse's side buttons are the browser's back and forward on the way up, which left the page for a bound button)
+      if (e.button === 3 || e.button === 4) e.preventDefault();
     });
     document.addEventListener("contextmenu", (e) => e.preventDefault());
     document.addEventListener(
       "wheel",
       (e) => {
-        if (!this.locked) return;
+        if (!this.locked && !this.padPlaying) return;
         if (e.deltaY < 0) this.wheel.wheelup++;
         else if (e.deltaY > 0) this.wheel.wheeldown++;
         e.preventDefault();
@@ -126,7 +130,7 @@ export class Input {
     );
     document.addEventListener("keydown", (e) => {
       this.device = "keyboard";
-      if (!this.locked) return;
+      if (!this.locked && !this.padPlaying) return;
       if (!this.down.has(e.code)) this.pressed.add(e.code);
       this.down.add(e.code);
       // Swallow only the keys the game actually uses. A blanket preventDefault
@@ -155,7 +159,10 @@ export class Input {
       this.mouseDown = [false, false, false, false, false];
     });
     // the older, promise-less form reports a refusal only as this event
-    document.addEventListener("pointerlockerror", () => this.onLockRefused?.());
+    document.addEventListener("pointerlockerror", () => {
+      // (a lock asked for quietly is no refusal to report: "did not let the game take the mouse" stood on a pad player's menu)
+      if (!this.askedQuietly) this.onLockRefused?.();
+    });
   }
 
   /** the browser refused the pointer lock (too soon after Esc, or not allowed here) */
@@ -171,9 +178,11 @@ export class Input {
    */
   private readonly automated = typeof navigator !== "undefined" && navigator.webdriver === true;
   private fakeLock = false;
+  private askedQuietly = false;
 
   /** `quiet`: a lock the game asks for by itself; a refusal is not reported */
   async lock(quiet = false): Promise<void> {
+    this.askedQuietly = quiet || (this.device === "pad" && this.pad.connected);
     // A controller in hand plays without the pointer (padPlaying, as its Start does). Its A on the menu's Play, Resume
     // or Start now is no click, so the browser refused the lock and the menu stayed up, over a match being built behind
     // it, with the mouse's hint (Milestone 904). The lock is still asked for, quietly, for a real click on the button. (Not

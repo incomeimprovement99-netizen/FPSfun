@@ -784,7 +784,8 @@ export class Hud {
       const off = behind || x < pad || x > this.w - pad || y < pad || y > this.h - pad;
       x = Math.max(pad, Math.min(this.w - pad, x));
       y = Math.max(pad, Math.min(this.h - pad, y));
-      const col = m.k === "enemy" ? P.enemy : m.k === "loot" ? "#8fd8ff" : "#ffd23c";
+      // (gold and the two red-green modes' enemy orange are one colour to those eyes, and pinned to the edge a mark has no words)
+      const col = m.k === "enemy" ? P.enemy : m.k === "loot" ? "#8fd8ff" : P.place;
       const r = (m.k === "enemy" ? 11 : 9) * u * (m.k === "enemy" ? 1 + 0.12 * Math.sin(now * 8) : 1);
       c.fillStyle = col;
       c.strokeStyle = "rgba(0,0,0,0.7)";
@@ -2002,7 +2003,8 @@ export class Hud {
     // two lay one over the other, Milestone 721)
     const right = this.w / 2 + 70 * u;
     const underKeys = this.hintsLeft > 0 && right + w > this.hintsLeft && y < this.hintsBottom;
-    const x = underKeys ? this.w / 2 - 70 * u - w : right;
+    // (and left where the window ends first: half a screen wide it ran 180 px off the edge, Milestone 993)
+    const x = underKeys || right + w > this.w - 12 * u ? Math.max(12 * u, this.w / 2 - 70 * u - w) : right;
     // Clear of the minimap on the left, and ending above the prompt (drawPrompt's plate, at 58% down), whose line is what
     // E does: at HUD scale 1.25 the full card sat over the prompt, and at 1.4 over the minimap's corner (Milestone 928)
     const mini = 26 * u + 230 * u + 12 * u;
@@ -2782,7 +2784,7 @@ export class Hud {
     }
     for (const m of s.markers ?? []) {
       upright(m.at.x, m.at.z, () => {
-        c.fillStyle = m.k === "enemy" ? P.enemy : m.k === "loot" ? "#8fd8ff" : "#ffd23c";
+        c.fillStyle = m.k === "enemy" ? P.enemy : m.k === "loot" ? "#8fd8ff" : P.place;
         c.beginPath();
         c.moveTo(0, -6 * u);
         c.lineTo(6 * u, 0);

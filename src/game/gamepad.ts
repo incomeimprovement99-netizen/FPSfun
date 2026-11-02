@@ -106,12 +106,30 @@ export function padDeadzone(s: Pick<PadSettings, "deadzone" | "outerDeadzone">, 
 }
 
 /**
+ * A stick through its deadzones by its direction, not axis by axis. Per axis the small axis fell in the deadzone and the
+ * aim bent onto the axes: 0.3 at 30 degrees off up looked 4 degrees off up, in the range every small correction is made
+ * in, and a full diagonal was 0.74 of full speed (Milestone 993).
+ */
+export function padRadial(s: Pick<PadSettings, "deadzone" | "outerDeadzone">, x: number, y: number): { x: number; y: number } {
+  const m = Math.hypot(x, y);
+  if (m <= s.deadzone) return { x: 0, y: 0 };
+  const k = Math.min(1, (m - s.deadzone) / Math.max(1e-3, 1 - s.deadzone - s.outerDeadzone)) / m;
+  return { x: x * k, y: y * k };
+}
+
+/** what the curve does to a stick, as a share of it: on how far it is pushed, so it keeps its direction */
+function curved(s: Pick<PadSettings, "curve" | "exponent">, x: number, y: number): number {
+  const m = Math.hypot(x, y);
+  return m > 0 ? Math.abs(padCurve(s, m)) / m : 0;
+}
+
+/**
  * The advanced look's rate, degrees a second (yaw left, pitch up): the curve
  * times the speed for the aim (between hip and ADS by how far the aim is in),
  * plus the extra turn at the stick's edge, ramped in by how long it has been there.
  */
 export function advancedLookRate(s: PadSettings, rx: number, ry: number, adsFrac: number, edgeTime: number, opticMult = 1): { yawLeft: number; pitchUp: number } {
-  const curve = (v: number) => padCurve(s, v);
+  const k = curved(s, rx, ry);
   const a = Math.max(0, Math.min(1, adsFrac));
   // the per-optic ADS table (Settings) scales the aimed speeds, as it does the mouse's
   const yawSp = s.yaw + (s.adsYaw * opticMult - s.yaw) * a;
@@ -119,8 +137,8 @@ export function advancedLookRate(s: PadSettings, rx: number, ry: number, adsFrac
   const ramp = s.rampTime > 0 ? Math.max(0, Math.min(1, (edgeTime - s.rampDelay) / s.rampTime)) : edgeTime >= s.rampDelay ? 1 : 0;
   // the extra turn is a hipfire thing: it fades out as the aim comes in
   const extra = ramp * (1 - a);
-  const yaw = curve(rx) * yawSp + (Math.abs(rx) >= PAD_EDGE ? Math.sign(rx) * s.extraYaw * extra : 0);
-  const pitch = curve(ry) * pitchSp + (Math.abs(ry) >= PAD_EDGE ? Math.sign(ry) * s.extraPitch * extra : 0);
+  const yaw = rx * k * yawSp + (Math.abs(rx) >= PAD_EDGE ? Math.sign(rx) * s.extraYaw * extra : 0);
+  const pitch = ry * k * pitchSp + (Math.abs(ry) >= PAD_EDGE ? Math.sign(ry) * s.extraPitch * extra : 0);
   return { yawLeft: -yaw, pitchUp: -pitch };
 }
 
@@ -216,9 +234,9 @@ export const PAD_PRESETS: Record<PadPreset, { name: string; changes: Partial<Rec
   classic: { name: "Classic (ping on RB, utility hack on D-pad right)", changes: { 5: "ping", 12: "keyHints", 15: "grenade" } },
   // jump to LB, crouch to RB; the tactical to B, ping to A, the utility hack (RB's in Default) to D-pad up
   ninja: { name: "Ninja", changes: { 4: "jump", 5: "crouch", 1: "ability", 0: "ping", 12: "grenade" } },
-  // the range: the fusion level and the slots on the D-pad, the zoom on D-pad up and holster on Back (the optic's cycle
-  // went with the legacy game's attachments, Milestone 522; RB keeps the utility hack since 538)
-  range: { name: "Range (fusion level and slots on the D-pad)", changes: { 12: "zoomToggle", 8: "holster", 13: "magLevel", 14: "slot1", 15: "slot2" } },
+  // the range: the fusion level, the holster and the zoom (the reach list's step) on the D-pad. (It took Back and D-pad up
+  // too, and a battle royale played on it had no map and no ping, Milestone 993.)
+  range: { name: "Range (fusion level on the D-pad)", changes: { 13: "magLevel", 14: "zoomToggle", 15: "holster" } },
 };
 /**
  * A button's hold does something else than its tap, where the game has one:
@@ -259,6 +277,11 @@ export class GamepadInput {
   }
   /** set on the connect event, cleared by whoever reads it (the HUD notice) */
   justConnected = false;
+  /** the pad in use went away; main says so and clears this */
+  justGone = false;
+  /** the device the resting axes below are of, and they */
+  private restFor = "";
+  private restAxes: number[] = [];
   /** a stick moved or a button went down this frame: the prompts turn to the pad (input.ts device) */
   touchedNow = false;
   /** this frame's sprint press is the left stick crossing auto sprint's line, no button (main.ts sprintPressed) */
@@ -295,6 +318,10 @@ export class GamepadInput {
         this.index = -1;
         this.active = false;
         this.down.clear();
+        // (a Y held as it went fired a swap on its return, and the Controller tab went on saying connected, Milestone 993)
+        this.id = "";
+        this.prevButtons = [];
+        this.justGone = true;
       }
     });
   }
@@ -334,12 +361,19 @@ export class GamepadInput {
     }
     this.id = p.id;
     const s = this.settings;
-    const dz = (v: number) => padDeadzone(s, v);
-    const ax = p.axes;
-    const mx = dz(ax[0] ?? 0);
-    const my = dz(ax[1] ?? 0);
-    const rx = dz(ax[2] ?? 0);
-    const ry = dz(ax[3] ?? 0);
+    // An axis of a device that is not a mapped pad, off centre as it comes in, is at rest there: a flight stick's throttle or
+    // a pedal at -1 turned the view 160 degrees a second with nothing touched, in a mouse session too (Milestone 993).
+    if (this.restFor !== p.id) {
+      this.restFor = p.id;
+      this.restAxes = p.mapping === "standard" ? [] : p.axes.flatMap((v, i) => (Math.abs(v) > 0.5 ? [i] : []));
+    }
+    const ax = p.axes.map((v, i) => (this.restAxes.includes(i) ? 0 : v));
+    const left = padRadial(s, ax[0] ?? 0, ax[1] ?? 0);
+    const right = padRadial(s, ax[2] ?? 0, ax[3] ?? 0);
+    const mx = left.x;
+    const my = left.y;
+    const rx = right.x;
+    const ry = right.y;
     this.stick.x = rx;
     this.stick.y = ry;
     this.leftStick.x = mx;
@@ -349,7 +383,9 @@ export class GamepadInput {
     // buttons: held and pressed-this-frame
     const next = new Set<Action | "menu">();
     p.buttons.forEach((b, i) => {
-      const on = b.pressed || b.value > TRIGGER_THRESHOLD;
+      // (by its value where it has one: Chrome sets `pressed` at about 12%, so a 15% touch fired and gamepad.json's line never
+      // applied, Milestone 993)
+      const on = b.value > 0 ? b.value > TRIGGER_THRESHOLD : b.pressed;
       if (on) touched = true;
       const was = !!this.prevButtons[i];
       this.prevButtons[i] = on;
@@ -415,15 +451,15 @@ export class GamepadInput {
       return { yawLeft: this.lookX, pitchUp: this.lookY };
     }
     // look: the curve, then the speed for the level, scaled at ADS
-    const curve = (v: number) => padCurve(s, v);
+    const shaped = curved(s, rx, ry);
     const yawSpeed = PAD.yawPerLevel * Math.max(1, Math.min(8, s.look));
     const pitchSpeed = yawSpeed * PAD.pitchShare;
     // the ADS level comes in with the sights as the zoom's ratio does (adsScale, made with adsFrac), the mouse's way:
     // outside the blend it came in whole on the first aimed frame, at level 8 a jump from 240 to 640 degrees a second
     // (Milestone 902)
     const adsK = adsScale * (1 + (Math.max(1, Math.min(8, s.ads)) / PAD.adsBase - 1) * Math.max(0, Math.min(1, adsFrac)));
-    this.lookX = -curve(rx) * yawSpeed * adsK * dt;
-    this.lookY = -curve(ry) * pitchSpeed * adsK * dt;
+    this.lookX = -rx * shaped * yawSpeed * adsK * dt;
+    this.lookY = -ry * shaped * pitchSpeed * adsK * dt;
     return { yawLeft: this.lookX, pitchUp: this.lookY };
   }
 
@@ -432,6 +468,10 @@ export class GamepadInput {
   }
   pressedNow(action: Action): boolean {
     return this.pressed.has(action);
+  }
+  /** this frame's presses are spent: a menu took them */
+  swallow(): void {
+    this.pressed.clear();
   }
   /** Start went down this frame */
   get menuPressed(): boolean {

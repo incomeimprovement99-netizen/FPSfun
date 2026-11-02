@@ -255,6 +255,7 @@ interface Settings {
   fovScale: number;
   /** aim down sights and crouch: held, or a press to go in and another to come out */
   adsToggle: boolean;
+  invertLook: boolean;
   crouchToggle: boolean;
   /** the per-optic ADS multipliers, on top of the ADS one (1 each by default) */
   opticAds: Record<OpticZoom, number>;
@@ -267,6 +268,7 @@ function loadSettings(): Settings {
     ads: playerCfg.adsScalars[0] ?? 1,
     fovScale: playerCfg.fovScale,
     adsToggle: false,
+    invertLook: false,
     crouchToggle: false,
     opticAds: Object.fromEntries(OPTIC_ZOOMS.map((z) => [z, 1])) as Record<OpticZoom, number>,
   };
@@ -286,6 +288,7 @@ function loadSettings(): Settings {
       base.ads = num(saved.ads, 0.1, 3) ?? base.ads;
       base.fovScale = num(saved.fovScale, 1, 1.571) ?? base.fovScale;
       base.adsToggle = saved.adsToggle === true;
+      base.invertLook = saved.invertLook === true;
       base.crouchToggle = saved.crouchToggle === true;
       const oa = saved.opticAds as Record<string, unknown> | undefined;
       if (oa && typeof oa === "object") for (const z of OPTIC_ZOOMS) base.opticAds[z] = num(oa[z], 0.1, 3) ?? 1;
@@ -660,6 +663,7 @@ function readSettings(): void {
   settings.ads = field(inAds, 0.1, 3, settings.ads);
   settings.fovScale = field(inFov, 1, 1.571, settings.fovScale);
   settings.adsToggle = $<HTMLSelectElement>("adsMode").value === "toggle";
+  settings.invertLook = $<HTMLSelectElement>("invertLook").value === "on";
   settings.crouchToggle = $<HTMLSelectElement>("crouchMode").value === "toggle";
   for (const z of OPTIC_ZOOMS) settings.opticAds[z] = field($<HTMLInputElement>(`opticAds${z}`), 0.1, 3, settings.opticAds[z]);
   saveSettings(settings);
@@ -681,6 +685,7 @@ function refreshDerived(): void {
 // the hold / toggle choices and the per-optic multipliers: the Settings tab's rows
 {
   $<HTMLSelectElement>("adsMode").value = settings.adsToggle ? "toggle" : "hold";
+  $<HTMLSelectElement>("invertLook").value = settings.invertLook ? "on" : "off";
   $<HTMLSelectElement>("crouchMode").value = settings.crouchToggle ? "toggle" : "hold";
   const box = $("opticAdsBox");
   for (const z of OPTIC_ZOOMS) {
@@ -948,8 +953,9 @@ qualitySel.value = quality.preset;
 // The renderer's antialiasing and canvas mode are fixed when the WebGL context
 // is created, so a preset change applies by reloading. Settings persist.
 qualitySel.addEventListener("change", () => {
-  // (not in a match: the reload cost you it, with no word, and the new preset was kept even on Stay, Milestone 945)
-  if (duel) {
+  // (not in a match: the reload cost you it, with no word, and the new preset was kept even on Stay, Milestone 945; nor in a
+  // group, whose friends it dropped, Milestone 993)
+  if (duel || hosting || party || hangout) {
     qualitySel.value = quality.preset;
     hud.notice("GRAPHICS CHANGE BETWEEN MATCHES: IT RELOADS THE PAGE", gameTime, 4);
     return;
@@ -3460,7 +3466,8 @@ function keyHintsNow(now: number): HudState["keyHints"] {
   if (keyHintsBuilt && keyHintsBuilt.key === key && now - keyHintsBuilt.at < 0.5) return keyHintsBuilt.value;
   const binds = currentBinds();
   // the keys a person would name: not the scroll wheel's notches, nor the right-hand twin of a left-hand key
-  const named = (b: string): boolean => !b.startsWith("wheel") && !/Right$/.test(b);
+  // (the right-hand modifiers: ArrowRight and BracketRight went with them, and a row on either lost its key)
+  const named = (b: string): boolean => !b.startsWith("wheel") && !/^(Shift|Control|Alt|Meta)Right$/.test(b);
   // with a controller in hand, its one button for each (the move row is the left stick)
   const first = (a: string, n: number): string[] => {
     if (pad) {
@@ -5041,7 +5048,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     lastHurtAt = gameTime;
     hud.hurt(gameTime);
     audio.hurt(d.shield > 0);
-    input.pad.rumble(0.6, 0.3, 120);
+    if (input.device === "pad") input.pad.rumble(0.6, 0.3, 120);
   };
   // gunfire is heard from where it was fired (onShotFired, below), once a trigger pull
   d.onRemoteShot = null;
@@ -5975,7 +5982,7 @@ window.addEventListener("pagehide", () => {
 // Ctrl+W still closes a windowed tab (Input.lock): mid-match or mid-play the
 // browser asks first.
 window.addEventListener("beforeunload", (e) => {
-  if (!duel && !input.playing) return;
+  if (!duel && !input.playing && !hosting && !party && !hangout) return;
   e.preventDefault();
   e.returnValue = "";
 });
@@ -6606,6 +6613,8 @@ $("play").addEventListener("click", () => resumeFromMenu());
  * gesture, and by then the second is up.
  */
 let wantResume = false;
+/** the hour F8 left, to come back to */
+let f8From: Parameters<typeof hourFor>[0] | null = null;
 const dropRelock = (): void => {
   wantResume = false;
 };
@@ -6631,6 +6640,12 @@ window.addEventListener("pointerdown", takeResume, true);
 /** Esc presses on the menu (tools/e2e.ts) */
 let menuEscapes = 0;
 window.addEventListener("keydown", (e) => {
+  // (playing on a pad there is no lock for Esc to end: it did nothing, and the only way out was Start, Milestone 993)
+  if (e.code === "Escape" && input.padPlaying && !input.locked && overlay.classList.contains("hidden")) {
+    input.padPlaying = false;
+    input.onLockChange?.(false);
+    return;
+  }
   if (e.code !== "Escape" || overlay.classList.contains("hidden")) return;
   const el = document.activeElement as HTMLElement | null;
   if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) {
@@ -6847,6 +6862,8 @@ input.onLockRefused = () => {
 };
 input.onLockChange = (locked) => {
   overlay.classList.toggle("hidden", locked);
+  // (the lock came after all: read straight after asking it never had, and the next menu's first key shut it, Milestone 993)
+  if (locked) wantResume = false;
   if (locked) {
     // the first time in, the button stops saying Play: there is now a game to
     // resume, and the welcome has done its job
@@ -7143,12 +7160,20 @@ function step(): void {
     }
   }
   // the menu by controller (padnav.ts): whichever of its screens is up, while no match or range has the pad
-  if (!overlay.classList.contains("hidden") && !calibrating) padNav.step(wall, input.pad);
-  else padNav.clear();
+  if (!overlay.classList.contains("hidden") && !calibrating) {
+    padNav.step(wall, input.pad);
+    // (the press that shut the menu is not the game's too: A on Resume jumped, on the ship out of its doors, Milestone 993)
+    if (overlay.classList.contains("hidden")) input.pad.swallow();
+  } else padNav.clear();
   if (input.pad.justConnected) {
     input.pad.justConnected = false;
     const fam = padFamilyOf(input.pad.id);
     hud.notice(`${fam === "ps" ? "PLAYSTATION CONTROLLER" : fam === "xbox" ? "XBOX CONTROLLER" : "CONTROLLER"} CONNECTED: PRESS ${fam === "ps" ? "OPTIONS" : "START"} TO PLAY`, now, 3);
+  }
+  if (input.pad.justGone) {
+    input.pad.justGone = false;
+    hud.notice("CONTROLLER DISCONNECTED", gameTime, 3);
+    playHint.textContent = "The controller was disconnected.";
   }
   // the pad went away (or idle) while it was the way in: back to the menu,
   // or there would be no input and no menu at all
@@ -7355,7 +7380,9 @@ function step(): void {
     // F8: the default hour (golden hour) or the hazy day, the city both ways (the owner's toggle); kept as the chosen hour,
     // as the menu keeps it
     if (input.pressedNow("dayNight")) {
-      const next = hour.id === "hazyDay" ? PROFILE.identity.sky : "hazyDay";
+      // (back to the hour it left: the neon night went to the default and was saved over)
+      if (hour.id !== "hazyDay") f8From = hour.id;
+      const next = hour.id === "hazyDay" ? (f8From ?? PROFILE.identity.sky) : "hazyDay";
       saveSkHour(next);
       skySel.value = next;
       applyHour(hourFor(next));
@@ -7408,7 +7435,7 @@ function step(): void {
       const k = degPerCount(settings.sens);
       orbitYaw -= m.dx * k;
       orbitPitch = Math.max(-60, Math.min(70, orbitPitch - m.dy * k));
-    } else player.applyMouse(m.dx, m.dy, degPerCount(settings.sens) * adsScale, playerCfg.invertPitch);
+    } else player.applyMouse(m.dx, m.dy, degPerCount(settings.sens) * adsScale, playerCfg.invertPitch !== settings.invertLook);
     // the controller's right stick, read this frame in padLook, with aim
     // assist (aimassist.ts) when the pad is what is aiming: its look stick or
     // its move stick in use this frame, so a mouse player never gets it
@@ -7428,11 +7455,12 @@ function step(): void {
     const slow = assist?.slow ?? 1;
     // the snap as the aim comes up on a pad (aimassist.ts, Milestone 620), and its turn this frame
     const snapIn = { eye: player.eyePosition(), yaw: player.yaw, pitch: player.pitch, ads: ws.adsFrac, activeInput: true, targets: duel ? duel.avatars.filter((a) => !isAllyFigure(a)) : rangeTargets };
-    if (input.device === "pad" && input.pad.pressedNow("ads") && !knockedOut) aimAssist.startSnap(snapIn);
+    // (only as the aim goes in: on the toggle's press out of the sights, on fists, mid-swap or on the ship it swung the view too)
+    if (input.device === "pad" && input.pad.pressedNow("ads") && !knockedOut && !(settings.adsToggle && adsLatch) && holster === "out" && !loadout.active.empty && !loadout.swapping && !player.aboard && !player.dropping) aimAssist.startSnap(snapIn);
     const snap = aimAssist.snapStep(snapIn, dt);
     if (snap.yawLeft || snap.pitchUp) player.addAngles(snap.pitchUp, snap.yawLeft);
     // (a wheel open: the stick is picking, not looking)
-    if (!emoteWheelOpen && !pingWheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
+    if (!emoteWheelOpen && !pingWheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch !== settings.invertLook ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
   }
 
   // The practice aim bot, after the look input so it is the last word on where
@@ -7920,7 +7948,8 @@ function step(): void {
       const from = Math.ceil(size * hudCfg.lowAmmo.click);
       if (size >= hudCfg.lowAmmo.minClip && left <= from) audio.lowAmmo(1 - left / Math.max(1, from));
     }
-    input.pad.rumble(0.15, 0.35, 40);
+    // (a pad in use: a mouse player's, lying on the desk, buzzed at every shot)
+    if (input.device === "pad") input.pad.rumble(0.15, 0.35, 40);
   }
   if (shots.length) {
     // Hard recoil moves the base angles; the view takes them next frame. (It was put back here for this frame, which threw
