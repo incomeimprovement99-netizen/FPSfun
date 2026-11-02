@@ -1678,6 +1678,12 @@ export class BrMatch extends Duel {
     return super.canFire && this.gulag?.phase !== "countdown";
   }
 
+  /** (a ping in the Gulag's room stays there: mates in the city got a mark 300 m past the fence, off every map, Milestone 967) */
+  override sendMark(k: string, at: THREE.Vector3, label: string, target = -1, quiet = false): void {
+    if (this.gulag && this.gulag.phase !== "wait") return;
+    super.sendMark(k, at, label, target, quiet);
+  }
+
   /** the page: beaten in the Gulag, where your ghost goes */
   onGulagLost: ((at: { x: number; z: number }) => void) | null = null;
   /** this respawn is a won Gulag's, not the match's start (the page leaves off the start's notices) */
@@ -2848,7 +2854,7 @@ export class BrMatch extends Duel {
       total: this.botCount + this.players,
       kills: this.kills,
       dropping: this.phase === "countdown",
-      poi: this.poi.name,
+      poi: this.shipLine ? "" : this.poi.name,
       hot: this.hotZone(),
       ring: {
         phase: Math.min(v.phase + 1, RING_PHASES.length),
@@ -2958,7 +2964,12 @@ export class BrMatch extends Duel {
       rest.push({ figure: a, name: (r && this.nameOf(r.id)) || "SOMEONE", friend: false, d });
     }
     rest.sort((a, b) => a.d - b.d);
-    return [...out, ...rest.map(({ figure, name, friend }) => ({ figure, name, friend }))];
+    // (not one in the Gulag: that street is drawn only on their own page, and the camera went to bare ground, Milestone 967)
+    const inRoom = (f: Dummy): boolean => {
+      const r = this.remoteOf(f);
+      return !!r && this.gulagIds.has(r.id);
+    };
+    return [...out, ...rest.map(({ figure, name, friend }) => ({ figure, name, friend }))].filter((x) => !inRoom(x.figure));
   }
 
   override leave(): void {

@@ -14234,6 +14234,28 @@ bound to the first match. And a link that closed during the wait for the city's 
 
 - **Checked:** tsc, verify, rules; e2e speedkills.
 
+## Milestone 966 — The last of the reviews' small faults
+
+The low frame rate tip could be spent under the loading screen, never seen, and marked as said; it waits for play. A host's Esc on the way
+into a match with friends held its ship and every bot on it, their ships flying on; a menu holds only a match of your own. Others saw a
+chasing MINE sit still and then go off up to 15 m away; it moves on their pages. With friends in a lobby nobody had come to, made for another
+mode, did nothing; it makes a new one. And Esc on the menu with nothing to go back to tried to take the mouse; it is Back (main.ts, start.ts).
+
+- **Checked:** tsc, verify, rules; e2e skship, sklobby, page.
+
+## Milestone 967 — Knowing where things are
+
+From a review of the maps and marks: the arithmetic was right, and what they were given was not. The map's canvas was redrawn on most frames
+of every decay close, 781 builds in 20 s, 73 of them of anything it draws; at most every 2 s now. The hot zone was never on any map, and a
+ship match never said it. The capture zone, 14 m that win the match, had no mark past the minimap; it has one with its distance. The ship's
+map named a random place as yours, ringed in gold, where you jump as you like; it says so. Control's letters vanished off screen, and now hold
+to its edge. In a mode the big map was the whole world, NEON YARD 27 x 36 px; it is the arena. You could be put watching a mate in the Gulag, on bare
+ground; a ping in that room reached mates as a mark off every map; and a map left open stood over its fight. Distances on the squad's rows
+measure from where you are looking. A mark high behind you sits at the top, a lost mate's dot dims, and the mate you watch leaves the compass.
+(hud.ts, main.ts, brmatch.ts)
+
+- **Checked:** tsc, verify, rules; hudfit.ts; e2e brsolo, modes.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

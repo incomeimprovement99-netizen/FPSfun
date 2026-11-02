@@ -427,6 +427,7 @@ export class Hud {
   private mapMinX = 0;
   private mapMinZ = 0;
   private mapSolids = -1;
+  private mapBuiltAt = -Infinity;
   private mapRegionKey = "";
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -768,11 +769,12 @@ export class Hud {
       v.copy(m.at).project(camera);
       let x = (v.x * 0.5 + 0.5) * this.w;
       let y = (-v.y * 0.5 + 0.5) * this.h;
-      // behind you: mirrored and pinned to the bottom edge
+      // behind you: mirrored and pinned to the bottom edge (a mark well above you to the top: on a roof 60 m up, a metre
+      // behind you sent it from the top edge to the bottom, Milestone 967)
       const behind = v.z > 1;
       if (behind) {
         x = this.w - x;
-        y = this.h - pad;
+        y = m.at.y - camera.position.y > hudCfg.markAbove ? pad : this.h - pad;
       }
       const off = behind || x < pad || x > this.w - pad || y < pad || y > this.h - pad;
       x = Math.max(pad, Math.min(this.w - pad, x));
@@ -1549,10 +1551,12 @@ export class Hud {
       for (const z of ct.zones) {
         if (z.here) continue;
         const v = z.at.clone().setY(z.at.y + 2.5).project(camera);
-        if (v.z > 1) continue;
-        const x = (v.x * 0.5 + 0.5) * this.w;
-        const y = (-v.y * 0.5 + 0.5) * this.h;
-        if (x < 0 || x > this.w || y < 0 || y > this.h) continue;
+        // (held there, as this says, and mirrored behind you, as a marker is: off screen a letter was simply gone, Milestone 967)
+        const pad = 30 * u;
+        const behind = v.z > 1;
+        const px = (v.x * 0.5 + 0.5) * this.w;
+        const x = Math.max(pad, Math.min(this.w - pad, behind ? this.w - px : px));
+        const y = Math.max(pad, Math.min(this.h - pad, behind ? this.h - pad : (-v.y * 0.5 + 0.5) * this.h));
         c.fillStyle = "rgba(0,0,0,0.5)";
         c.fillRect(x - 11 * u, y - 11 * u, 22 * u, 22 * u);
         this.text(z.id, x, y + 6 * u, 700, 16 * u, z.owner === "you" ? BLUE : z.owner === "them" ? RED : WHITE, "center");
@@ -2611,7 +2615,13 @@ export class Hud {
 
   private ensureMap(s: HudState): void {
     const key = s.mapRegion ? `${s.mapRegion.minX},${s.mapRegion.minZ},${s.mapRegion.maxX},${s.mapRegion.maxZ}` : "";
-    if (this.mapSolids !== RANGE_SOLIDS.length || key !== this.mapRegionKey) this.buildMap(s.mapRegion);
+    // (not on every box: a decay's close takes some out most frames, 781 builds of a 1944 px canvas in its 20 s, 73 of them
+    // of anything the map draws, Milestone 967)
+    const now = performance.now() / 1000;
+    if (key !== this.mapRegionKey || (this.mapSolids !== RANGE_SOLIDS.length && now - this.mapBuiltAt >= hudCfg.mapRebuild)) {
+      this.mapBuiltAt = now;
+      this.buildMap(s.mapRegion);
+    }
   }
 
   /** Past SpeedKills' edge (Phase 20 A4): a red vignette and the countdown in the middle of the screen */
@@ -2641,6 +2651,19 @@ export class Hud {
     const c = this.ctx;
     // SpeedKills: the sectors instead of rings, each in its colour, the decay
     // over them, and the capture zone once it opens
+    // the hot zone: the place this match kitted out. Gold, dashed, and named,
+    // because a hot zone nobody can see is a secret rather than a decision.
+    const hotRing = (): void => {
+      if (!br.hot) return;
+      c.save();
+      c.setLineDash([6 * u, 5 * u]);
+      c.strokeStyle = "rgba(255,210,60,0.9)";
+      c.lineWidth = 2 * u;
+      c.beginPath();
+      c.arc(toX(br.hot.x), toZ(br.hot.z), Math.max(1, br.hot.radius * scale), 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+    };
     if (s.sectors?.length) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 180);
       for (const sec of s.sectors) {
@@ -2693,6 +2716,8 @@ export class Hud {
           c.stroke();
         }
       }
+      // (it was below, for the old ring alone: nobody ever saw it, Milestone 967)
+      hotRing();
       return;
     }
     c.lineWidth = 2 * u;
@@ -2705,18 +2730,7 @@ export class Hud {
     c.beginPath();
     c.arc(toX(br.ring.current.cx), toZ(br.ring.current.cz), Math.max(0.5, br.ring.current.r * scale), 0, Math.PI * 2);
     c.stroke();
-    // the hot zone: the place this match kitted out. Gold, dashed, and named,
-    // because a hot zone nobody can see is a secret rather than a decision.
-    if (br.hot) {
-      c.save();
-      c.setLineDash([6 * u, 5 * u]);
-      c.strokeStyle = "rgba(255,210,60,0.9)";
-      c.lineWidth = 2 * u;
-      c.beginPath();
-      c.arc(toX(br.hot.x), toZ(br.hot.z), Math.max(1, br.hot.radius * scale), 0, Math.PI * 2);
-      c.stroke();
-      c.restore();
-    }
+    hotRing();
   }
 
   /**
@@ -2785,7 +2799,7 @@ export class Hud {
         c.stroke();
         continue;
       }
-      c.globalAlpha = ghost ? 0.55 : 1;
+      c.globalAlpha = ghost || row.life === "quiet" ? 0.55 : 1;
       dot(m.x, m.z, 6, row.color);
       c.stroke();
       upright(m.x, m.z, () => {
@@ -2919,7 +2933,8 @@ export class Hud {
         this.text(p.name, toX(p.x), toZ(p.z) - 6 * u + under, 600, 10 * u, "rgba(255,255,255,0.8)", "center");
       }
       for (const p of br.pois) {
-        const mine = br.dropping && p.name === br.poi;
+        // (a place only where the drop is one: off the ship you jump where you like, and a random one was ringed in gold as yours)
+        const mine = br.dropping && !!br.poi && p.name === br.poi;
         // in its sector's colour where it has one (SpeedKills), a gone one said so
         const sec = s.sectors?.find((q) => q.name === p.name);
         const secCol = sec ? (sec.phase === "gone" ? "rgba(255,120,160,0.9)" : `rgb(${(sec.accent >> 16) & 255}, ${(sec.accent >> 8) & 255}, ${sec.accent & 255})`) : null;
@@ -2973,11 +2988,11 @@ export class Hud {
     const foot = y0 + (r.maxZ - r.minZ) * scale + 34 * u;
     if (s.ship) {
       const sh = s.ship;
-      this.text(`THE SHIP PASSES ${br?.poi ?? "YOUR PLACE"}`, this.w / 2, y0 - 26 * u, 700, 34 * u, "#ffd23c", "center");
+      this.text("THE SHIP: JUMP WHERE YOU LIKE", this.w / 2, y0 - 26 * u, 700, 34 * u, "#ffd23c", "center");
       this.text(this.shipLine(sh), this.w / 2, foot, 600, 15 * u, sh.doorsIn > 0 ? DIM : WHITE, "center");
       this.text(this.shipWho(sh), this.w / 2, foot + 22 * u, 600, 14 * u, DIM, "center");
     } else if (br?.dropping) {
-      this.text(`DROPPING INTO ${br.poi}`, this.w / 2, y0 - 26 * u, 700, 34 * u, "#ffd23c", "center");
+      this.text(br.poi ? `DROPPING INTO ${br.poi}` : "DROPPING", this.w / 2, y0 - 26 * u, 700, 34 * u, "#ffd23c", "center");
       this.text(`STEER WITH THE ${this.padNow ? "LEFT STICK" : "MOVEMENT KEYS"}, LOOK DOWN TO DIVE`, this.w / 2, foot, 600, 15 * u, DIM, "center");
     } else this.text(`${s.mapKey ?? "M"} CLOSES THE MAP`, this.w / 2, foot, 600, 15 * u, DIM, "center");
   }
@@ -3459,6 +3474,8 @@ export class Hud {
     // Your squad along the strip (Phase 27): each teammate's number on their colour at the bearing to them, or at
     // the strip's end, pointing, when they are off it. Before the readout, which stays readable over one.
     for (const t of s.squad?.tags ?? []) {
+      // (not the one you are watching: from where they stand they have no bearing, and sat at the strip's end)
+      if (Math.hypot(t.world.x - s.px, t.world.z - s.pz) < 0.5) continue;
       const to = (Math.atan2(t.world.x - s.px, -(t.world.z - s.pz)) * 180) / Math.PI;
       const d = ((((to - bearing) % 360) + 540) % 360) - 180;
       const lim = span / 2 - 4;

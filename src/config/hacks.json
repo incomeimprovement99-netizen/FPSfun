@@ -149,6 +149,8 @@
     "arm": 0.75,
     "trigger": 15,
     "homeSpeed": 9,
+    "_chaseSay": "seconds between telling the others where a chasing mine is (main.ts): their pages show it sitting still otherwise.",
+    "chaseSay": 0.2,
     "radius": 3.5,
     "damage": 40,
     "life": 30,

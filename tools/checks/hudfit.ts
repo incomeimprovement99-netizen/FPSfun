@@ -187,5 +187,35 @@ console.log("\nA city that does not come, a page that goes away (src/main.ts, sr
   check("a Graphics preset is refused in a match", /addEventListener\("change", \(\) => \{\s+\/\/[^\n]*\n\s+if \(duel\) \{\s+qualitySel\.value = quality\.preset;/.test(main));
 }
 
+console.log("\nThe maps and marks (src/game/hud.ts, src/main.ts, src/game/brmatch.ts)");
+{
+  // (Milestone 967) the real map canvas, a box a frame coming and going as a decay's close does
+  const { RANGE_SOLIDS } = await import("../../src/game/range");
+  const hud = make(1920, 1080) as unknown as { ensureMap(s: unknown): void; buildMap(r: unknown): void };
+  let builds = 0;
+  hud.buildMap = () => void builds++;
+  const box = { minX: 0, maxX: 1, minZ: 0, maxZ: 1, base: 0, top: 1 };
+  for (let i = 0; i < 120; i++) {
+    if (i % 2) RANGE_SOLIDS.pop();
+    else RANGE_SOLIDS.push(box as never);
+    hud.ensureMap({ mapRegion: undefined });
+  }
+  check("boxes changing every frame do not redraw the map's canvas every frame", builds <= 2, `${builds} builds in 120 frames`);
+  const { readFileSync } = await import("node:fs");
+  const read = (f: string): string => readFileSync(new URL(`../../src/${f}`, import.meta.url), "utf8");
+  const h = read("game/hud.ts");
+  const m = read("main.ts");
+  const br = read("game/brmatch.ts");
+  check("the hot zone is drawn on the sectors' map, and said on the ship", /hotRing\(\);\s+return;/.test(h) && /function boardShip[\s\S]{0,700}d\.hotZone\(\)/.test(m));
+  check("the capture zone has a mark with its distance", /zoneMarked\(duel, brPlay\.hud\.markers\)/.test(m));
+  check("a mode's big map is its arena", /\(cityMap\(\) \?\? gulagRoom\(\)\)\?\.bounds/.test(m));
+  check("nobody is put to watch a mate in the Gulag, and a ping in its room stays there", /filter\(\(x\) => !inRoom\(x\.figure\)\)/.test(br) && /override sendMark/.test(br));
+  check("Control's letters hold to the screen's edge", /const behind = v\.z > 1;\s+const px =/.test(h));
+  // (Milestone 966) a menu in a match with friends holds no ship; a mine's chase is said; the tip waits for play
+  check("a menu on the way in holds the ship only in a match of your own", /shipHeld: show !== null && show\.br && \(input\.playing/.test(m));
+  check("a chasing mine is told to the others", /sendFx\("sk", m\.at\.clone\(\), undefined, 12\)/.test(m) && /case 12:/.test(m));
+  check("the slow tip waits for the loading screen", /overlay\.classList\.contains\("hidden"\) && show === null/.test(m));
+}
+
 console.log(fails === 0 ? "\nHUD FIT PASS" : `\nHUD FIT FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

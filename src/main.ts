@@ -2985,6 +2985,9 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   // notice below say where the ship is; M opens the big one.
   mapOpen = squadCfg.dive.mapOnBoard;
   following = null;
+  // (said here too: only a straight drop told anyone, on the ship the hot zone was the match's secret, Milestone 967)
+  const hot = d.hotZone();
+  if (hot) window.setTimeout(() => hud.notice(`HOT ZONE: ${hot.name.toUpperCase()}  ·  KITTED GUNS, AND EVERYONE KNOWS`, gameTime, 4), 4000);
   // the first of your squad leads it down (the host, unless the friends are split into squads)
   linkedTo = d.jumpmaster();
   masterWent = null;
@@ -3102,6 +3105,8 @@ function respawnForMatch(d: MatchLike): void {
     setRegion(room.city ? "br" : "range");
     // facing open floor, as every arena spawn does, not the wall a metre off
     player.teleport(gulagIn.x, 0, gulagIn.z, openYaw(gulagIn.x, gulagIn.z, gulagIn.yaw));
+    // (the map, shut: left open it stood over the room's countdown and fight)
+    mapOpen = false;
     hud.notice("THE GULAG: WIN AND YOU ARE BACK IN", gameTime, 3);
   } else if (d instanceof BrMatch && echoAt) {
     // a squad mate held at your echo: you stand up on it, at its height
@@ -3285,7 +3290,8 @@ function squadNow(d: BrMatch, now: number): HudState["squad"] {
   // the clock duel.ts notes a packet's arrival by (Remote.lastHeard)
   const wall = realNow();
   const talking = new Set(hudVoice?.talking ?? []);
-  const me = player.pos.clone();
+  // (from where you are looking: watching a mate, their own row read 240 M)
+  const me = new THREE.Vector3(hudView.x, player.pos.y, hudView.z);
   const mates: MateNow[] = [];
   const figures = new Map<number, { r: Remote; at: THREE.Vector3; ghost: boolean }>();
   for (const id of ids) {
@@ -3579,7 +3585,7 @@ let healFelt = 0;
 /** the match's phase last frame, to see a new round or a rematch begin */
 let lastMatchPhase: string | null = null;
 /** MINE's mines: yours hunt and hurt; everyone else's are drawn */
-const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Object3D; mine: boolean; damage?: number; chaseFrom?: number | null; owner?: number }> = [];
+const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Object3D; mine: boolean; damage?: number; chaseFrom?: number | null; owner?: number; saidAt?: number }> = [];
 /** your WALL hack's panels standing, oldest first (hacks.json wall.max) */
 const myWalls: PutWall[] = [];
 /** when a ghost next looks round it */
@@ -4137,6 +4143,11 @@ function stepHacks(now: number, dt: number): void {
     if (len > 1 && now - m.chaseFrom < H.mine.chase) {
       m.at.addScaledVector(to, Math.min(1, (H.mine.homeSpeed * dt) / len));
       m.mesh.position.copy(m.at);
+      // (on the others' pages too: it sat still there, and went off up to 15 m from where they saw it, Milestone 966)
+      if (now >= (m.saidAt ?? -Infinity)) {
+        m.saidAt = now + H.mine.chaseSay;
+        sendFx("sk", m.at.clone(), undefined, 12);
+      }
       continue;
     }
     for (const e of enemiesNear(m.at, H.mine.radius)) if (seesBody(m.at, e.fig)) hackHurt(e.rem, e.fig, m.damage ?? H.mine.damage, "mine");
@@ -4289,6 +4300,12 @@ function skSectorsHud(d: BrMatch): HudState["sectors"] {
   return SECTORS.map((s) => ({ minX: s.minX + BR_X, minZ: s.minZ + BR_Z, maxX: s.maxX + BR_X, maxZ: s.maxZ + BR_Z, name: s.name, accent: s.accent, phase: states[s.id]?.phase ?? "live", k: states[s.id]?.k ?? 0, final: s.id === d.decay?.final }));
 }
 
+/** the capture zone as a mark with its distance: 14 m of ground that wins the match, and past the minimap nothing said where (Milestone 967) */
+function zoneMarked(d: BrMatch, marks: NonNullable<HudState["markers"]>): NonNullable<HudState["markers"]> {
+  const z = d.captureZone();
+  return z ? [...marks, { k: "go", at: new THREE.Vector3(z.x, 1.5, z.z), label: "CAPTURE ZONE", mine: false }] : marks;
+}
+
 function skCaptureHud(d: BrMatch): HudState["capture"] {
   const z = d.captureZone();
   if (!z) return null;
@@ -4374,6 +4391,15 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       // their REVEAL (Milestone 926), where they are
       if (!audio.hackSound("reveal", a)) audio.whoosh(a);
       break;
+    case 12: {
+      // someone's mine on its chase: their nearest, where they say it is
+      const theirs = mines.filter((m) => !m.mine && m.owner === from).sort((p, q) => p.at.distanceTo(a) - q.at.distanceTo(a))[0];
+      if (theirs) {
+        theirs.at.copy(a);
+        theirs.mesh.position.copy(a);
+      }
+      break;
+    }
     case 7:
     case 8: {
       audio.blast(n === 7 ? "slam" : "frag", a);
@@ -6438,6 +6464,12 @@ const menu = new Menu(loadouts, profile, {
       duelButtons();
       return;
     }
+    // A lobby under way with nobody in, made for another mode: over, and a new one made for this. The button did nothing, the
+    // box saying the new mode and the lobby the old (Milestone 966).
+    if (!g && duel instanceof Duel && duel.role === "host" && duel.phase === "waiting" && duel.connected === 0) {
+      duel.leave();
+      if (duel) endMatch("A new lobby.");
+    }
     menu.show("duel");
     duelHostBtn.click();
   },
@@ -6821,7 +6853,7 @@ let lastMode: string | undefined;
 const slowTip = new SlowTip();
 function visitFrame(dt: number): void {
   // (not in a test browser: it draws in software, slowly, and a notice of its own would cover the ones the tests read)
-  const tip = navigator.webdriver ? null : slowTip.frame(dt, input.playing && overlay.classList.contains("hidden"), renderScale, quality.preset);
+  const tip = navigator.webdriver ? null : slowTip.frame(dt, input.playing && overlay.classList.contains("hidden") && show === null, renderScale, quality.preset);
   if (tip) hud.notice(tip, gameTime, 7);
   if (!loadedSaid && loadingScreen.loaded) {
     loadedSaid = true;
@@ -8123,7 +8155,9 @@ function step(): void {
     // SpeedKills: the way in (show) holds the match's start while it loads, and a card over a match that has not
     // started; a battle royale's starts once it has loaded, its ship waiting at its start until the card has gone
     held: show !== null && (show.stage === "load" || (show.stage === "card" && !show.br)),
-    shipHeld: show !== null && show.br,
+    // (a menu opened on the way in holds a match of your own: a host's Esc held its ship and every bot on it, its friends'
+    // ships flying on, Milestone 966)
+    shipHeld: show !== null && show.br && (input.playing || !!scriptInput || !(duel instanceof Duel && duel.players > 1)),
     stance: player.figureStance,
     speed: player.speed,
     ads: ws.adsFrac,
@@ -8351,7 +8385,8 @@ function step(): void {
     course: duel ? null : (courses.map((c) => c.hud(now)).find((h) => h !== null) ?? null),
     duel: duelHud,
     // the battle royale's map, except in the Gulag's room, where the minimap shows the room
-    mapRegion: duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : (gulagRoom()?.bounds ?? undefined),
+    // (a mode's arena its own map: over the whole world NEON YARD was 27 x 36 px, the arrow as big as it, Milestone 967)
+    mapRegion: duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : ((cityMap() ?? gulagRoom())?.bounds ?? undefined),
     // the drop shows the map by itself for its first moments, then it steps
     // aside so you can see the ground you are steering onto; M opens it any
     // time. Only while you are still in the air: a guest who lands before the
@@ -8381,7 +8416,7 @@ function step(): void {
     // a hold-E action
     brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
     tutorial: tutorialHud,
-    markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
+    markers: duel instanceof BrMatch ? zoneMarked(duel, brPlay.hud.markers) : null,
     captions: captions.mode === "off" ? null : captions.live(gameTime).map((l) => ({ text: l.text, where: l.where, range: l.range })),
     pingWheel: pingWheelOpen ? { items: PING_INTENTS.map((x) => x.label), icons: PING_INTENTS.map((x) => x.icon), pick: pingPick } : null,
     spectating: watch ? { name: watchName || watchMate?.name || "SOMEONE", first: !!watchMate && watchMate.id < Duel.BOT_ID && spectateFirst, of: duel ? duel.spectateList().length : 1, at: watchIndex + 1 } : null,
