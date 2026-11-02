@@ -14479,6 +14479,16 @@ link.ts).
 
 - **Checked:** tsc, verify, rules; arena-rules, controls and br-heir (six new checks, each failing with its fault put back); e2e bots, gulag, migrate, brsolo, pad.
 
+## Milestone 1007 — The host's word on a guest's take
+
+From the review of loot and carrying (its #17). The host granted any guest's take of any item, from across the map, so a page changed to ask could empty the
+city's floor from its spawn. A take is granted within 12 m of where the host last had the guest (a 3 m reach, and what a sprint covers in half a second of the
+take's trip, loot.json hostTake). The guest's own echo is granted from anywhere, as a won Gulag clears it from the sky, and so is what lies within 2 m of it,
+or of where it was for 10 s after (echoTake, echoTakeFor): a restore clears its death's guns round the echo, the ghost it was perhaps across the street. A
+guest's drop of any gun at any level is still taken at its word: the host keeps no count of what a guest carries (brmatch.ts, loot.json).
+
+- **Checked:** tsc, verify, rules; br-heir (a new check, failing with the reach test taken out, and with the echo's reach taken out); e2e squad, sksquad, brsolo.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

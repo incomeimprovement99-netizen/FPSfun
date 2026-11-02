@@ -192,5 +192,32 @@ console.log("A battle royale's care packages across a change of host (src/game/b
   check("a guest back in as the match ended gets its result, not a lost connection", held && back && guest.brOver && guest.placement === 1 && !guest.ended, JSON.stringify({ held, back, over: guest.brOver, placement: guest.placement }));
 }
 
+console.log("\nThe host's word on a guest's take (src/game/brmatch.ts)");
+{
+  // (Milestone 1007) a take is granted within reach of where the host has the guest, and round the guest's own echo
+  const { host, heir: guest, wire, ls } = start();
+  const last = host.remotes.get(1).samples.at(-1);
+  const at = (dx: number, dz: number) => new THREE.Vector3(last.x + dx, last.y, last.z + dz);
+  const gun = { kind: "weapon", id: "r97", n: 1, rarity: "common", fusion: 0 };
+  const add = (pos: THREE.Vector3, item: Any = gun): number => {
+    const key = host.lootField.keyNext;
+    host.dropLoot(item, pos);
+    run(ls, 0.1, wire);
+    return key;
+  };
+  const near = add(at(1.5, 0));
+  const far = add(at(60, 0));
+  const echo = add(at(-80, 0), { kind: "echo", id: "echo", n: 1, rarity: "common", owner: 1, ownerName: "P" });
+  const byEcho = add(at(-80.8, 0.5));
+  for (const k of [near, far, echo, byEcho]) guest.takeLoot(k);
+  run(ls, 0.5, wire);
+  const left = (k: number) => host.lootField.drops.has(k);
+  check(
+    "a guest's take of an item across the map is refused; one in reach, its own echo and what lies round it are granted",
+    !left(near) && left(far) && !left(echo) && !left(byEcho),
+    JSON.stringify({ near: !left(near), far: !left(far), echo: !left(echo), byEcho: !left(byEcho) }),
+  );
+}
+
 console.log(fails === 0 ? "\nBR HEIR PASS" : `\nBR HEIR FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

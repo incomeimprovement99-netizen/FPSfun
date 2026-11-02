@@ -988,6 +988,8 @@ export class BrMatch extends Duel {
     });
   }
 
+  /** each guest's echo as the host last let it go, and until when what lay round it may still be cleared (Milestone 1007) */
+  private echoCleared = new Map<number, { at: THREE.Vector3; until: number }>();
   /** keys this page asked to take only to clear them away (discardLoot): into nobody's pack when the host says so */
   private discarding = new Set<number>();
   /**
@@ -2271,6 +2273,17 @@ export class BrMatch extends Duel {
       const at = Array.isArray(m.at) && m.at.length === 3 && m.at.every((v) => typeof v === "number" && Number.isFinite(v)) ? new THREE.Vector3(...m.at) : null;
       if (this.role === "host") {
         if (m.op === "take" && f.drops.has(key)) {
+          // Within reach of where the host last had the guest, give or take its way there since: any page's take of any item,
+          // across the map, was granted (Milestone 1007). Its own echo from anywhere (a won Gulag clears it from the sky),
+          // and what lies round it: a restore clears its death's guns there, the ghost it was perhaps across the street.
+          const d = f.drops.get(key)!;
+          const last = this.remotes.get(from)?.samples.at(-1);
+          const now = wallClock();
+          const own = d.item.kind === "echo" && d.item.owner === from;
+          const echo = [...f.drops.values()].find((e) => e.item.kind === "echo" && e.item.owner === from)?.pos ?? (now < (this.echoCleared.get(from)?.until ?? -Infinity) ? this.echoCleared.get(from)!.at : null);
+          const byEcho = !!echo && Math.hypot(echo.x - d.pos.x, echo.z - d.pos.z) <= LOOT.echoTake && Math.abs(echo.y - d.pos.y) <= LOOT.echoTake;
+          if (!own && !byEcho && last && Math.hypot(last.x - d.pos.x, last.y - d.pos.y, last.z - d.pos.z) > LOOT.hostTake) return;
+          if (own) this.echoCleared.set(from, { at: d.pos.clone(), until: now + LOOT.echoTakeFor });
           f.remove(key);
           this.broadcast({ t: "loot", op: "gone", key, by: from });
         } else if (m.op === "drop" && at) {
