@@ -19167,3 +19167,26 @@ every district). Measured by a proposal agent as a dry run on version 127 and ap
 - **Fixed on the way:** two sets kept off a squads' drop on THE STRIP's road and the club's west gate (`ways`); the drops
   check reads the game's own step height (0.56 m, movement.json's 22 in), as the game's drop picker does, not the old 0.46.
 - **Checked:** version 131's lo, hi and max baked, the layout rerun after each with no difference, all 363 map checks, each of the four new ones failing with its fault put back; the sets photographed by day and night in every district. verify, rules and tsc. Map files version 131: lo 201.2 MB, hi 283.7 MB, max 591.8 MB.
+
+## Milestone 1021 — DEVINOS aimed in and out, on landing and in the slide
+
+A reviewer of a fresh film (the sequences changed since Milestone 838, on four guns, 36 sheets) found three things on DEVINOS,
+and measured at 60 frames a second each was worse than the film shows.
+
+- **Aimed in and out:** between its low carry and the aim the tube went 60 to 76 mm through the head and the neck for 0.3 s,
+  standing, running and in and out of a slide, and the right wrist bent 76 to 82 degrees, every time an enemy with it aimed or
+  stopped (node_modules/.scratch/slidegun.mts, the audit's exact look). The film saw it only as the tube across the face in a
+  slide. The carry's way between the two goes up and forward now (soldierhold.json guns.launcher.lowered `arc`, searched over
+  36 ways): 35 mm into the head for two frames at most, the wrist 38. In a slide the tube comes up at `raise` and stays up until
+  the body is out of the slide's seat (figure.json slide `raise`, `seated`).
+- **Landing:** a gun carried low into a landing is held in the sprint jump's carry until the landing is over (Phase 27.12), and
+  DEVINOS is always carried low, so on every landing, a hop's too, the tube went up to the air's carry and down again, 10 degrees
+  a frame. It keeps its own carry now, and after a sprint jump comes down at the carry's own pace (mannequin.ts). 0 degrees.
+- **Reload:** the hand was under the tube's mouth, 12 cm behind the rocket's middle, and the rocket came in past it. It is
+  under the rocket itself now, 2 cm back, the gun tipped down 24 (soldierhold.json guns.launcher.reload).
+- **Left:** the take-off of a sprint jump still raises the tube 9 degrees a frame: slower, it went 45 mm into the left forearm as
+  the legs tucked. REZ, the USSO and APUHTHEE had nothing.
+- **Checked:** the reload check takes the hand along the rocket too, and a new one in the soldier stances (skfigure) holds the
+  aim's way and the landing. On the old code both fail (the hand 12 cm along the rocket; the tube 69 mm into the head,
+  the wrist 68, a landing 9.9 degrees a frame); on the new they pass (2 cm; 35 mm, 27, 0). The soldier stances pass, 348
+  checks.

@@ -183,7 +183,7 @@ const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 /** the soldier's chest held no more than this far forward of upright, degrees (figure.json chestUp) */
 const CHEST_UP = figureCfg.chestUp as { most: number; rate: number };
 /** a slide seen on a figure, sat up with the gun held (figure.json slide, Milestone 831) */
-const SLIDE = figureCfg.slide as { back: number; hipsTurn: number; ads: number; rate: number };
+const SLIDE = figureCfg.slide as { back: number; hipsTurn: number; ads: number; rate: number; raise: number; seated: number };
 /** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
 const AIM_BEND = figureCfg.aimBend as { up: number[]; down: number[]; downByGun: Record<string, number[]> };
 /** a runner's lean into a turn: no more than `most` degrees, `share` of a balanced lean, above `minSpeed` m/s (figure.json bank) */
@@ -2094,8 +2094,10 @@ export class MannequinFigure {
     }
     // A jump out of a sprint keeps the sprint's carry, as a runner's gun stays low until they aim: raised in the air and
     // lowered again on landing, the stock swept through the right forearm both ways. And a gun carried low into the
-    // landing stays low until the landing is over, to come up in the standing body (Phase 27, 27.12)
-    const sprintJump = (p.stance === "air" && speed > GAIT.sprintFrom) || (lower === "Jump_Land" && this.lowered > 0.5);
+    // landing stays low until the landing is over, to come up in the standing body (Phase 27, 27.12). Not a gun carried low
+    // as it always is (DEVINOS's): its lowered is its own carry, not a sprint's, and on every landing, a hop's too, the tube
+    // went up to the air's carry and down again, 25 degrees in 70 ms (Milestone 1021)
+    const sprintJump = (p.stance === "air" && speed > GAIT.sprintFrom) || (lower === "Jump_Land" && this.lowered > 0.5 && !carryLowOf(this.gunId));
     // the hands: a full-body clip takes them too; otherwise the gun's pose, or the arms' swing
     let upper = lower;
     let upperRate = lowerRate;
@@ -2345,13 +2347,15 @@ export class MannequinFigure {
       const ventU = V ? (this.t - this.actAt) / lockoutSeconds(this.gunId) : 0;
       // (and a gun carried low unless aimed in, DEVINOS's tube, whose back half up on the shoulder hid the head from behind)
       const CL = carryLowOf(this.gunId);
-      // (on a slide it is up as the other guns are: carried low on the seated lap, the tube went 10 cm into the chest)
-      const carriedLow = !!CL && (sliding ? Math.max(p.ads ?? 0, SLIDE.ads) : (p.ads ?? 0)) < 0.3 && p.act !== "reload" && this.t - this.shotAt > CL.after;
+      // (on a slide it is up as the other guns are: carried low on the seated lap, the tube went 10 cm into the chest. Up
+      // until the body is out of the slide's seat, and up into it at `raise`: brought between the two as the body sat down
+      // or stood up, it went 76 mm through the neck, Milestone 1021)
+      const carriedLow = !!CL && (sliding ? Math.max(p.ads ?? 0, SLIDE.ads) : (p.ads ?? 0)) < 0.3 && p.act !== "reload" && this.t - this.shotAt > CL.after && this.slideW < SLIDE.seated;
       // (and through a punch, the right hand keeping the gun where it was: brought up to the shoulder for it and down
       // again, it swept the left wrist past 70 degrees)
       const low = holding && !full && (carriedLow || (!rifleMelee && ((p.act === "swap" && !cup) || (p.act === "vent" && !V) || upper === "Pistol_Idle_Loop"))) ? 1 : 0;
       if (V) this.lowered = (this.ventFrom + (1 - this.ventFrom) * smooth(V.in[0], V.in[1], ventU)) * (1 - smooth(V.out[0], V.out[1], ventU));
-      else this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
+      else this.lowered += (low - this.lowered) * Math.min(1, dt * (CL && sliding && low < this.lowered ? SLIDE.raise : REACH.lower));
       // a melee's swing: where it is, and which of a string (a string held on the act goes on from one to the next)
       const swung = rifleMelee ? (this.t - this.actAt) / soldierHold.melee.time : -1;
       const melee = swung >= 0 ? { u: swung % 1, swing: this.meleeSwing + Math.floor(swung) } : null;
@@ -2368,7 +2372,9 @@ export class MannequinFigure {
       const cupState = cup && K && swapR !== null ? { w: smooth(K.off[0], K.off[1], swapR) * (1 - smooth(K.back[0], K.back[1], swapR)), second, carry: smooth(K.carry[0], K.carry[1], swapR) } : null;
       // (the air's own carry as fast as the jump's clip tucks the body, 0.18 s: at the carry's own pace the body was
       // tucked round a gun still in the sprint's carry, 39 mm into the belly, as the feet left the ground)
-      this.carryW.air += ((sprintJump ? 1 : 0) - this.carryW.air) * Math.min(1, dt * AIR_CARRY);
+      // (and DEVINOS's back down at the carry's own pace: at the air's, out of a sprint jump it swung 10 degrees a frame)
+      const airOut = !sprintJump && carryLowOf(this.gunId) ? REACH.lower : AIR_CARRY;
+      this.carryW.air += ((sprintJump ? 1 : 0) - this.carryW.air) * Math.min(1, dt * (sprintJump ? AIR_CARRY : airOut));
       this.gripW += ((holding && !full ? 1 : 0) - this.gripW) * Math.min(1, dt * REACH.grip);
       // the left hand stays with the gun through a reload: it is the hand that does it (but not on a zip line: the rope)
       const support = holding && !full && this.t >= this.staggerUntil && !pulled && !zipping;

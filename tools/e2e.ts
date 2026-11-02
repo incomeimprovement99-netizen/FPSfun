@@ -8400,7 +8400,8 @@ async function figureStancesTest(browser: Browser): Promise<void> {
   check("going onto a rope and off it the left hand keeps clear of the head (20 cm of its middle)", ropeFace.on >= 20 && ropeFace.off >= 20, JSON.stringify(ropeFace));
   // A reload an enemy can read (Milestone 844): DEVINOS's left hand under the tube's mouth (the shared key left it 17 cm off
   // to the side, the arm straight and the wrist bent 86 degrees), REZ turned toward the hand (it stood still for a second)
-  const loads = await ev<{ wrist: number; off: number; turn: number }>(
+  // (Milestone 1021: under the rocket itself, not the tube's mouth 12 cm behind its middle, which came in past the hand)
+  const loads = await ev<{ wrist: number; off: number; along: number; turn: number }>(
     page,
     `(() => {
       const r = window.__range, T = r.THREE;
@@ -8417,16 +8418,56 @@ async function figureStancesTest(browser: Browser): Promise<void> {
         const palm = at("hand_l").lerp(at("middle_01_l"), 0.5);
         return {
           wrist: at("hand_l").sub(at("lowerarm_l")).angleTo(at("middle_01_l").sub(at("hand_l"))) * 180 / Math.PI,
-          off: Math.abs(f.mq.gunObject.worldToLocal(palm).x) * 100,
+          off: Math.abs(f.mq.gunObject.worldToLocal(palm.clone()).x) * 100,
+          along: f.mq.reloadParts ? Math.abs(f.mq.gunObject.worldToLocal(palm.clone()).z - f.mq.reloadParts.magBottom.z) * 100 : 99,
           turn: q0.angleTo(f.mq.gunObject.getWorldQuaternion(new T.Quaternion())) * 180 / Math.PI,
         };
       };
       const tube = mid("launcher"), mag = mid("shotgun");
       r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
-      return { wrist: Math.round(tube.wrist), off: Math.round(tube.off), turn: Math.round(mag.turn) };
+      return { wrist: Math.round(tube.wrist), off: Math.round(tube.off), along: Math.round(tube.along), turn: Math.round(mag.turn) };
     })()`,
   );
-  check("a reload reads: DEVINOS's left hand under its tube (6 cm of its middle) with the wrist 40 degrees at most, and REZ turned 20 or more toward the hand", loads.wrist <= 40 && loads.off <= 6 && loads.turn >= 20, JSON.stringify(loads));
+  check("a reload reads: DEVINOS's left hand under its rocket (6 cm of its middle across and along) with the wrist 40 degrees at most, and REZ turned 20 or more toward the hand", loads.wrist <= 40 && loads.off <= 6 && loads.along <= 6 && loads.turn >= 20, JSON.stringify(loads));
+  // DEVINOS aimed in and out (Milestone 1021): between its low carry and the aim the tube went 69 to 76 mm through the head
+  // and the neck for 0.3 s, the right wrist 76 to 82 degrees; and on every landing, a hop's too, it went up to the air's
+  // carry and down, 10 degrees a frame
+  const tube = await ev<{ deep: number; wrist: number; land: number }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "launcher", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      for (let i = 0; i < 900 && !(f.mq && f.mq.gunObject && f.mq.bones.Head); i++) r.figureLabStep(1 / 60);
+      r.figureLabStep(1.6);
+      let deep = 0, wrist = 0, land = 0;
+      for (const [ads, secs] of [[1, 0.6], [0, 1.4], [1, 0.8]]) {
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, ads });
+        for (let i = 0; i < secs * 60; i++) {
+          r.figureLabStep(1 / 60);
+          const a = window.__figureAudit(0, { pitch: 0, locate: true, exact: true });
+          if (!a) continue;
+          for (const [k, v] of Object.entries(a.gunWhere ?? {})) if (/>(Head|neck_01)$/.test(k)) deep = Math.max(deep, v);
+          wrist = Math.max(wrist, a.wristR);
+        }
+      }
+      const turned = () => f.mq.gunObject.getWorldQuaternion(new T.Quaternion()).premultiply(f.group.getWorldQuaternion(new T.Quaternion()).invert());
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+      r.figureLabStep(1.6);
+      r.figureLabPose(0, { speed: 0, stance: "air", pitch: 0 });
+      r.figureLabStep(0.5);
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+      let last = turned();
+      for (let i = 0; i < 60; i++) {
+        r.figureLabStep(1 / 60);
+        const q = turned();
+        land = Math.max(land, (q.angleTo(last) * 180) / Math.PI);
+        last = q;
+      }
+      return { deep, wrist: Math.round(wrist), land: Math.round(land * 10) / 10 };
+    })()`,
+  );
+  check("DEVINOS aimed in and out keeps its tube out of the head and the neck (45 mm at most) and the right wrist 60 degrees at most, and a hop's landing leaves its carry where it is (3 degrees a frame at most)", tube.deep <= 45 && tube.wrist <= 60 && tube.land <= 3, JSON.stringify(tube));
   // A salute's hand at the brow (Milestone 842): swung about the figure's axes its fingertips stopped 20 cm off, at the collar
   const salute = await ev<number>(
     page,
