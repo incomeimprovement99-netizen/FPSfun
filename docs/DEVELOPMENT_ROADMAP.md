@@ -14400,6 +14400,27 @@ main.ts).
 
 - **Checked:** tsc, verify, rules; sk-killcam (six new checks, each failing with its fault put back); e2e bots, skhunt, brsolo, speedkills.
 
+## Milestone 1000 — A bot's reaction, and the drill's figures in sight
+
+From the reviews of the bots and the range. A bot that swapped targets with no gap between kept the last one's reaction spent and its aim settled, and shot
+the new one at once with the settled aim; someone else is a new sighting now. And its reaction ran while it could not fire, through a Gulag's countdown or its
+arming after a landing, so the first round came the frame it could, 17 ms after: now the reaction starts when it can fire. The flick drill put 3.6% of its
+figures (about one a drill) where a flipper, a board or a wall hid their middle from the pad, and the rounds meant for them stopped on the target in front;
+a figure goes where the pad sees its board whole now, 0 of 20,000 hidden (bots.ts, rangetools.ts, rangetools.json, main.ts).
+
+- **Checked:** tsc, verify, rules; arena-rules and range-tools (three new checks, each failing with its fault put back); e2e bots, gulag, range.
+
+## Milestone 1001 — The settings' smaller things
+
+From the review of the settings. On an AZERTY or other keyboard the menu, the prompts and the welcome named a key by its place on a QWERTY one, W for the key
+marked Z; they use the keyboard's own marks where the browser gives them. A controller could not skip the title card, and its A on a key chip armed a wait
+for a key it could not end; any of its buttons does both now. An emptied crosshair box read 0 and took the opacity to its faintest; it keeps what it had.
+Backspace on the + said Removed with nothing removed. The controller's own changes were said on the Controls tab, out of sight; its tab says them. A right
+click in a text box out of play gives the browser's menu again, to paste a friend's code. And the aim assist hint pointed at a mouse row "above" that is on
+another tab (binds.ts, input.ts, main.ts, index.html).
+
+- **Checked:** tsc, verify, rules; controls (four new checks, each failing with its fault put back); e2e pad, page.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

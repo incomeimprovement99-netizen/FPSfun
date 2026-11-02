@@ -186,5 +186,48 @@ console.log("\nFullscreen's Keyboard Lock (src/game/input.ts)");
   check("it takes the bound keys but Escape and Tab, so Alt+Tab is still the system's", keys.length > 10 && !keys.includes("Escape") && !keys.includes("Tab") && keys.includes("KeyW"), `${keys.length} keys`);
 }
 
+// (Milestone 1001) the smaller things from the settings review
+console.log("\nThe Controls tab's smaller things (src/ui/binds.ts)");
+{
+  const { bindName, setKeyboardLayout, cancelBindCapture } = await import("../../src/ui/binds");
+  setKeyboardLayout(new Map([["KeyW", "z"], ["KeyQ", "a"], ["Digit1", "&"], ["Semicolon", "m"]]));
+  const named = ["KeyW", "KeyQ", "Digit1", "Semicolon", "ShiftLeft", "KeyE"].map(bindName);
+  setKeyboardLayout(null);
+  check("an AZERTY keyboard's keys go by its own marks (the key bound as W is Z), the rest as before", named.join(" ") === "Z A & M Shift E", named.join(" "));
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const fire = (t: string, e: Record<string, unknown>) => (docListeners[t] ?? []).slice().forEach((f) => f({ preventDefault() {}, stopPropagation() {}, ...e }));
+  const root = new El();
+  const note = new El();
+  setBinds({});
+  store.clear();
+  initBindsUi(root as unknown as HTMLElement, note as unknown as HTMLElement, new El() as unknown as HTMLElement);
+  const chips = (a: string) => (root.all().find((r) => r.dataset.action === a)?.all() ?? []).filter((e) => e.className === "bindKey" || e.className === "bindKey add");
+  // Backspace on the "+" after a key: nothing removed, and not told it was
+  const add = chips("melee").find((e) => e.className.includes("add"))!;
+  const before = JSON.stringify(DEFAULT_BINDS.melee);
+  add.listeners.click[0]();
+  await tick();
+  fire("keydown", { code: "Backspace" });
+  check("Backspace on the + says nothing was removed, and nothing is", !/^Removed/.test(note.textContent) && JSON.stringify(chips("melee").filter((e) => !e.className.includes("add")).map((e) => e.textContent)) === JSON.stringify(JSON.parse(before).map(bindName)), note.textContent);
+  // A on a chip by a controller: the wait it armed is let go, and the key is still bound
+  const fireChip = chips("fire")[0];
+  fireChip.listeners.click[0]();
+  await tick();
+  const waiting = !!(docListeners.keydown ?? []).length;
+  const let1 = cancelBindCapture();
+  const let2 = cancelBindCapture();
+  check("a key chip waiting for a key is let go by a controller's button, its key kept", waiting && let1 && !let2 && !(docListeners.keydown ?? []).length && chips("fire")[0].textContent === bindName(DEFAULT_BINDS.fire[0]), JSON.stringify({ waiting, let1, let2 }));
+  // the controller's own tab says what changed on it, where the keys' note is on another tab
+  const padRoot = new El();
+  initBindsUi(new El() as unknown as HTMLElement, new El() as unknown as HTMLElement, padRoot as unknown as HTMLElement);
+  const preset = padRoot.all().find((e) => e.id === "padPreset")!;
+  preset.value = "bumperJumper";
+  preset.listeners.change[0]();
+  const said = padRoot.all().find((e) => e.className === "hintLine")?.textContent ?? "";
+  check("a controller preset is said on the controller's own tab", /The controller is on/.test(said), said);
+  setPadButtons({});
+  setBinds({});
+}
+
 console.log(fails === 0 ? "\nCONTROLS PASS" : `\nCONTROLS FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

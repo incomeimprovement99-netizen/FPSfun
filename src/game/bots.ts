@@ -1213,15 +1213,21 @@ export class Bot {
     const sees = target !== null;
     const tier = this.diff;
     // (a glance lost for under half a second is the same sighting: the reaction does not start over)
-    if (sees && !this.sawLast && now - this.lastTargetAt > 0.5) {
+    // Someone else is a new sighting too: a target swapped with no gap between kept the last one's reaction spent and its
+    // aim settled, and was shot at once with the settled aim (Milestone 1000).
+    const someoneElse = sees && !!this.lastSeen && this.lastSeen.id !== sense.targetId;
+    if (sees && ((!this.sawLast && now - this.lastTargetAt > 0.5) || someoneElse)) {
       // a new sighting: the reaction starts; an elite bot back round a corner where it lost you is already aimed
-      const back = tier.preAim && this.lastSeen && now - this.lastSeen.at < 3 && this.lastSeen.pos.distanceTo(target) < 3.5;
+      const back = !someoneElse && tier.preAim && this.lastSeen && now - this.lastSeen.at < 3 && this.lastSeen.pos.distanceTo(target) < 3.5;
       this.seenAt = back ? now - tier.reaction * 0.75 : now;
       if (!back || !this.aimSet) {
         this.aimPoint.copy(target).setY(target.y + tier.aimHeight);
         this.aimSet = true;
       }
     }
+    // Nor does it start while the bot cannot fire: through a Gulag's countdown or a bot's arming after its landing it was
+    // spent and the aim settled, and the first round came the moment it could (Milestone 1000).
+    if (sees && !sense.canShoot) this.seenAt = now;
     this.sawLast = sees;
     if (sees) {
       this.lastTargetAt = now;

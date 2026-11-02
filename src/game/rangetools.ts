@@ -20,6 +20,7 @@ import type { ResolvedWeapon } from "./weapons";
 import type { BotDifficulty } from "./stats";
 import cfg from "../config/rangetools.json";
 import { PROFILE } from "./game";
+import { MOVE } from "./movement";
 
 // ---------------------------------------------------------------- moving dummies
 
@@ -425,6 +426,9 @@ export class FlickDrill {
   best: number | null = null;
   private newBest = false;
   onFinish: ((time: number, accuracy: number) => void) | null = null;
+  /** what stands in the way of a figure seen from the pad: the range's own targets (main.ts gives them) */
+  blockers: () => THREE.Object3D[] = () => [];
+  private ray = new THREE.Raycaster();
 
   constructor(scene: THREE.Scene, projectiles: ProjectileSystem) {
     this.target = new Dummy(cfg.drill.padX, cfg.drill.padZ - 10, 0, { oneHit: true, respawn: false, board: true });
@@ -474,18 +478,43 @@ export class FlickDrill {
     this.doneAt += dt;
   }
 
-  /** the next figure: a random spot in a 60 degree cone ahead of the pad, 5 to 30 m out */
+  /**
+   * The next figure: a random spot in a 60 degree cone ahead of the pad, 5 to 30 m out, in sight of the pad. One behind a
+   * flipper or a board took the rounds meant for it, and the clock ran on (Milestone 1000).
+   */
   private next(): void {
-    const a = ((Math.random() * 2 - 1) * cfg.drill.coneDeg * 0.5 * Math.PI) / 180;
-    const d = cfg.drill.minDist + Math.random() * (cfg.drill.maxDist - cfg.drill.minDist);
-    const x = Math.max(-30, Math.min(30, cfg.drill.padX + Math.sin(a) * d));
-    const z = cfg.drill.padZ - Math.cos(a) * d;
+    let x = 0;
+    let z = 0;
+    const blockers = this.blockers();
+    for (let i = 0; i < cfg.drill.tries; i++) {
+      const a = ((Math.random() * 2 - 1) * cfg.drill.coneDeg * 0.5 * Math.PI) / 180;
+      const d = cfg.drill.minDist + Math.random() * (cfg.drill.maxDist - cfg.drill.minDist);
+      x = Math.max(-30, Math.min(30, cfg.drill.padX + Math.sin(a) * d));
+      z = cfg.drill.padZ - Math.cos(a) * d;
+      if (this.seen(x, z, blockers)) break;
+    }
     this.target.group.position.set(x, 0, z);
     this.target.group.rotation.y = 0;
     this.target.popUp();
     // where it is now, for the rest of this frame's rounds: they tested its old place, so one shotgun pull's other
     // pellets each cleared the next figure unseen, five at once with BIGANTLER (Milestone 918)
     this.target.group.updateMatrixWorld(true);
+  }
+
+  /** a figure at (x, z) seen whole from the pad: its board's middle and its edges, past every wall and target */
+  seen(x: number, z: number, blockers = this.blockers()): boolean {
+    const eye = new THREE.Vector3(cfg.drill.padX, MOVE.eyeStand, cfg.drill.padZ);
+    for (const dx of [-cfg.board.radius, 0, cfg.board.radius]) {
+      const to = new THREE.Vector3(x + dx, cfg.board.height, z);
+      const dir = to.clone().sub(eye);
+      const dist = dir.length();
+      dir.divideScalar(dist);
+      if (solidHit(eye, dir, dist) < dist) return false;
+      this.ray.set(eye, dir);
+      this.ray.far = dist;
+      if (blockers.length && this.ray.intersectObjects(blockers, false).length) return false;
+    }
+    return true;
   }
 
   /** a trigger pull, or a swing (no shots), while it runs: its accuracy is pulls to figures, a perfect BIGANTLER read 20% by the pellet */

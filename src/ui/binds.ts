@@ -98,8 +98,37 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
   },
 ];
 
+/**
+ * The keyboard's own names for its keys, where the browser gives them (Chrome's keyboard.getLayoutMap). A binding is a
+ * key's place, not its letter: on an AZERTY keyboard the key bound as W is marked Z, and the menu, the prompts and the
+ * welcome all said W (Milestone 1001).
+ */
+let layout: { get(code: string): string | undefined } | null = null;
+/** ask the browser for the layout once; `then` redraws what named keys before it came */
+export function readKeyboardLayout(then?: () => void): void {
+  try {
+    const kb = (navigator as Navigator & { keyboard?: { getLayoutMap?: () => Promise<{ get(code: string): string | undefined }> } }).keyboard;
+    void kb
+      ?.getLayoutMap?.()
+      .then((m) => {
+        layout = m;
+        then?.();
+      })
+      .catch(() => undefined);
+  } catch {
+    /* no layout to be had (a frame, an old browser): the places' names stand */
+  }
+}
+/** a layout of its own (the checks) */
+export function setKeyboardLayout(m: { get(code: string): string | undefined } | null): void {
+  layout = m;
+}
+
 /** a binding as a person would say it */
 export function bindName(b: string): string {
+  // (the keys that print a character: the layout's own, a letter in capitals as the rest are)
+  const own = /^(?:Key|Digit|Minus|Equal|Bracket|Semicolon|Quote|Comma|Period|Slash|Backslash|Backquote|IntlBackslash)/.test(b) ? layout?.get(b) : undefined;
+  if (own && own.trim()) return own.length === 1 ? own.toUpperCase() : own;
   const named: Record<string, string> = {
     mouse0: "Left click",
     mouse1: "Middle click",
@@ -191,6 +220,14 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
   let pad = loadPad();
   /** the chip waiting for a key, and how to stop waiting */
   let capturing: { stop: () => void } | null = null;
+  /** what the controller's last change was, said on its own tab: the keys' note, on another tab, hid it (Milestone 1001) */
+  let padSaid = "Your controller's buttons are kept in this browser.";
+  let padNote: HTMLElement | null = null;
+  const sayPad = (text: string) => {
+    padSaid = text;
+    note.textContent = text;
+    if (padNote) padNote.textContent = text;
+  };
 
   const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
   const commit = (next: Record<Action, string[]>) => {
@@ -211,13 +248,18 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
     capturing?.stop();
     chip.classList.add("waiting");
     chip.textContent = "press a key";
-    note.textContent = "Press a key, a mouse button or scroll. Esc cancels, Backspace removes this one.";
+    note.textContent = "Press a key, a mouse button or scroll. Esc or a controller's button cancels, Backspace removes this one.";
     const finish = (bind: string | null, remove = false) => {
       stop();
       const next = copy();
       const list = next[action];
       if (remove) {
-        if (index < list.length) list.splice(index, 1);
+        // (on the "+", there is nothing to remove: it said Removed all the same, Milestone 1001)
+        if (index >= list.length) {
+          note.textContent = `Nothing removed: that was the space for another key for ${labelOf(action)}.`;
+          return render();
+        }
+        list.splice(index, 1);
         note.textContent = `Removed from ${labelOf(action)}.`;
         return commit(next);
       }
@@ -268,8 +310,11 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
       document.removeEventListener("wheel", onWheel, true);
       document.removeEventListener("contextmenu", block, true);
       capturing = null;
+      cancelCapture = null;
     };
     capturing = { stop };
+    // a controller cannot press a key: A on a chip armed a wait it could not end (Milestone 1001)
+    cancelCapture = () => finish(null);
     // the click that started this is still being handled: listen from the next event on
     setTimeout(() => {
       if (capturing?.stop !== stop) return;
@@ -366,7 +411,7 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
         /* ignore */
       }
       setPadButtons(pad);
-      note.textContent = `The controller is on ${PAD_PRESETS[k].name}.`;
+      sayPad(`The controller is on ${PAD_PRESETS[k].name}.`);
       render();
     });
     presetRow.appendChild(presetSel);
@@ -405,7 +450,7 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
           /* ignore */
         }
         setPadButtons(pad);
-        note.textContent = `${name} is now ${sel.value === "none" ? "nothing" : labelOf(sel.value as Action)}.`;
+        sayPad(`${name} is now ${sel.value === "none" ? "nothing" : labelOf(sel.value as Action)}.`);
       });
       row.appendChild(sel);
       padRoot.appendChild(row);
@@ -422,10 +467,14 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
         /* ignore */
       }
       setPadButtons(pad);
-      note.textContent = "The controller's buttons are back to the default.";
+      sayPad("The controller's buttons are back to the default.");
       render();
     });
     padRoot.appendChild(reset);
+    padNote = document.createElement("div");
+    padNote.className = "hintLine";
+    padNote.textContent = padSaid;
+    padRoot.appendChild(padNote);
   };
 
   document.getElementById("bindsReset")?.addEventListener("click", () => {
@@ -434,4 +483,13 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
     commit(Object.fromEntries((Object.keys(DEFAULT_BINDS) as Action[]).map((a) => [a, [...DEFAULT_BINDS[a]]])) as Record<Action, string[]>);
   });
   render();
+  readKeyboardLayout(render);
+}
+
+/** a key chip waiting for a key, let go (main.ts: a controller's button); false when none was waiting */
+let cancelCapture: (() => void) | null = null;
+export function cancelBindCapture(): boolean {
+  if (!cancelCapture) return false;
+  cancelCapture();
+  return true;
 }

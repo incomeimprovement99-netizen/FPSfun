@@ -117,7 +117,12 @@ export class Input {
       // (a mouse's side buttons are the browser's back and forward on the way up, which left the page for a bound button)
       if (e.button === 3 || e.button === 4) e.preventDefault();
     });
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+    // (not in a text box out of play: a friend's code could not be pasted with the mouse, Milestone 1001)
+    document.addEventListener("contextmenu", (e) => {
+      const t = e.target as HTMLElement | null;
+      if (!this.locked && !this.padPlaying && (t?.tagName === "INPUT" || t?.tagName === "TEXTAREA")) return;
+      e.preventDefault();
+    });
     document.addEventListener(
       "wheel",
       (e) => {

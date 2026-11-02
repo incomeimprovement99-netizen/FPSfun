@@ -86,7 +86,7 @@ import { boundsOf } from "./game/arenas/plan";
 import { MOVELAB } from "./game/arenas/movelab";
 import { skipHiddenSubtrees } from "./game/hiddenskip";
 import PAD_CFG from "./config/gamepad.json";
-import { applySavedBinds, initBindsUi } from "./ui/binds";
+import { applySavedBinds, cancelBindCapture, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
 import { buildCityMarks, ARENA_HANDLES, ARENA_MAPS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
 import { CENTRE, CENTRE_MAP } from "./game/arenas/centre";
@@ -596,19 +596,21 @@ const reticle: Reticle = loadReticle();
       drawReticle(g, preview.width / 2, preview.height / 2, 6, 1.4, 1, reticle);
     }
   };
+  // (a box emptied keeps what it had: read as 0, an emptied opacity box took the crosshair to its faintest, Milestone 1001)
+  const num = (box: HTMLInputElement, had: number) => (box.value.trim() !== "" && Number.isFinite(Number(box.value)) ? Number(box.value) : had);
   const read = () => {
     Object.assign(
       reticle,
       cleanReticle({
         style: style.value,
         color: color.value,
-        size: Number(size.value),
-        thickness: Number(thick.value),
-        gap: Number(gapIn.value),
+        size: num(size, reticle.size),
+        thickness: num(thick, reticle.thickness),
+        gap: num(gapIn, reticle.gap),
         dot: dot.value === "1",
         outline: outline.value === "1",
         dynamic: dynamic.value === "1",
-        opacity: Number(opacity.value),
+        opacity: num(opacity, reticle.opacity),
       })
     );
     saveReticle(reticle);
@@ -1656,6 +1658,7 @@ readmeTv.onPress = (action, at) => {
 };
 projectiles.addShootable(readmeTv);
 const drill = new FlickDrill(scene, projectiles);
+drill.blockers = () => targets.flatMap((t) => t.hitMeshes);
 drill.onFinish = (time, acc) => {
   const rank = time < 22 ? "S" : time < 28 ? "A" : time < 36 ? "B" : "C";
   hud.notice(`FLICK DRILL ${time.toFixed(2)} S  ·  ${Math.round(acc * 100)}%  ·  ${rank}`, gameTime, 4);
@@ -7204,6 +7207,13 @@ function step(): void {
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
   const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac, opticAdsMult());
   if (input.pad.touchedNow) input.device = "pad";
+  // A controller's button skips the title card as a key or a click does, and lets go of a key chip waiting for a key,
+  // which it cannot press (Milestone 1001). The press does nothing else.
+  if (input.pad.rawPressed.size) {
+    const card = !NO_INTRO && !!intro.kind;
+    if (card) intro.skip();
+    if (card || cancelBindCapture()) input.pad.swallow();
+  }
   panelKeysNow();
   if (input.pad.id !== padIdSeen) {
     padIdSeen = input.pad.id;

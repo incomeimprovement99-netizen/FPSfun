@@ -60,6 +60,22 @@ console.log("The flick drill (src/game/rangetools.ts FlickDrill)");
   }
   check("one shotgun pull clears one drill figure at most, BIGANTLER's and REZ's, at 6 and 10 m", most.mastiff === 1 && most.shotgun <= 1, JSON.stringify(most));
 }
+{
+  // (Milestone 1000) a figure comes up where the pad sees it: a board 2 m wide straight ahead, 12 m out, hides nothing
+  const scene = new THREE.Scene();
+  const drill = new FlickDrill(scene, new ProjectileSystem(scene, [], [], 0));
+  const board = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 0.1));
+  board.position.set(cfg.drill.padX, 1, cfg.drill.padZ - 12);
+  board.updateMatrixWorld(true);
+  drill.blockers = () => [board];
+  let behind = 0;
+  for (let i = 0; i < 500; i++) {
+    (drill as unknown as { next(): void }).next();
+    const p = drill.target.group.position;
+    if (!drill.seen(p.x, p.z, [board])) behind++;
+  }
+  check("the drill's figure never comes up behind one of the range's targets", behind === 0 && !drill.seen(cfg.drill.padX, cfg.drill.padZ - 20, [board]) && drill.seen(cfg.drill.padX + 8, cfg.drill.padZ - 20, [board]), `${behind} of 500 hidden`);
+}
 
 console.log("\nFusion (src/game/loadout.ts)");
 {

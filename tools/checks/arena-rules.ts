@@ -190,6 +190,38 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   check("on lost ground, a bot goes for safe ground with an enemy in sight", left < 3, `${left.toFixed(1)} m from it after 3 s`);
 }
 {
+  // (Milestone 1000) a new target, or a fight it could not shoot in, starts the reaction and the wide aim again
+  RANGE_SOLIDS.length = 0;
+  const tier = DIFFICULTY.hard;
+  const firstShot = (setup: (b: Any, t: number) => number, after: () => { target: THREE.Vector3; targetId: number; canShoot: boolean }): number => {
+    const b: Any = new Bot(0, scene, projectiles, tier, { x: 0, z: 0, yaw: 0 }, 1, "vinson");
+    let t = setup(b, clock + 100);
+    const from = t;
+    for (let i = 0; i < 90; i++) {
+      t += 1 / 60;
+      if (b.update(t, 1 / 60, { ...after(), goal: null }).length) return t - from;
+    }
+    return Infinity;
+  };
+  const a = new THREE.Vector3(0, 0, -12);
+  const other = new THREE.Vector3(6, 0, -12);
+  const watch = (canShoot: boolean) => (b: Any, t0: number) => {
+    let t = t0;
+    for (let i = 0; i < 180; i++) b.update((t += 1 / 60), 1 / 60, { target: a, targetId: 0, goal: null, canShoot });
+    // (a full magazine and no shot owed: only the reaction can hold its fire)
+    b.mag.left = 99;
+    b.mag.until = 0;
+    b.nextShotAt = 0;
+    return t;
+  };
+  // three seconds on one target, shooting it, then someone else with no gap between
+  const swap = firstShot(watch(true), () => ({ target: other, targetId: 7, canShoot: true }));
+  // three seconds in sight through a countdown, then the fight
+  const held = firstShot(watch(false), () => ({ target: a, targetId: 0, canShoot: true }));
+  check("a bot's new target waits out its reaction (it was shot at once, the last one's aim settled)", swap >= tier.reaction - 1e-6 && swap < 1, `first round ${(swap * 1000).toFixed(0)} ms after the swap, reaction ${(tier.reaction * 1000).toFixed(0)} ms`);
+  check("and a fight it could not shoot in starts its reaction when it can (a Gulag's countdown spent it)", held >= tier.reaction - 1e-6 && held < 1, `first round ${(held * 1000).toFixed(0)} ms after it could, reaction ${(tier.reaction * 1000).toFixed(0)} ms`);
+}
+{
   const read = (f: string): string => readFileSync(new URL(`../../src/game/${f}`, import.meta.url), "utf8");
   const br = read("brmatch.ts");
   const bots = read("bots.ts");
