@@ -398,6 +398,14 @@ and the 16 to 20 m tier still to do)
   four proposals measured as dry runs (roofs3, vault3, glass3, ground3) and the map agent's own fixes (the underground's edge
   boxes, THE STRIP's ground and a check that no ground is black, the pergola's timber, the sign plates, LANTERN ALLEYS' name).
 
+- **After the sixteenth reviews (2026-11-02, on version 132: the centre 6.0 and 6.0, the districts 6.1 and 6.1, finish 5 and
+  5.5; every district 6 or over but THE STACKS once at 5.5).** GLASS HEIGHTS rose from 5.7 and 5 to 6 and 6.5; THE TERMINAL,
+  THE STRIP and THE CANYON reach 7 in one review. The centre's two asks of both: rooms to walk into at street level (the
+  corner blocks' fronts, pavilions on the boulevards, blockers cutting the lanes) and THE VAULT's door as a gold door swung
+  open with loot shown. Then: the ring road's ground (smeared, a bright specular smear in every approach), THE STACKS' ground,
+  GLASS HEIGHTS' deck boards and lift, THE CANYON's long lanes, THE WORKS' hall and its floor rings, the court and the base
+  hall furnished, the lit frames' missing lintels, the cut pillars by NOODLE ROW, the edge.
+
 **Last**
 
 - **683: the frame measured with the PC unused** (the detail-mapped and cut-out batches if it misses the bar).
