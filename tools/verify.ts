@@ -1373,7 +1373,9 @@ console.log("Frame phases");
   // 2026-10-12: it really was over the line, so keeping it is right; checked is that the slow one is kept, and no frame
   // under the line)
   eq("frame phases: on, the frame over 50 ms is kept, and no frame under the line", ph.hitches[0]?.at === 2 && ph.hitches.every((x) => x.ms > ph.line), true);
-  eq("and the phase that took it is named", !!h && h.phases.slow > 55 && h.phases.quick < 20, true);
+  // (named as the one that took it, by more than the other: a quick phase held to 20 ms failed with the machine loaded, a day's
+  // e2e sweep beside it, 2026-11-02)
+  eq("and the phase that took it is named", !!h && h.phases.slow > 55 && h.phases.slow > h.phases.quick * 2, true);
   eq("and each phase's mean is over both frames", !!h && Math.abs(ph.means().slow - h.phases.slow / 2) < 0.05, true);
 }
 
