@@ -114,6 +114,29 @@ try {
     check("and it has the other browser's matches itself now", read(pc).played >= 15, JSON.stringify(read(pc)));
   }
   {
+    // (Milestone 997) a setting changed on each side: the page keeps the one it is running on, where the account's went into
+    // storage under it and was written back over at its next save
+    const pc = new Map<string, string>();
+    const laptop = new Map<string, string>();
+    const name = fresh();
+    pc.set("range.fov", "100");
+    cur = pc;
+    await account.signIn(name, "password1", true);
+    await account.push();
+    cur = laptop;
+    await account.signIn(name, "password1", false);
+    laptop.set("range.fov", "90");
+    play(laptop, 2);
+    cur = laptop;
+    await account.push();
+    cur = pc;
+    pc.set("range.fov", "110");
+    play(pc, 1);
+    cur = pc;
+    await account.push();
+    check("in a save that meets another's, the page keeps the settings it is running on", pc.get("range.fov") === "110" && read(pc).played >= 2, JSON.stringify({ fov: pc.get("range.fov"), played: read(pc).played }));
+  }
+  {
     // the look as the page opened failed: this browser knows nothing of the laptop's matches
     const pc = new Map<string, string>();
     const laptop = new Map<string, string>();

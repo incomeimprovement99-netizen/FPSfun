@@ -14367,7 +14367,9 @@ your picks at level 0; the tutorial gives back what you had, and only if it lent
 ## Milestone 997 — Room on the left for words
 
 From HUD size 1.25 the quick chat lay over the captions; it keeps above them, or beside them where there is no room under the minimap. And in half a screen at
-HUD size 1.4 a hack's line on the carry card ran past its box; it shrinks to fit, and is cut short past that (hud.ts).
+HUD size 1.4 a hack's line on the carry card ran past its box; it shrinks to fit, and is cut short past that. And in a save that met another
+device's, the account's settings went into storage under a page still running on its own, which wrote them back over at its next save, so neither device
+had the other's; the page keeps the settings it is running on, and the record is merged as before (hud.ts, account.ts).
 
 - **Checked:** tsc, verify, rules; hudfit.
 

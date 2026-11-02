@@ -256,7 +256,11 @@ export async function push(): Promise<boolean> {
   let profile = collectProfile();
   let r = await call("profile", "PUT", { profile, base: s.updated }, s.token);
   if (r.status === 409 && r.json.profile && typeof r.json.profile === "object" && !Array.isArray(r.json.profile)) {
-    profile = mergeProfiles(profile, onlyStrings(r.json.profile as Record<string, unknown>));
+    // (the record merged; the settings this page is running on kept: the account's went into storage under a page still using
+    // these, which wrote them back over it at its next save, so neither device had the other's, Milestone 997)
+    const mine = profile;
+    profile = mergeProfiles(mine, onlyStrings(r.json.profile as Record<string, unknown>));
+    for (const k of Object.keys(mine)) if (!isRecordKey(k)) profile[k] = mine[k];
     applyProfile(profile);
     r = await call("profile", "PUT", { profile, base: typeof r.json.updated === "string" ? r.json.updated : null }, s.token);
   }
