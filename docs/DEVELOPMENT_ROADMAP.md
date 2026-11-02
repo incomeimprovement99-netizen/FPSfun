@@ -14355,6 +14355,13 @@ element the page was already showing (rangetools.ts, main.ts, tools/live-check.t
 
 - **Checked:** tsc, verify, rules; e2e range.
 
+## Milestone 996 — The menu says the keys you have
+
+The welcome's keys, the Settings tab's hints (Caps Lock to talk, Space to skip the killcam, 8 to spray), the Friends tab's voice line, F8's notice and third
+person's Alt named the defaults whatever was bound. They name your keys now, and a pad's buttons on a pad (index.html, main.ts).
+
+- **Checked:** tsc, verify, rules; e2e page.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

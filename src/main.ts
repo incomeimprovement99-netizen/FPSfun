@@ -2460,7 +2460,7 @@ function renderVoiceList(): void {
   voiceListKey = key;
   el.hidden = !rows.length;
   el.innerHTML =
-    `<div class="rosterRow"><b>VOICE</b> · hold Caps Lock to talk</div>` +
+    `<div class="rosterRow"><b>VOICE</b> · hold ${keyLabel("voice")} to talk</div>` +
     rows.map(([pid, name]) => `<div class="rosterRow"><b>${escapeHtml(name)}</b> <button type="button" class="ghost" data-mute="${escapeHtml(pid)}">${voice?.isMuted(pid) ? "Unmute" : "Mute"}</button></div>`).join("");
 }
 $("voiceList").addEventListener("click", (e) => {
@@ -3449,10 +3449,13 @@ const keyOnDevice = (a: Action): string => (input.device === "pad" && padLabel(a
 const panelLabel = (a: string): string => (input.device === "pad" && (a === "forward" || a === "right") ? `the stick ${a}` : keyLabel(a as Action));
 let panelKeysSaid = "";
 const panelKeysNow = (): void => {
-  const said = ["interact", "forward", "right", "crouch", "resetDummies", "holster", "copyResult", "ghost"].map(panelLabel).join("|");
+  const said = ["interact", "forward", "right", "crouch", "resetDummies", "holster", "copyResult", "ghost", "left", "back", "jump", "fire", "ads", "reload", "slot1", "slot2", "voice", "spray"].map(panelLabel).join("|");
   if (said === panelKeysSaid) return;
   panelKeysSaid = said;
   setPanelKeys(panelLabel);
+  // The menu's own words name keys too: they named the defaults whatever was bound, Caps Lock to talk, Space to skip, 8 to spray
+  // (Milestone 996)
+  for (const el of document.querySelectorAll<HTMLElement>("[data-key]")) el.textContent = keyLabel(el.dataset.key as Action);
   sprayWall.clearKey = panelLabel("resetDummies");
   sprayWall.clear();
 };
@@ -7435,7 +7438,7 @@ function step(): void {
       saveSkHour(next);
       skySel.value = next;
       applyHour(hourFor(next));
-      hud.notice(`${HOURS[next].label} (F8 flips it)`, now, 2);
+      hud.notice(`${HOURS[next].label} (${keyLabel("dayNight")} flips it)`, now, 2);
     }
     // F (a pad's LB): SpeedKills' mobility hack; G (RB) the utility one, below
     if (input.pressedNow("ability") && !knockedOut) useHack("mobility", now);
@@ -7449,7 +7452,7 @@ function step(): void {
     // X: the camera; Alt (held, third person): the mouse turns the camera round you
     if (input.pressedNow("thirdPerson")) {
       setThirdPerson(!thirdPerson);
-      hud.notice(thirdPerson ? "THIRD PERSON  (hold Alt to look round)" : "FIRST PERSON", now, 1.4);
+      hud.notice(thirdPerson ? `THIRD PERSON  (hold ${keyLabel("orbit")} to look round)` : "FIRST PERSON", now, 1.4);
     }
     orbiting = thirdPerson && (input.held("orbit") || debugOrbitHold);
 
