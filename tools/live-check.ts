@@ -143,8 +143,11 @@ async function main(): Promise<void> {
     await ev(host, `document.getElementById("duelHost").click()`);
     let code = "";
     try {
-      await host.waitForSelector("#duelStatus .code", { timeout: 30000 });
-      code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+      // (by the status's words, polled on a timer: right after a restart, with the page still loading its sounds, the code
+      // stood on the page as "Your code is Q7SPD" and the wait for its element ran out at 30 s, passing alone a minute later)
+      const CODE = `(/code is\\W*([A-Z0-9]{5})\\b/.exec(document.getElementById("duelStatus").textContent ?? "") ?? [])[1] ?? ""`;
+      await host.waitForFunction(`!!${CODE}`, { polling: 250, timeout: 45000 });
+      code = await ev<string>(host, CODE);
       check("the host gets a match code from the broker", /^[A-Z0-9]{5}$/.test(code), code);
     } catch {
       check("the host gets a match code from the broker", false, `${await ev<string>(host, `document.getElementById("duelStatus").textContent`)}; host ${await askedNet(host)}; waiting on: ${waitingOn(host)}; errors: ${errors.slice(-4).join(" | ") || "none"}`);
