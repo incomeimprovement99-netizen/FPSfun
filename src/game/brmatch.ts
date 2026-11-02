@@ -154,7 +154,7 @@ import { SHIP, ShipRun, buildShip, shipLine, type ShipLine } from "./dropship";
 
 /** the ring's own stream off the match seed, so the loot field's and the ship's draws do not shift it */
 const RING_SALT = 0x2545f491;
-import { Duel, HEALTH_MAX, SHIELD_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
+import { Duel, HEALTH_MAX, SHIELD_MAX, type DuelHud, type HeirSnapshot, type LocalState, type Remote, type Spawn } from "./duel";
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
@@ -438,6 +438,8 @@ interface Pod {
   nextPuff: number;
   dust: THREE.Mesh | null;
   landed: boolean;
+  /** the loot's next key when it was called: its items, laid later, are keyed from here (restoreAsHost) */
+  keyAt: number;
 }
 
 /** one puff of the falling pod's smoke; shared, because every pod draws dozens */
@@ -1031,7 +1033,7 @@ export class BrMatch extends Duel {
     this.scene.add(trail);
     const fallFor = Math.min(lands, LOOT.podFall);
     const id = ++this.podSeq;
-    this.pods.push({ id, at: at.clone(), landsAt: wallClock() + lands, fallFor, hotUntil: Infinity, obj, canopy, beam, trail, nextPuff: 0, dust: null, landed: false });
+    this.pods.push({ id, at: at.clone(), landsAt: wallClock() + lands, fallFor, hotUntil: Infinity, obj, canopy, beam, trail, nextPuff: 0, dust: null, landed: false, keyAt: this.lootField?.keyNext ?? 0 });
     const where = this.placeNear(at);
     this.onNotice?.(`CARE PACKAGE INBOUND  ·  ${where}`);
     // the compass and the world get it through the ping path the squad
@@ -1058,6 +1060,22 @@ export class BrMatch extends Duel {
   /** the host: what a care package holds, SpeedKills' own guns and hack cores fused past what its floor gives (speedkills.json loot.carePackage) */
   private podItems(): LootItem[] {
     return speedkillsPackage(Math.random);
+  }
+
+  /** a package's items round where it landed */
+  private layPod(at: THREE.Vector3): void {
+    this.podItems().forEach((it, i) => {
+      const o = openGround(at.x + Math.cos(i * 2.1) * 1.3, at.z + Math.sin(i * 2.1) * 1.3);
+      this.dropLoot(it, restingSpot(new THREE.Vector3(o.x, at.y + brCfg.pod.stepUp, o.z)));
+    });
+  }
+
+  /** when the old host was last heard, as the heir took over (restoreAsHost: a package down since then was laid by nobody) */
+  private hostHeardAt = -Infinity;
+
+  override takeOver(snap: HeirSnapshot): void {
+    if (this.role !== "host") this.hostHeardAt = this.remotes.get(this.hostId)?.lastHeard ?? -Infinity;
+    super.takeOver(snap);
   }
 
   /** the pods: called, falling under smoke, then landing (the host lays out a package's items) */
@@ -1098,11 +1116,7 @@ export class BrMatch extends Duel {
             this.onNotice?.(`CARE PACKAGE DOWN  ·  ${this.placeNear(p.at)}`);
             // (each on a clear spot of its own: spread further than the pod's own clearance, 13% of them lay inside a box on
             // some final sectors, three of the game's best items found only through the reach list, Milestone 958)
-            if (this.role === "host")
-              this.podItems().forEach((it, i) => {
-                const o = openGround(p.at.x + Math.cos(i * 2.1) * 1.3, p.at.z + Math.sin(i * 2.1) * 1.3);
-                this.dropLoot(it, restingSpot(new THREE.Vector3(o.x, p.at.y + brCfg.pod.stepUp, o.z)));
-              });
+            if (this.role === "host") this.layPod(p.at);
           }
         }
       }
@@ -1832,6 +1846,14 @@ export class BrMatch extends Duel {
     // under way started again from nothing on the heir. The holder's alone: the others' were never told.
     // (each side's as this page last heard it, and not only the holder's: a side stepped in on lost all it had)
     if (this.capture.holder >= 0 && this.capture.held > 0) this.capture.progress.set(this.capture.holder, this.capture.held);
+    // A package that came down after the old host was last heard was laid by nobody: the host lays one's items, and it had
+    // gone, so the package stood empty for the rest of the match (Milestone 1003). Not one with its items already there.
+    if (this.lootField && !this.brOver)
+      for (const p of this.pods) {
+        if (!p.landed || p.landsAt + brCfg.pod.heirLay < this.hostHeardAt) continue;
+        const there = [...this.lootField.drops.values()].some((d) => d.key >= p.keyAt && d.item.kind !== "echo" && Math.hypot(d.pos.x - p.at.x, d.pos.z - p.at.z) < brCfg.pod.heirNear);
+        if (!there) this.layPod(p.at);
+      }
     const s = readBrSnap(mode);
     if (!s) return;
     const rt = (v: number | null): number => (v === null ? Infinity : now + v);
@@ -2237,6 +2259,8 @@ export class BrMatch extends Duel {
       // no more warning than this build ever gives: a stray number cannot hang a package in the sky
       if (this.role !== "host" && Array.isArray(m.at) && m.at.length === 3 && m.at.every((v) => typeof v === "number" && Number.isFinite(v)) && typeof m.lands === "number" && Number.isFinite(m.lands)) {
         this.addPod(new THREE.Vector3(...(m.at as [number, number, number])), Math.max(0, Math.min(brCfg.pod.announce + LOOT.podFall, m.lands)));
+        // (this wave's, heard: an heir whose last snapshot came before it called the wave's package a second time, Milestone 1003)
+        this.podPhases.add(typeof m.ph === "number" && Number.isInteger(m.ph) && m.ph >= 0 && m.ph < this.phases.length ? m.ph : this.view.phase);
       }
       return;
     }
@@ -2477,7 +2501,7 @@ export class BrMatch extends Duel {
       const at = restingSpot(new THREE.Vector3(clear.x, brCfg.pod.stepUp, clear.z));
       const warning = P.announce + LOOT.podFall;
       this.addPod(at, warning);
-      this.broadcast({ t: "pod", at: [at.x, at.y, at.z], lands: warning });
+      this.broadcast({ t: "pod", at: [at.x, at.y, at.z], lands: warning, ph: ring.phase });
     }
     // The ring: a tick hurts everyone outside it (the guests hurt themselves).
     // Its first wait starts once the dropship has flown its line: round one's

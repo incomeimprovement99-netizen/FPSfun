@@ -2132,6 +2132,15 @@ export class Player {
     // What it is still in, with no free spot near enough to find, it walks out of: the moves below pushed out by a box's middle,
     // and from inside one that was a throw of up to 44 m (Milestone 998).
     const stuckIn = new Set(this.overlapping(this.pos.x, this.pos.z, r).filter((s) => this.blocks(s, feet, bodyH)));
+    // On the ground, the feet climb with the legs: each leg after the first is tested from the floor the last one reached, a
+    // step up at most. Tested all from the frame's first feet, one 0.1 s frame at a sprint met a flight's third tread as a
+    // wall, and at a steady 15 fps every frame did (Milestone 1002). One leg, the common frame, is as it was.
+    let legFeet = feet;
+    const climb = (x: number, z: number) => {
+      if (!this.onGround) return;
+      const g = this.groundUnder(x, z, r, legFeet + MOVE.stepHeight);
+      if (g > legFeet + 1e-4 && !this.overlapping(x, z, r).some((s) => this.blocks(s, g, bodyH))) legFeet = g;
+    };
 
     // X. Push out to the face we came from, chosen by the PREVIOUS position. A move longer than the body's radius is
     // tested along its way, a radius at a time: tested only where it ended, one 0.1 s frame at a sprint (a hitch) carried
@@ -2142,16 +2151,17 @@ export class Player {
     let hitX = false;
     for (let k = 1; k <= legsX && !hitX; k++) {
       const tx = fromX + ((nx - fromX) * k) / legsX;
+      if (k > 1) climb(fromX + ((nx - fromX) * (k - 1)) / legsX, this.pos.z);
       // (the nearest face of all it meets, and the edge of a sunken floor as a wall, as below for Z: Milestone 991)
       for (const s of this.overlapping(tx, this.pos.z, r)) {
-        if (!this.blocks(s, feet, bodyH) || stuckIn.has(s)) continue;
+        if (!this.blocks(s, legFeet, bodyH) || stuckIn.has(s)) continue;
         const mid = (s.minX + s.maxX) / 2;
         const face = fromX <= mid ? s.minX - r : s.maxX + r;
         if (!hitX || Math.abs(face - fromX) < Math.abs(this.pos.x - fromX)) this.pos.x = face;
         hitX = true;
         this.vel.x = 0;
       }
-      if (!hitX && floorAt(tx, this.pos.z) > feet + MOVE.stepHeight) {
+      if (!hitX && floorAt(tx, this.pos.z) > legFeet + MOVE.stepHeight) {
         hitX = true;
         this.vel.x = 0;
       }
@@ -2165,18 +2175,19 @@ export class Player {
     let hitZ = false;
     for (let k = 1; k <= legsZ && !hitZ; k++) {
       const tz = fromZ + ((nz - fromZ) * k) / legsZ;
+      if (k > 1) climb(this.pos.x, fromZ + ((nz - fromZ) * (k - 1)) / legsZ);
       // A long frame's leg stopped at the first box in the list, 0.25 m inside a nearer wall slice when the far one came first.
       // And the street outside a sunken floor is a wall to who stands on it: the platform's edges have none of their own, so
       // walking off one rose you 13 m through the slab.
       for (const s of this.overlapping(this.pos.x, tz, r)) {
-        if (!this.blocks(s, feet, bodyH) || stuckIn.has(s)) continue;
+        if (!this.blocks(s, legFeet, bodyH) || stuckIn.has(s)) continue;
         const mid = (s.minZ + s.maxZ) / 2;
         const face = fromZ <= mid ? s.minZ - r : s.maxZ + r;
         if (!hitZ || Math.abs(face - fromZ) < Math.abs(this.pos.z - fromZ)) this.pos.z = face;
         hitZ = true;
         this.vel.z = 0;
       }
-      if (!hitZ && floorAt(this.pos.x, tz) > feet + MOVE.stepHeight) {
+      if (!hitZ && floorAt(this.pos.x, tz) > legFeet + MOVE.stepHeight) {
         hitZ = true;
         this.vel.z = 0;
       }
@@ -2190,7 +2201,8 @@ export class Player {
     // the air the body goes up onto such a top when there is room over it
     // (the stepped ramps and the FLOW room's slide-jump walls rely on that),
     // and back out the way it came when there is not.
-    let feetY = feet;
+    // (and the landing below takes the floor the legs climbed to)
+    let feetY = legFeet;
     let vy0 = vyStart;
     if (!this.onGround) {
       const here = this.overlapping(this.pos.x, this.pos.z, r);

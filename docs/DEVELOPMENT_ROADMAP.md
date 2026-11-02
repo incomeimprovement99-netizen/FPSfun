@@ -14421,6 +14421,31 @@ another tab (binds.ts, input.ts, main.ts, index.html).
 
 - **Checked:** tsc, verify, rules; controls (four new checks, each failing with its fault put back); e2e pad, page.
 
+## Milestone 1002 — Up the stairs at any frame rate
+
+From the movement review. A frame's move is tested along its way, a body's radius at a time (Milestone 869), but every piece was tested from the feet the frame
+began at. On a flight of the real stairs' treads (0.25 m deep, 0.171 m high), one 0.1 s frame at a sprint met the third tread as a wall and stopped the body
+dead, 10.5 m/s to 0, and at a steady 15 fps every frame did. On the ground the feet now climb with the pieces, a step at a time, each piece after the first
+tested from the floor the last one reached; a frame of one piece, the common one, is as it was (player.ts).
+
+- **Checked:** tsc, verify, rules; sk-moves (a new check, failing on the old code: 0 m/s on the flight at 15 fps and through the hitch); e2e speedkills, sktutorial, skwall.
+
+## Milestone 1003 — Care packages across a change of host, and a controller's Start on the mode card
+
+From the review of the BR after the landing. A care package that came down between the host going and the heir taking over was laid by nobody: only the host
+lays a package's items, and it had gone, so the package stood empty for the rest of the match (0 of 3 items, every time in the review's runs). The heir lays
+one that came down less than a second before the old host was last heard, or after, unless an item laid since it was called already lies within 4 m of it
+(br.json pod heirLay, heirNear). And a package called after the heir's last snapshot was called a second time for its wave; the host now sends the wave with
+the package, and each guest notes it as it hears it.
+
+And a fault of Milestone 1001's, found by the deploy's own live check: a controller's button that skipped the title card was swallowed, so the Start that plays
+a match, pressed while its mode card played, did nothing, and the live check waited on the countdown until it timed out. The press goes on to do what it does
+now, as a key's always did (brmatch.ts, link.ts, main.ts, br.json).
+
+- **Checked:** tsc, verify, rules; tools/checks/br-heir.ts (new, in verify: the real BrMatch on the Neon map, each check failing with its fault put back);
+  the live check run against the local page, failing on the countdown with M1001's swallow and passing without; e2e pad, page, speedkills, sktutorial,
+  skwall, migrate.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

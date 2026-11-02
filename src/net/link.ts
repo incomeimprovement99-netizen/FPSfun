@@ -159,7 +159,7 @@ export type NetMsg =
   /** a ping for the squad: what (`k`), where, a label, a figure's id when it is on one */
   | { t: "mark"; from?: number; k: string; at: [number, number, number]; label?: string; target?: number; q?: number }
   /** a care package is on its way down to `at`, landing in `lands` seconds */
-  | { t: "pod"; from?: number; at: [number, number, number]; lands: number }
+  | { t: "pod"; from?: number; at: [number, number, number]; lands: number; /** the wave it is for (Milestone 1003; older hosts send none) */ ph?: number }
   /**
    * The arena modes' state from the host, four times a second and on every
    * change (modematch.ts): seconds left on the clock; a row per player and bot

@@ -7207,12 +7207,12 @@ function step(): void {
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
   const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac, opticAdsMult());
   if (input.pad.touchedNow) input.device = "pad";
-  // A controller's button skips the title card as a key or a click does, and lets go of a key chip waiting for a key,
-  // which it cannot press (Milestone 1001). The press does nothing else.
+  // A controller's button skips the title card as a key or a click does, and goes on to do what it does, as a key does:
+  // swallowed, the Start that plays a match pressed on its mode card did nothing, and the live check stood on the card
+  // (Milestone 1003). And it lets go of a key chip waiting for a key, which it cannot press (Milestone 1001), and only that.
   if (input.pad.rawPressed.size) {
-    const card = !NO_INTRO && !!intro.kind;
-    if (card) intro.skip();
-    if (card || cancelBindCapture()) input.pad.swallow();
+    if (!NO_INTRO && intro.kind) intro.skip();
+    if (cancelBindCapture()) input.pad.swallow();
   }
   panelKeysNow();
   if (input.pad.id !== padIdSeen) {

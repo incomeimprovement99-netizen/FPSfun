@@ -73,6 +73,9 @@
     "stepUp": 1,
     "announce": 6,
     "contest": 45,
+    "_heir": "Milestone 1003: an heir lays a package that came down less than `heirLay` s before the old host was last heard, or after (its items were the old host's to lay, and with it gone nobody did), unless an item laid since it was called is on the floor within `heirNear` m of it already (its items lie 1.3 m out, on clear ground).",
+    "heirLay": 1,
+    "heirNear": 4,
     "canopy": {
       "radius": 2.4,
       "height": 2.8
