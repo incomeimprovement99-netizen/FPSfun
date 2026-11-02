@@ -19030,3 +19030,46 @@ steepFromRope; the hit volumes follow the bones, so they go with it). Sloped zip
 
 - **Checked:** a new check in the soldier stances (skfigure): on the old code the head and the chest are 4 cm from the rope's line;
   on this one 32 and 34, the hand on it, and the section passes all 347 checks.
+
+## Milestones 974 to 979 and 984 to 989 — THE TERRACES rebuilt, THE VAULT's strongroom and the base's atrium, THE CANYON, THE WORKS and THE STRIP's payoffs, rope 8 onto its roof
+
+From the fresh reviews of 2026-11-01 (the centre's round 14, 6.5 and 6.5; the districts' round 8, 5.8 and 5.8, THE TERRACES 4.5
+and 5). Each measured by a proposal agent as a dry run on version 127's collision (`%TEMP%/neon/proposals2/`), applied after its
+bake, and made to pass the map checks over three more bakes.
+
+- **974, THE TERRACES' grand stair and gate** (the districts' eighth reviews: "a grand stair about 20 m wide on the axis of d04's
+  view", "no grand stair appears in any picture"): a 25 m slot with 20 m of real steps in three flights, moss banks, a lit strip on
+  every third riser, a five-arch arcade at its head with the name 22 m wide over it, and no parked car on its axis across the ring
+  road (`cars.keep`, laid by both of the road's car loops).
+- **975, THE TERRACES' gardens and rooms**: raised beds, two timber pergolas and 1.2 m brick walls on the tiers, none of the
+  street fill's plain walls on a tier, and a front with a door and glass each side on each of the six rooms. The pack has no
+  hedge, vine or pergola: the beds and pergolas are its floor tiles scaled and worn, and the "hanging garden" is ferns on a roof.
+- **976, THE STRIP's pink block**: two 12 m screens on its lobes either side of its pad, so the curved window tower that every
+  district shared is dressed as THE STRIP's.
+- **977, THE VAULT's strongroom** (the centre's fourteenth reviews, first ask of both: "a real payoff, a central strongroom"):
+  its south hall a strongroom behind an open gold door by the west gate, the core's south door shut, the 35 m hole widened into a
+  6 m chamber with a gallery over it, gold bars racked, a deposit wall, gold on the core and the shell, the can shelves out.
+- **978, the base's atrium** (second ask of both: "an atrium from hall to terrace"): the slabs open north of the tower at 3.5, 7
+  and 10.5 m, two 3 m yellow flights through the first two in place of the old stair at (-6, -16), stalls and lit screens.
+- **979, the finish there**: a plinth over the curved shell's foot where its walls stopped short of the floor in jagged brick; the
+  white board at the hall's far side a picture; THE VAULT's marble no longer mirroring the city.
+- **984, THE CANYON's street broken** (the districts' eighth reviews: "offset kiosk islands every 25 to 30 m"): six kiosk islands
+  staggered side to side down each arm, each with a lane behind it, off the bots' line.
+- **985, THE CANYON's walkways and roofs**: six bays with booths over the street, a lit top rail on every run of 5 m and more (the
+  reviews: "rail posts with no top rail"), fifteen pale decks a step up and six sheds on the roof deck.
+- **986, THE WORKS' hall** (the reviews: "a clean gym", "machines to fight round", "a gantry with a way up"): a 6.6 m boiler in its
+  atrium, two turbines, a gantry at 7 m with a straight stair to the ring, trusses, pipes to the roof; the stacks' heads, which read
+  as heads on poles, a plain rust collar. The two hall pads now search from past the boiler and the stair.
+- **987, THE STRIP**: the red tile on the club alone, its blocks in screens and two lit patterns, four letter signs (CLUB, DANCE,
+  OPEN LATE, LIVE), two more ad stands, cover on the pyramid off its climbs, a lit crown on the black tower.
+- **988, the finish**: every lantern line of LANTERN ALLEYS' court ends on a wall; GLASS HEIGHTS' east block's corner, seen open
+  from the new d13 as dotted hoops, shut by its own family's corner piece; the club's stairs plain; the road's tile at 2.5 m.
+- **989, rope 8 onto its roof** (the lobby agent's movement review on the real Player: 0 of 16 rides up MOTEL HILL's rope reached
+  the roof, feet at 26.07 under a 26.85 rail): its end was the roof's rim, outside the rail. It goes 3 m on past the rail onto the
+  deck, 29.6 m up (`rules.low.zip.in`, `up`): a rider's feet clear the rail, is carried 14 m onto the deck, and a player under its
+  end reaches it. Raised alone, it left nobody able to stand under it.
+- **Checks that learned the new work:** the base's window behind a stair's landing is open to a shot and shut to a body (`rules.
+  windows.landing`; the lobby agent's review of version 127); THE VAULT's shut south door leaves one number on that floor and its
+  figures are gold; the base has one stair fewer; the climbs' frames 12; the gardens' tiles are not floors; a wall's top under the
+  35 m hole is not the slab's.
+- **Checked:** version 130's lo, hi and max baked, all 359 map checks on main's push-out (Milestone 998), each new one failing with its fault put back; the stair, the gate, the atrium's flights, the islands, the bays, the gantry and rope 8 walked or ridden by the game's own Player. verify, rules and tsc. Map files version 130: lo 199.6 MB, hi 280.1 MB, max 582.1 MB.

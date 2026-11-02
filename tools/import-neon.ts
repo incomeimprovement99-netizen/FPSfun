@@ -367,13 +367,17 @@ if (mode === "bake") {
     if (spec.includes("*#")) {
       const guid = `derived:${spec}`;
       if (mats.has(guid)) return guid;
-      const [base, hex] = spec.split("*");
+      const [base, hexed] = spec.split("*");
+      // ("Name*#rrggbb%k": and its smoothness times k, Milestone 979. The pack's gold marble has a gloss map at 0.92, roughness
+      // 0.08, a mirror, and a mirror indoors shows reflectCity's picture of the street at any grazing look: a tint moves
+      // only the diffuse, so the far floor went pale and blotched by the marble's own veins)
+      const [hex, soft] = hexed.split("%");
       const bg = pack.matFor(base);
       const info = bg ? readMaterial(pack, bg) : null;
       if (!info) throw new Error(`no material ${base} to derive ${spec} from`);
       const n = parseInt(hex.replace("#", ""), 16);
       const tint = [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
-      mats.set(guid, { ...info, name: spec.replace(/[*#]/g, "_"), color: [info.color[0] * tint[0], info.color[1] * tint[1], info.color[2] * tint[2], info.color[3]] });
+      mats.set(guid, { ...info, name: spec.replace(/[*#%]/g, "_"), smooth: info.smooth * (soft ? Number(soft) : 1), color: [info.color[0] * tint[0], info.color[1] * tint[1], info.color[2] * tint[2], info.color[3]] });
       return guid;
     }
     if (!spec.includes("|")) return null;
@@ -515,7 +519,7 @@ if (mode === "bake") {
           const wear = pack.matFor(BW.mat);
           if (!wear) throw new Error(`no material ${BW.mat}`);
           const mats: string[] = [];
-          const prims = d.model.meshes[d.mesh].prims.map((q, i) => {
+          const prims = d.model.meshes[d.mesh].prims.flatMap((q, i) => {
             // (on the map: the turn-over keeps the upright faces, and maps the wear by the metre)
             const pos = new Float32Array(q.pos.length);
             const nrm = q.nrm ? new Float32Array(q.nrm.length) : null;
@@ -531,9 +535,28 @@ if (mode === "bake") {
             }
             const own = d.mats?.[i] ?? pack.matFor(q.material);
             const glass = BW.keep.includes(basename(pack.guidPath.get(own ?? "") ?? "").replace(/\.mat$/, ""));
-            mats.push(glass && own ? own : wear);
             const b = backFaces(pos, nrm, q.uv, q.idx, BW.upright, glass ? null : BW.scale);
-            return { pos: new Float32Array(b.pos), nrm: new Float32Array(b.nrm), uv: new Float32Array(b.uv), idx: new Uint32Array(b.idx), material: q.material };
+            const prim = (p: typeof b) => ({ pos: new Float32Array(p.pos), nrm: new Float32Array(p.nrm), uv: new Float32Array(p.uv), idx: new Uint32Array(p.idx), material: q.material });
+            // (backWear.bands, Milestone 977: the review's "gold on its grey walls and the white core". One triangle of the
+            // shell runs up to 9 m through three storeys, so a band is cut out of the turned faces by its box, not chosen a
+            // part at a time)
+            const out: Array<ReturnType<typeof prim>> = [];
+            let rest = b;
+            for (const B of glass ? [] : ((BW as unknown as { bands?: Array<{ box: number[]; mat: string }> }).bands ?? [])) {
+              const [x0, x1, y0, y1, z0, z1] = B.box;
+              const far = 1e4;
+              let inside = rest;
+              for (const cut of [[-far, x0, -far, far, -far, far], [x1, far, -far, far, -far, far], [-far, far, -far, y0, -far, far], [-far, far, y1, far, -far, far], [-far, far, -far, far, -far, z0], [-far, far, -far, far, z1, far]] as Box3[]) inside = cutOut(inside.pos, inside.nrm, inside.uv, inside.idx, cut);
+              if (!inside.idx.length) continue;
+              mats.push(derivedMat(B.mat) ?? pack.matFor(B.mat)!);
+              out.push(prim(inside));
+              rest = cutOut(rest.pos, rest.nrm, rest.uv, rest.idx, [x0, x1, y0, y1, z0, z1]);
+            }
+            if (rest.idx.length || !out.length) {
+              mats.push(glass && own ? own : wear);
+              out.push(prim(rest));
+            }
+            return out;
           });
           const I: M4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
           const back = { d: { ...d, mats, model: { meshes: [{ name: "back", prims }], nodes: [], roots: [] } as unknown as Draw["model"], mesh: 0, pre: null }, m: I };
@@ -853,7 +876,7 @@ if (mode === "bake") {
   const TW = cfg.tower;
   if (TW) {
     const I: M4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-    const push = (name: string, parts: Array<{ part: { pos: number[]; nrm: number[]; uv: number[]; idx: number[] }; mat: string }>) => {
+    const push = (name: string, parts: Array<{ part: { pos: number[]; nrm: number[]; uv: number[]; idx: number[] }; mat: string }>, solid = true) => {
       const prims = parts.filter((q) => q.part.idx.length).map((q) => ({ pos: new Float32Array(q.part.pos), nrm: new Float32Array(q.part.nrm), uv: new Float32Array(q.part.uv), idx: new Uint32Array(q.part.idx), material: q.mat }));
       const mats = prims.map((p) => {
         const mg = derivedMat(p.material) ?? pack.matFor(p.material);
@@ -863,7 +886,7 @@ if (mode === "bake") {
       const model = { meshes: [{ name, prims }], nodes: [], roots: [] } as unknown as Draw["model"];
       const d: Draw = { model, mesh: 0, pre: null, mats, modelGuid: "", on: true, go: null };
       (groups.get(groupOf("c-middle")) ?? groups.set(groupOf("c-middle"), []).get(groupOf("c-middle"))!).push({ d, m: I });
-      openFine.push({ d, m: I });
+      if (solid) openFine.push({ d, m: I });
       return prims.reduce((a, p) => a + p.idx.length / 3, 0);
     };
     const C2 = TW.core;
@@ -1062,7 +1085,50 @@ if (mode === "bake") {
       const below = (TW.shaft as number[]).filter((y) => y < h - 0.01).sort((a, b) => b - a)[0];
       const ceil = below === undefined ? undefined : (cfg.rules.tower.floors.at as Record<string, { ceilingMat?: string }>)[String(below)]?.ceilingMat;
       if (ceil) ceilings.push({ over: below, at: h, mat: ceil });
-      tri += push(`tower-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : k === "under" && ceil ? ceil : TW.mats[k] })), { part: skirt, mat: TW.mats.edge }]);
+      const atH = (cfg.rules.tower.floors.at as Record<string, { mat?: string; edgeMat?: string; plinthMat?: string }>)[String(h)];
+      // (a floor's `edgeMat`, Milestone 977: the rim of a hole is the slab's edge, brick, and the strongroom looks up at it)
+      tri += push(`tower-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : k === "under" && ceil ? ceil : k === "edge" && atH?.edgeMat ? atH.edgeMat : TW.mats[k] })), { part: skirt, mat: TW.mats.edge }]);
+      // The plinth (rules.tower.plinth, Milestone 979; the reviews: "curved walls stop short of the floor with jagged brick",
+      // "skirting over the torn bases"). The white wall stands up to 0.8 m in from the shell's foot round each groove and
+      // its turned faces end anywhere from 32.14 to 32.48 m at the 32 m floor, over the brick skirt's chords, so no skirt on
+      // the slab's own outline can meet it. This one runs along the room's faces as the layout models them (floors.inner,
+      // grooves, corners), in front of the wall's foot, drawn only: the wall's own columns stand there already. A cap goes
+      // back from its top over the undercut, or the eye looks down into it
+      const PL = cfg.rules.tower.plinth as { high: number; back: number } | undefined;
+      if (PL) {
+        const FL = cfg.rules.tower.floors as { inner: number[]; grooves: number[][]; corners: number[][] };
+        const [pvx, pvz] = TW.pivot as number[];
+        const [qx0, qx1, qz0, qz1] = FL.inner;
+        const room = (x: number, z: number) => {
+          const [lx, lz] = [x - pvx, z - pvz];
+          let d = Math.max(qx0 - lx, lx - qx1, qz0 - lz, lz - qz1);
+          for (const [gx, gz, r] of FL.grooves) d = Math.max(d, r - Math.hypot(lx - gx, lz - gz));
+          for (const [ox, oz, r] of FL.corners) if ((lx - ox) * Math.sign(ox - (qx0 + qx1) / 2) > 0 && (lz - oz) * Math.sign(oz - (qz0 + qz1) / 2) > 0) d = Math.max(d, Math.hypot(lx - ox, lz - oz) - r);
+          return d;
+        };
+        const band = skirtAlong(g, room, h, PL.high, TW.scale);
+        const faces = band.pos.length / 3;
+        for (let k = 0; k < faces; k += 4) {
+          const [a, b] = [band.pos.slice((k + 3) * 3, (k + 3) * 3 + 3), band.pos.slice((k + 2) * 3, (k + 2) * 3 + 3)];
+          const [nx, nz] = [band.nrm[k * 3], band.nrm[k * 3 + 2]];
+          const base = band.pos.length / 3;
+          for (const [q, s] of [[a, 0], [b, 0], [b, PL.back], [a, PL.back]] as Array<[number[], number]>) {
+            band.pos.push(q[0] - nx * s, q[1], q[2] - nz * s);
+            band.nrm.push(0, 1, 0);
+            band.uv.push((q[0] - nx * s) * TW.scale, (q[2] - nz * s) * TW.scale);
+          }
+          const up = (b[2] - a[2]) * -nx * PL.back - (b[0] - a[0]) * -nz * PL.back > 0;
+          band.idx.push(...(up ? [base, base + 1, base + 2, base, base + 2, base + 3] : [base, base + 2, base + 1, base, base + 3, base + 2]));
+        }
+        tri += push(`tower-plinth-${h}`, [{ part: band, mat: atH?.plinthMat ?? atH?.mat ?? TW.mats.edge }], false);
+      }
+    }
+    // Thin skins drawn over what stands (rules.tower.clad, Milestone 977): the core's walls are one material the whole way
+    // up and THE VAULT is one storey of it, so its gold is laid over them, round its doors, with no collision of its own
+    for (const [k, c] of ((cfg.rules.tower as { clad?: Array<{ mat: string; scale: number; boxes: number[][] }> }).clad ?? []).entries()) {
+      const part = { pos: [] as number[], nrm: [] as number[], uv: [] as number[], idx: [] as number[] };
+      for (const [x0, x1, y0, y1, z0, z1] of c.boxes) boxInto(part, x0, x1, y0, y1, z0, z1, c.scale, { bottom: true });
+      tri += push(`tower-clad-${k}`, [{ part, mat: c.mat }], false);
     }
     // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
@@ -1281,7 +1347,7 @@ if (mode === "bake") {
     const value = (x: number, z: number) => Math.max(SF.surface(x, z, CV.round), Math.max(Math.abs(x), Math.abs(z)) - inside);
     const { pos, idx } = fieldSurface(value, -inside, inside, -inside, inside, CV.surface.cell, CV.surface.y);
     const uv = new Float32Array((pos.length / 3) * 2);
-    for (let k = 0; k < pos.length / 3; k++) [uv[k * 2], uv[k * 2 + 1]] = [pos[k * 3] / 10, pos[k * 3 + 2] / 10];
+    for (let k = 0; k < pos.length / 3; k++) [uv[k * 2], uv[k * 2 + 1]] = [pos[k * 3] / (cfg.rules.ground.roadEvery ?? 10), pos[k * 3 + 2] / (cfg.rules.ground.roadEvery ?? 10)];
     const nrm = new Float32Array(pos.length);
     for (let k = 0; k < pos.length / 3; k++) nrm[k * 3 + 1] = 1;
     const matGuid = pack.matFor(cfg.rules.ground.road);
@@ -1475,14 +1541,15 @@ function spinePads(boxes: number[][], rules: any) {
   const top = (x: number, z: number, h: number, below = Infinity) => boxes.reduce((a, b) => (b[4] < below && b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h ? Math.max(a, b[5]) : a), 0);
   const level = (x: number, z: number, y: number, below?: number) => [-0.5, 0, 0.5].every((dx) => [-0.5, 0, 0.5].every((dz) => Math.abs(top(x + dx, z + dz, 0.05, below) - y) < 0.3));
   const stand = padStandOff();
-  const up = (SP.up as Array<{ id: string; at: number[]; to: number[]; floor: number; face: number; land: number; below?: number }>).map((q) => {
+  const up = (SP.up as Array<{ id: string; at: number[]; to: number[]; floor: number; face: number; land: number; below?: number; spot?: number }>).map((q) => {
     const at = (t: number): [number, number] => [q.at[0] + q.to[0] * t, q.at[1] + q.to[1] * t];
     let hit = -1;
     for (let t = 0; t < 30 && hit < 0; t += 0.05) if (top(...at(t), B, q.below) >= q.face) hit = t + B;
     if (hit < 0) throw new Error(`spine pad ${q.id}: no face ${q.face} m high within 30 m of (${q.at.join(", ")})`);
     const face = at(hit);
     const pad = at(hit - stand);
-    const floor = top(...pad, 1.4, q.below);
+    // (`spot` metres round it, 1.4 unless a pad's rule says: the gantry over THE WORKS' atrium stands inside that behind a pad)
+    const floor = top(...pad, q.spot ?? 1.4, q.below);
     if (Math.abs(floor - q.floor) > 0.3) throw new Error(`spine pad ${q.id}: something ${floor.toFixed(2)} m high over its spot (${pad.map((v) => v.toFixed(1)).join(", ")}), not its floor ${q.floor}`);
     const L = q.land;
     const land = at(hit + L);
