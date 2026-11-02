@@ -2298,14 +2298,23 @@ export class Hud {
    * hit from behind matters most exactly then.
    */
   /** the quick chat list, left of centre, while it is open */
+  /** where the captions' top and right edge stood (the quick chat keeps clear of them) */
+  private captionsTop = Infinity;
+  private captionsRight = 0;
+
   private drawQuickChat(s: HudState, u: number): void {
     const lines = s.quickChat;
     if (!lines || !lines.length) return;
-    const x = 40 * u;
     const w = 230 * u;
     const rowH = 24 * u;
-    const y = this.h * 0.42;
-    this.plate(x, y, w, (lines.length + 1) * rowH + 12 * u, u, GOLD, 1.15);
+    const h = (lines.length + 1) * rowH + 12 * u;
+    // Above the captions, as they stood last frame, or beside them where there is no room above under the minimap: from HUD
+    // size 1.25 they lay under it (Milestone 996).
+    const above = this.captionsTop - h - 10 * u;
+    const fits = above >= 26 * u + 230 * u + 12 * u;
+    const x = fits ? 40 * u : Math.max(40 * u, this.captionsRight + 16 * u);
+    const y = fits ? Math.min(this.h * 0.42, above) : this.h * 0.42;
+    this.plate(x, y, w, h, u, GOLD, 1.15);
     this.text("QUICK CHAT", x + 14 * u, y + 20 * u, 700, 13 * u, "#ffd23c");
     lines.forEach((line, i) => {
       this.text(`${i + 1}`, x + 14 * u, y + 20 * u + (i + 1) * rowH, 700, 14 * u, "#ffd23c");
@@ -3189,10 +3198,15 @@ export class Hud {
    */
   private drawCaptions(s: HudState, u: number): void {
     const lines = s.captions;
-    if (!lines || !lines.length) return;
+    if (!lines || !lines.length) {
+      this.captionsTop = Infinity;
+      return;
+    }
     const c = this.ctx;
     const x = 34 * u;
     let y = Math.min(this.h - 150 * u, this.leftTop - 20 * u) - lines.length * 22 * u;
+    this.captionsTop = y - 14 * u;
+    this.captionsRight = 0;
     for (const l of lines) {
       const where = l.where ? `  ${l.where}` : "";
       const range = l.range ? `  ${l.range}` : "";
@@ -3200,6 +3214,7 @@ export class Hud {
       c.font = `700 ${13 * u}px Rajdhani, sans-serif`;
       const w = c.measureText(text).width + 16 * u;
       this.plate(x - 6 * u, y - 14 * u, w, 20 * u, u, null, 0.85);
+      this.captionsRight = Math.max(this.captionsRight, x - 6 * u + w);
       this.text(l.text, x, y, 700, 13 * u, WHITE);
       if (l.where) this.text(`${l.where}${range}`, x + c.measureText(l.text).width + 10 * u, y, 600, 12 * u, DIM);
       y += 22 * u;
@@ -3372,7 +3387,14 @@ export class Hud {
       pips(x + 20 * u, y + 98 * u, hk.level, hk.max, col);
       // (to a tenth, as the loot card says it: a level's 12.6 s read 13, Milestone 928)
       this.text(`COOLDOWN ${Number.isInteger(hk.cooldown) ? hk.cooldown : hk.cooldown.toFixed(1)} S`, x + cw - 14 * u, y + 98 * u, 700, 13 * u, WHITE, "right");
-      this.text(hk.blurb, x + 20 * u, y + 126 * u, 600, 13 * u, "rgba(230,235,240,0.85)");
+      // (inside its box: in half a screen at HUD size 1.4 a blurb ran 73 px past it, Milestone 997)
+      const room = cw - 34 * u;
+      c.font = this.font(600, 13 * u);
+      const size = Math.max(10 * u, Math.min(13 * u, (13 * u * room) / Math.max(1, c.measureText(hk.blurb).width)));
+      c.font = this.font(600, size);
+      let blurb = hk.blurb;
+      while (blurb.length > 4 && c.measureText(blurb).width > room) blurb = `${blurb.slice(0, -2).trimEnd()}…`;
+      this.text(blurb, x + 20 * u, y + 126 * u, 600, size, "rgba(230,235,240,0.85)");
     });
     // (the key on the device in hand: it said HOLD TAB to a pad player too, Milestone 721)
     const hold = inv.key ?? "TAB";

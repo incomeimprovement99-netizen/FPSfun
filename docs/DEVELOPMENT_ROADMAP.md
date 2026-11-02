@@ -14364,6 +14364,13 @@ your picks at level 0; the tutorial gives back what you had, and only if it lent
 
 - **Checked:** tsc, verify, rules; arena rules; e2e page, range, sktutorial.
 
+## Milestone 997 — Room on the left for words
+
+From HUD size 1.25 the quick chat lay over the captions; it keeps above them, or beside them where there is no room under the minimap. And in half a screen at
+HUD size 1.4 a hack's line on the carry card ran past its box; it shrinks to fit, and is cut short past that (hud.ts).
+
+- **Checked:** tsc, verify, rules; hudfit.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -32,7 +32,7 @@ g.Image = class {
 };
 g.location = { search: "", href: "http://hudfit.test/" };
 
-const ops: Array<{ tag: string; y: number; h?: number; x?: number; w?: number; text?: string }> = [];
+const ops: Array<{ tag: string; y: number; h?: number; x?: number; w?: number; text?: string; f?: number }> = [];
 let tag = "";
 let font = 10;
 const ctx = new Proxy(
@@ -41,7 +41,7 @@ const ctx = new Proxy(
     get(_t, p) {
       if (p === "measureText") return (s: string) => ({ width: s.length * font * 0.52 });
       if (p === "createLinearGradient" || p === "createRadialGradient") return () => ({ addColorStop() {} });
-      if (p === "fillText") return (t: string, x: number, y: number) => ops.push({ tag, y, x, text: t });
+      if (p === "fillText") return (t: string, x: number, y: number) => ops.push({ tag, y, x, text: t, f: font });
       if (p === "fillRect") return (x: number, y: number, w: number, h: number) => ops.push({ tag, y, h, x, w });
       return () => undefined;
     },
@@ -263,6 +263,42 @@ console.log("\nThe maps and marks (src/game/hud.ts, src/main.ts, src/game/brmatc
   setHudScale(1);
   const rightEdge = Math.max(...ops.filter((o) => o.tag === "narrow" && o.text).map((o) => o.x ?? 0));
   check("in half a screen at a large HUD size the loot card stays on the screen", rightEdge <= 960, `its right edge ${rightEdge.toFixed(0)} of 960`);
+  // (Milestone 996) the quick chat keeps above the captions at a large HUD size
+  {
+    setHudScale(1.4);
+    const qu = 1.4;
+    const both = make(1920, 1080) as unknown as { drawCaptions(s: unknown, u: number): void; drawQuickChat(s: unknown, u: number): void; leftTop: number; captionsRight: number };
+    both.leftTop = 1080 - 300 * qu;
+    const said = { captions: [{ text: "GUNFIRE" }, { text: "FOOTSTEPS" }, { text: "RELOAD" }], quickChat: ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX"] };
+    both.drawCaptions(said, qu);
+    ops.length = 0;
+    tag = "caps";
+    both.drawCaptions(said, qu);
+    tag = "quick";
+    both.drawQuickChat(said, qu);
+    setHudScale(1);
+    const capTop = Math.min(...ops.filter((o) => o.tag === "caps" && o.text).map((o) => o.y)) - 14 * qu;
+    const quickBottom = Math.max(...ops.filter((o) => o.tag === "quick" && o.text).map((o) => o.y)) + 8 * qu;
+    const quickLeft = Math.min(...ops.filter((o) => o.tag === "quick" && o.text).map((o) => o.x ?? 0)) - 14 * qu;
+    check("at HUD size 1.4 the quick chat stays clear of the captions", quickBottom <= capTop || quickLeft >= both.captionsRight, `its foot ${quickBottom.toFixed(0)} and left ${quickLeft.toFixed(0)}, the captions' top ${capTop.toFixed(0)} and right ${both.captionsRight.toFixed(0)}`);
+  }
+  // (Milestone 997) a hack's blurb stays inside its box on the carry card, half a screen wide at HUD size 1.4
+  {
+    setHudScale(1.4);
+    const qu = (1040 / 1080) * 1.4;
+    const card = make(960, 1040) as unknown as { drawInventory(s: unknown, u: number): void };
+    const blurb = "A long dash where you look, through anything in the way, and a second at the top level";
+    const hk = { id: "dash", name: "DASH", slot: "mobility", key: "F", level: 2, max: 4, left: 0, cooldown: 11, blurb };
+    ops.length = 0;
+    tag = "inv";
+    card.drawInventory({ inventory: { guns: [], hacks: [hk, { ...hk, id: "heal", name: "HEAL", slot: "utility" }], vitals: null, key: "TAB" } }, qu);
+    setHudScale(1);
+    const w = Math.min(960 - 32 * qu, 900 * qu);
+    const boxRight = (960 - w) / 2 + w;
+    const said = ops.filter((o) => o.tag === "inv" && o.text && (o.text.startsWith("A long") || o.text.endsWith("…")));
+    const widest = Math.max(...said.map((o) => (o.x ?? 0) + o.text!.length * (o.f ?? 13) * 0.52));
+    check("a hack's blurb on the carry card stays inside the card", said.length === 2 && widest <= boxRight, `${said.length} blurbs, the widest to ${widest.toFixed(0)} of ${boxRight.toFixed(0)}`);
+  }
   const { ammoWarning } = await import("../../src/game/hud");
   check("no ammo words on a gun that has heat", ammoWarning(0, 24, true) === null && /ammoWarning\(s\.clip, s\.clipSize, s\.reloading \|\| !!s\.heat\)/.test(h));
 }
