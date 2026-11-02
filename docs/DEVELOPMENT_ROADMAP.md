@@ -18891,7 +18891,22 @@ still the dot: 15 poses a second, no eyes, its gun the merged mesh. At x8 a near
   is judged at its distance over that (figlod.ts `seen`, lod.json `_zoom`). At 100 m at x4 it animates every frame, its eyes
   on. A figure off screen keeps its real distance, so an aim costs only the figures it shows, and a narrow view shows few.
 - **Checked:** five more in the figure LOD check (verify), and in the soldier stances (skfigure) on the real page: of its
-  frames a figure 100 m off takes a new pose. CHECKED_RESULT
+  frames a figure 100 m off took a new pose on 0.08 at the hip's view and on all of them at a narrow one. Without the zoom both
+  checks fail (0.03 at the narrow view), and the section passes all 345 checks.
 - **Looked at and left:** the scan at 60 frames a second on the other eight guns leaves only the end of a skydive, the same
   on all: the body comes upright at 14 a second, 18 degrees in the first frame. That is a quick ease, not a pop, and it has to
   be upright by the ground. DEVINOS's snap on taking off is gone with Milestone 843.
+
+## Milestone 847 — An enemy's gun past 15 m is the gun
+
+Past 15 m a figure's gun gives way to the one merged mesh the floor guns use (the figure LOD, dummy.ts showFarGun). It was
+given the floor guns' flat-colour material, which a gun we drew ourselves needs, but every gun now is a bought one: its colours
+are in its texture, its material's colour is white, and so the merged gun was plain white. Every enemy past 15 m carried a white
+blank, plainest on the dark guns, and it changed to the real gun at 15 m. No test looked at it, as the frame tools all film
+close (node_modules/.scratch/farprobe.mts: each gun's full model beside its merged one on the soldier).
+
+The merged gun wears the gun's own skin now, as the same gun lying on the floor does (loot.ts gunBatch), and the two are the
+same picture side by side. Their shape already matched: same place and size to the millimetre on eight guns, 5 mm on the WINGMAN.
+
+- **Checked:** a new check in the soldier stances (skfigure), over all ten guns, fails on all ten on the old code and passes on this, and the section
+  passes all 346 checks.

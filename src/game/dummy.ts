@@ -6,6 +6,7 @@
 // instead (board): its rings the body, its middle the crit. Our own robot stood here until Milestone 569.
 import { figureWork } from "./figlod";
 import { floorGun, floorGunMat } from "./loot";
+import { paidGunMaterial } from "./paidgun";
 import type { Finish } from "./finishes";
 import * as THREE from "three";
 import { applyFinishTo, displayGunModel } from "./gunmodels";
@@ -1189,7 +1190,10 @@ export class Dummy {
     const root = this.mq?.gunRoot;
     if (!root || !id) return;
     if (on && !this.farGun) {
-      const mesh = new THREE.Mesh(floorGun(id), floorGunMat);
+      const geo = floorGun(id);
+      // (in its own skin, as the same gun lying on the floor: in the flat colours a bought gun's are all white, and so was every
+      // enemy's gun past 15 m)
+      const mesh = new THREE.Mesh(geo, (geo.userData.paid ? paidGunMaterial(id) : null) ?? floorGunMat);
       mesh.castShadow = this.lodShadow;
       mesh.userData.farGun = true;
       root.add(mesh);

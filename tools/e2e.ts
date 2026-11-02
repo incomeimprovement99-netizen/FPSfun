@@ -8292,6 +8292,26 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     pops.slide <= 25 && pops.lean <= 15 && pops.gun <= 20 && pops.land <= 16,
     `pelvis ${pops.slide} cm in a frame, gun ${pops.gun} cm, chest ${pops.lean} degrees, landing ${pops.land} cm`,
   );
+  // An enemy's gun past 15 m in its own skin (Milestone 847): in the floor guns' flat colours a bought gun's are all white
+  const farSkin = await ev<{ white: string[] }>(
+    page,
+    `(() => {
+      const r = window.__range;
+      const white = [];
+      for (const weapon of ["r97", "sentinel", "alternator_smg", "vinson", "mastiff", "shotgun", "lstar", "launcher", "wingman", "autopistol"]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon, look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        for (let i = 0; i < 900 && !(f.mq && f.mq.gunRoot); i++) r.figureLabStep(1 / 60);
+        r.figureLabStep(0.1);
+        f.showFarGun(true);
+        const far = f.mq.gunRoot.children.find((o) => o.userData.farGun);
+        if (!far || !far.material.map) white.push(weapon);
+        f.showFarGun(false);
+      }
+      return { white };
+    })()`,
+  );
+  check("past 15 m an enemy's gun wears its own skin, every gun", farSkin.white.length === 0, JSON.stringify(farSkin));
   // An enemy through a scope animates as near as it looks (Milestone 846): on the real page, how many of its frames a
   // figure 100 m off takes a new pose, at the hip's view and at a narrow one. It played at 15 poses a second under any zoom
   const scoped = await ev<{ hip: number; zoomed: number }>(
