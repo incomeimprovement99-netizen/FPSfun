@@ -228,7 +228,7 @@ console.log("\nThe maps and marks (src/game/hud.ts, src/main.ts, src/game/brmatc
   const link = read("net/link.ts");
   check("a followed enemy's mark stays at the Gulag's door", /a\.group\.visible && !match\.inGulag\(m\.target\)/.test(bp));
   check("no squad tags on the compass from the Gulag's room", /\(here \|\| row\.life === "ghost"\) && !gulagRoom\(\)/.test(m));
-  check("a battle royale's lobby is not the city's map", /duel instanceof BrMatch && duel\.phase !== "waiting" && !\(duel\.gulag/.test(m));
+  check("a lobby's wait, any match's, is the range's map", /!duel \|\| duel\.phase === "waiting" \? RANGE_BOUNDS/.test(m));
   check("down, a GRAPPLE and a LEAP stop with a SLAM", /!duel\.alive\) \{\s+skSlam = null;\s+skPull = null;\s+skLeap = false;/.test(m));
   check("a HEAL's rate travels, to the hack's best at most", /new THREE\.Vector3\(healRate, 0, 0\), 3\)/.test(m) && /Math\.max\(0, Math\.min\(b\.x, Math\.max\(H\.heal\.perSecond, \.\.\.healRates\)\)\)/.test(m));
   check("another's WALL stops at their cap", /while \(walls\.length >= H\.wall\.max\)/.test(m));
