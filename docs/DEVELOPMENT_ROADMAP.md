@@ -18910,3 +18910,14 @@ same picture side by side. Their shape already matched: same place and size to t
 
 - **Checked:** a new check in the soldier stances (skfigure), over all ten guns, fails on all ten on the old code and passes on this, and the section
   passes all 346 checks.
+
+## Milestone 848 — A scoped enemy keeps its shadow
+
+Milestone 846 judged a figure on screen by its size, for its animation, its eyes and its gun, and left its shadow on the real
+distance, saying the sun's shadow map would not reach a far figure anyway. That was not measured, and it is wrong: the map is
+set over the whole of the place (range.ts setShadowRegion, 230 m each way over the battle royale's map). A figure past 60 m
+through a scope stood with no shadow where every wall and box beside it had one. Its shadow comes with it now (figlod.ts,
+lod.json `_zoom`); off screen nothing changes, so the cost is the few figures a narrow view shows.
+
+- **Checked:** the figure LOD check (verify): zoomed in four times a figure 100 m off casts one, and one behind the camera does
+  not; on Milestone 846's code the first fails.

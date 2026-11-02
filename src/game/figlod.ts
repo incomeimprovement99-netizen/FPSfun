@@ -68,5 +68,5 @@ export function figureWork(at: THREE.Vector3, spread: number): { animate: boolea
   const stride = band === 1 || slow("lodhz") ? band : Math.max(band, Math.round(view.fps / (band === 2 ? FIG_LOD.midHz : FIG_LOD.farHz)));
   // off screen and well away: nothing to animate until it is looked at again
   const animate = onScreen || d <= FIG_LOD.offscreen ? (view.frame + Math.abs(Math.round(spread))) % stride === 0 : false;
-  return { animate, shadow: d <= FIG_LOD.shadow, fullGun: seen <= FIG_LOD.farGun, eyes: seen <= FIG_LOD.eyes, stride };
+  return { animate, shadow: seen <= FIG_LOD.shadow, fullGun: seen <= FIG_LOD.farGun, eyes: seen <= FIG_LOD.eyes, stride };
 }
