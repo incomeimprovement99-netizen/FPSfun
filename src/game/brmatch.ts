@@ -2751,7 +2751,7 @@ export class BrMatch extends Duel {
           op: bot.remote.avatarOp,
           name: bot.remote.name,
           ready: true,
-          st: bot.travel?.kind === "zip" ? 6 : bot.dropping || bot.travel ? 3 : bot.crouching ? 1 : 0,
+          st: bot.travel?.kind === "zip" ? 6 : bot.dropping || bot.travel || bot.inFall ? 3 : bot.crouching ? 1 : 0,
           sp: bot.alive && !bot.dropping ? Math.round(bot.diff.speed * 10) : 0,
         });
       }

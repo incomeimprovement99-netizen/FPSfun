@@ -725,6 +725,8 @@ export class Bot {
   }
 
   reset(): void {
+    this.falling = false;
+    this.fallV = 0;
     this.dummy.reset();
     this.dummy.setTier(2);
     this.dummy.setThreat(0);
@@ -897,7 +899,7 @@ export class Bot {
       if (this.blocked(nx, nz)) break;
       this.pos.x = nx;
       this.pos.z = nz;
-      this.pos.y = this.groundAt(this.pos.x, this.pos.z);
+      this.settle();
     }
     this.joltLeft -= dt;
     if (this.joltLeft <= 0) {
@@ -998,8 +1000,9 @@ export class Bot {
       this.dummy.setPose({ speed: 0, stance: "zip", pitch: 0 });
       if (k >= 1) {
         // off at the end, onto whatever is under it
-        this.pos.y = Math.max(this.groundAt(this.pos.x, this.pos.z), this.pos.y - 1.2);
+        // (and falls the rest: it was put 1.2 m down at once and stood in the air until it next walked, Milestone 1009)
         this.travel = null;
+        this.settle();
       }
     }
     this.dummy.group.position.copy(this.pos);
@@ -1014,6 +1017,40 @@ export class Bot {
   /** the ground under the feet, stepping up onto anything within reach */
   private groundAt(x: number, z: number): number {
     return botGroundAt(x, z, this.pos.y);
+  }
+
+  /** falling, and how fast, m/s down: a drop more than a step is fallen, not stepped */
+  private falling = false;
+  private fallV = 0;
+  /** in a fall off a ledge (the guests' figures of it fall as it does: the state says so) */
+  get inFall(): boolean {
+    return this.falling;
+  }
+
+  /**
+   * On its feet where a move left it: a step up or down is stepped, more than a step down is fallen (fall). Every drop was
+   * taken at once, so a bot walking off a ledge was on the ground below the next frame, 1.7 m in one (the character agent,
+   * 2026-11-02; Milestone 1009).
+   */
+  private settle(): void {
+    if (this.falling) return;
+    const g = this.groundAt(this.pos.x, this.pos.z);
+    if (this.pos.y - g > MOVE.stepHeight) this.falling = true;
+    else this.pos.y = g;
+  }
+
+  /** a frame of a fall, as a player's: gravity, onto the highest floor under it (tested from where the frame began) */
+  private fall(dt: number): void {
+    if (!this.falling) return;
+    const from = this.pos.y;
+    this.fallV += MOVE.gravity * dt;
+    this.pos.y -= this.fallV * dt;
+    const g = botGroundAt(this.pos.x, this.pos.z, from);
+    if (this.pos.y <= g) {
+      this.pos.y = g;
+      this.falling = false;
+      this.fallV = 0;
+    }
   }
 
   /** would the body overlap a wall at this spot */
@@ -1431,9 +1468,10 @@ export class Bot {
           this.pos.x = nx;
           this.pos.z = nz;
         }
-        this.pos.y = this.groundAt(this.pos.x, this.pos.z);
+        this.settle();
       }
     }
+    this.fall(dt);
     // face the target when seen; an elite bot hunting keeps facing where it lost you; else the way it walks
     const faceAt = target ?? (tier.preAim && hunting ? hunting : null);
     const faceX = faceAt ? faceAt.x - this.pos.x : want.x;
@@ -1457,7 +1495,7 @@ export class Bot {
     const moveDir = moving ? Math.atan2(want.x * -fwdZ + want.y * fwdX, want.x * fwdX + want.y * fwdZ) : 0;
     this.dummy.setPose({
       speed: moving ? this.speedNow * (this.crouching ? botsCfg.squads.crouchWalk : 1) : 0,
-      stance: this.crouching ? "crouch" : "stand",
+      stance: this.falling ? "air" : this.crouching ? "crouch" : "stand",
       pitch: aimPitch,
       moveDir,
       ads: target && this.knife === null ? 0.85 : 0,

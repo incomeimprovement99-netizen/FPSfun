@@ -14502,6 +14502,18 @@ brmatch.ts).
 - **Checked:** tsc, verify, rules; br-heir and arena-rules (three new checks, each failing with its fault put back); the review's three probes on the fixed
   code; e2e bots, migrate, brsolo, p2p.
 
+## Milestone 1009 — Bots fall off ledges
+
+The character agent watched a TDM match at 60 Hz for five minutes: four times a running bot went from 1.71 m up to the ground in one 7 to 10 ms frame, at
+(-33.4, 1.71, 502.9) and (-0.5, 1.71, 467.6). A bot's walk put its feet on the ground under each step of it, so a ledge of any height was dropped at once,
+past what the figure's step ease (0.2 m) smooths. A drop of more than a step is fallen now, as a player falls, under the game's gravity onto the highest floor
+under it, tested from where each frame began, and the figure is in the air for it on the host's page and the guests' (the state says air). A step up or down
+is stepped as before. The end of a rope, which put a bot 1.2 m down at once and left it standing in the air until it next walked, ends in a fall too
+(bots.ts, brmatch.ts, modematch.ts).
+
+- **Checked:** tsc, verify, rules; arena-rules (a new check: 0.13 m at most in a frame and 26 frames in the air off a 1.71 m ledge, where the old walk dropped
+  1.71 m in one with none); e2e bots, modes, skbots, brsolo.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

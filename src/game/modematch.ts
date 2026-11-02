@@ -1101,7 +1101,8 @@ export class ArenaMode extends Duel {
         op: bot.remote.avatarOp,
         name: bot.remote.name,
         ready: true,
-        st: bot.crouching ? 1 : 0,
+        // (off a ledge, in the air, as the host draws it: Milestone 1009)
+        st: bot.inFall ? 3 : bot.crouching ? 1 : 0,
         sp: bot.alive ? Math.round(bot.diff.speed * 10) : 0,
       });
     }

@@ -190,6 +190,28 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   check("on lost ground, a bot goes for safe ground with an enemy in sight", left < 3, `${left.toFixed(1)} m from it after 3 s`);
 }
 {
+  // (Milestone 1009) off a ledge 1.71 m up, as the character agent watched in TDM: it falls, where it was on the ground below
+  // the next frame
+  RANGE_SOLIDS.length = 0;
+  RANGE_SOLIDS.push({ minX: -5, maxX: 5, minZ: -5, maxZ: 5, top: 1.71, base: 0 });
+  const b: Any = new Bot(0, scene, projectiles, DIFFICULTY.normal, { x: 0, z: 0, yaw: 0 }, 1, "vinson");
+  b.pos.set(3.5, 1.71, 0);
+  let t = clock + 300;
+  let most = 0;
+  let air = 0;
+  let prev = b.pos.y;
+  let landed = Infinity;
+  for (let i = 0; i < 120; i++) {
+    b.update((t += 1 / 60), 1 / 60, { target: null, targetId: -1, goal: new THREE.Vector3(12, 0, 0), canShoot: false });
+    most = Math.max(most, prev - b.pos.y);
+    if (b.dummy.pose?.stance === "air" || b.falling) air++;
+    if (landed === Infinity && b.pos.y === 0 && prev > 0) landed = i;
+    prev = b.pos.y;
+  }
+  RANGE_SOLIDS.length = 0;
+  check("a bot walking off a 1.71 m ledge falls to the ground below, not there the next frame", most < 0.5 && air >= 5 && landed < 120 && b.pos.y === 0, `most in a frame ${most.toFixed(2)} m, ${air} frames in the air`);
+}
+{
   // (Milestone 1000) a new target, or a fight it could not shoot in, starts the reaction and the wide aim again
   RANGE_SOLIDS.length = 0;
   const tier = DIFFICULTY.hard;
