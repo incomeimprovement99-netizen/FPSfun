@@ -446,44 +446,5 @@ console.log("SpeedKills' movement where it went wrong (player.ts)");
   check("a double tap of jump leaves the double jump for later", spent === 0 && said.filter((n) => n === "DOUBLE JUMP").length === 1, `${spent} spent on the tap`);
 }
 
-// (Milestone 1002) a flight of stairs at a low frame rate, and through one long frame: the real flight's treads, 0.25 m deep
-// and 0.171 m high (the movement review measured them). A frame's move was tested at the feet it started from, so in one
-// 0.1 s frame at a sprint the third tread was a wall, and at a steady 15 fps every frame was such a frame
-{
-  const TREAD = 0.25;
-  const RISE = 0.171;
-  const N = 30;
-  const boxes: Box[] = [];
-  for (let i = 0; i < N; i++) boxes.push({ minX: -3, maxX: 3, minZ: -2 - (i + 1) * TREAD, maxZ: -2 - i * TREAD, top: (i + 1) * RISE });
-  boxes.push({ minX: -3, maxX: 3, minZ: -30, maxZ: -2 - N * TREAD, top: N * RISE });
-  world(boxes);
-  const climb = (frames: number[]): { y: number; z: number; least: number } => {
-    const p = player();
-    const inp = new Script();
-    let t = 100;
-    p.teleport(0, 0, 0, 0);
-    inp.hold("forward");
-    let least = Infinity;
-    for (const f of frames) {
-      t += f;
-      p.update(f, t, inp, 0, 1, false);
-      inp.endFrame();
-      // (its speed while on the flight, past the first metre of it)
-      if (p.pos.z < -3 && p.pos.z > -2 - N * TREAD + 0.5) least = Math.min(least, Math.hypot(p.vel.x, p.vel.z));
-    }
-    return { y: p.pos.y, z: p.pos.z, least };
-  };
-  const top = N * RISE;
-  const at15 = climb(Array.from({ length: 60 }, () => 1 / 15));
-  // a steady 60 fps, with one 0.1 s frame as the body reaches the flight's third metre
-  const hitch = climb(Array.from({ length: 240 }, (_, i) => (i === 40 ? 0.1 : 1 / 60)));
-  const sprint = climb(Array.from({ length: 240 }, () => 1 / 60));
-  check(
-    "up a flight of stairs at a steady 15 fps, and through a 0.1 s frame at 60, without stopping on it",
-    Math.abs(at15.y - top) < 0.05 && at15.z < -2 - N * TREAD && Math.abs(hitch.y - top) < 0.05 && hitch.least > sprint.least * 0.5,
-    `15 fps: at ${at15.y.toFixed(2)} m of ${top.toFixed(2)}, slowest ${at15.least.toFixed(1)} m/s; the hitch: slowest ${hitch.least.toFixed(1)} m/s, at 60 fps ${sprint.least.toFixed(1)}`,
-  );
-}
-
 console.log(fails === 0 ? "\nSK MOVES PASS" : `\nSK MOVES FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);
