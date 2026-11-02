@@ -168,7 +168,7 @@ export class Loadout {
     s.state.clip = s.weapon.clipSize;
     // and a reload under way has nothing left to do: it went on, a full gun that would not fire until the old reload ran
     // out and loaded nothing (Milestone 858)
-    s.state.cancelAction();
+    s.state.cooled();
     return true;
   }
 
@@ -180,7 +180,7 @@ export class Loadout {
     this.rebuildSlot(s, true);
     s.state.clip = s.weapon.clipSize;
     // (as fuse does: a reload under way went on, the full gun not firing till it ran out, Milestone 917)
-    s.state.cancelAction();
+    s.state.cooled();
   }
 
   /** the first empty slot, or -1 */
@@ -299,6 +299,8 @@ export class Loadout {
    */
   requestSwap(index: number, now: number): boolean {
     if (index < 0 || index >= this.slots.length) return false;
+    // (nothing there: with one gun Q put it out of reach, on fists, until another turned up, Milestone 969)
+    if (this.slots[index].empty) return false;
     if (index === this.targetIndex) return false; // already going there
     this.targetIndex = index;
     if (index === this.activeIndex) {
@@ -311,6 +313,13 @@ export class Loadout {
     }
     this.swapEndsAt = now + this.swapTotal;
     return true;
+  }
+
+  /** straight to a slot with one raise: hands that were empty (a restore, the Gulag) have nothing to put away */
+  land(i: number, now: number): void {
+    this.activeIndex = i;
+    this.active.state.onDeploy();
+    this.raise(now);
   }
 
   /** the gun in hand comes up again, taking its deploy time (Gun Run's next gun) */

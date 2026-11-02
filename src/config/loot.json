@@ -45,6 +45,10 @@
     "radius": 40
   },
   "pickupReach": 2.2,
+  "_deathSpread": "A dead player's items (brmatch.ts deathSpot): metres round the body; the height the way there is tested at, from the body's floor; and how far off that floor a spot may be, inside a restore's own 1.5 m (main.ts).",
+  "deathSpread": 0.9,
+  "deathChest": 0.5,
+  "deathStep": 1,
   "_bots": "a bot lands unarmed and searches this long before it has its gun and a shield (ours)",
   "botSearch": {
     "beginner": 40,

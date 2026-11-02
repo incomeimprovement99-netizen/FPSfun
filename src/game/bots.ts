@@ -1544,11 +1544,12 @@ export class BotMag {
    * player's from empty takes that: the magazine and then the handle racked or the bolt worked, which the bot's figure
    * shows)
    */
-  fired(now: number, w: { clipSize: number; reloadTime: number; reloadEmptyTime?: number; mech?: { overheat?: unknown } }, interval: number): void {
+  fired(now: number, w: { clipSize: number; reloadTime: number; reloadEmptyTime?: number; mech?: { overheat?: { lockout: number } | null } }, interval: number): void {
     if (--this.left <= 0) {
       this.venting = !!w.mech?.overheat;
       this.left = w.clipSize;
-      this.until = now + interval + (w.reloadEmptyTime ?? w.reloadTime);
+      // (a CHOOCH's lockout, as a player's: it waited out a reload the gun has not got, 2.7 times as long, Milestone 990)
+      this.until = now + interval + (w.mech?.overheat?.lockout ?? w.reloadEmptyTime ?? w.reloadTime);
     }
   }
 

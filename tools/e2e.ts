@@ -3167,6 +3167,9 @@ async function shotgunChecks(page: Page): Promise<void> {
       r.player.pitch = Math.atan2(t.y + 1.2 - eye.y, 4) * 180 / Math.PI; r.player.yaw = 0; const w = r.loadout.active.weapon; const st = r.loadout.active.state; st.clip = w.clipSize; return { pellets: w.pellets, near: w.damage.near }; })()`
   );
   const s0 = await ev<{ shots: number; hits: number; damage: number }>(page, "window.__range.stats()");
+  // (this pull's alone: a ?norender page never draws, which is what takes a number away, so an earlier rocket's stood here,
+  // on the floor until Milestone 990 and on its target's face since)
+  await ev(page, "void (window.__range.hud.damageNumbers.length = 0)");
   await padTap(page, 7, 60);
   await sleep(700);
   const s1 = await ev<{ shots: number; hits: number; damage: number }>(page, "window.__range.stats()");
@@ -3239,6 +3242,8 @@ async function readmeTvChecks(page: Page): Promise<void> {
   const shootAt = async (expr: string, ms = 60) => {
     await ev(page, `(() => { ${AIM} aimAt(${expr}); })()`);
     await ev(page, padSet(6, true));
+    // (all the way in, however long that takes: a loaded run fired half in, and the list's rows are a hand's width apart)
+    await page.waitForFunction("window.__range.loadout.active.state.adsFrac > 0.95", { polling: 50, timeout: 6000 }).catch(() => undefined);
     await sleep(420);
     await ev(page, `(() => { ${AIM} aimAt(${expr}); })()`);
     await sleep(120);

@@ -18,7 +18,8 @@ const CARD = hudCfg.lootCard;
 
 /** seconds to kill a full pool at close range, `hit` of rounds on the body, reloads counted (tools/checks/ttk.ts measures the roster the same way) */
 export function ttkClose(w: ResolvedWeapon, pool = PROFILE.health ? PROFILE.health.health + PROFILE.health.shield : 150, hit = CARD.ttkHit): number {
-  const perShot = w.damage.near * Math.max(1, w.pellets) * hit;
+  // (a launcher at its full range, as tools/checks/ttk.ts measures it: up close it is meant to be weak, and the card read 20 s)
+  const perShot = (w.blast ? w.damage.far : w.damage.near) * Math.max(1, w.pellets) * hit;
   const shots = Math.ceil(pool / perShot);
   const interval = w.semiAuto ? Math.max(w.shotInterval, 1 / w.fireRate) : 1 / w.fireRate;
   const reloads = Math.floor((shots - 1) / w.clipSize);
@@ -74,11 +75,11 @@ export interface GunStats {
 /** a gun's numbers at a fusion level (the range's armory screens show them too: armory.ts) */
 export function gunStats(id: string, level: number): GunStats {
   const w = resolveWeapon(id, [], level);
-  const per = w.damage.near;
+  const per = w.blast ? w.damage.far : w.damage.near;
   const pellets = Math.max(1, w.pellets);
   return {
     ttk: ttkClose(w),
-    dmg: pellets > 1 ? `${one(per)} x${pellets}` : one(per),
+    dmg: w.blast ? `${one(w.damage.near)} TO ${one(per)}` : pellets > 1 ? `${one(per)} x${pellets}` : one(per),
     head: per * w.damage.headshot,
     rate: w.semiAuto ? 1 / Math.max(w.shotInterval, 1 / w.fireRate) : w.fireRate,
     mag: w.clipSize,
@@ -189,7 +190,7 @@ export function lootCardView(item: LootItem, ctx: { slots: SlotView[]; active: n
         ? `A copy of a gun you carry fuses into it: each level +${Math.round((f1.damage - 1) * 100)}% damage, +${Math.round((f1.mag - 1) * 100)}% magazine, a faster reload and less recoil, to level ${top}. A higher copy takes yours to its level.`
         : o.verdict === "swap"
           ? `Taking it puts your ${mineName} down here at its level.`
-          : `It goes in your empty slot; you keep what you hold.`,
+          : `It goes in your empty slot and comes up in your hand.`,
     );
     card.notes.push(`Time to kill: ${PROFILE.health ? `${PROFILE.health.health} health + ${PROFILE.health.shield} shield` : "150"}, ${Math.round(CARD.ttkHit * 10)} in 10 rounds on the body, close range.`);
     return card;

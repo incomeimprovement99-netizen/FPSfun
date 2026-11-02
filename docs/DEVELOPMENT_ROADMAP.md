@@ -14271,6 +14271,33 @@ M966's Esc on the menu also went to a start screen that a page without one does 
 
 - **Checked:** tsc, verify, rules; hudfit; e2e page, duel, range, modes, sklobby, brsolo, speedkills, p2p.
 
+## Milestone 969 — What is in your hands and on the floor
+
+With one gun, Q or the other slot's key left you on fists with your gun out of reach; a swap refuses an empty slot and fists can swap out. A
+loadout picked on the ship armed a loot start with two full guns; a battle royale's hands stay as they are and the new loadout waits for the
+next match. A restore or the Gulag gave guns one at a time, 1.28 s gunless on the wrong gun, with pickup sounds and a gun's name over the notice
+saying where you were; they come at once, the gun you held up in one raise. What you aimed at from 2.2 to 3 m lost to whatever was nearest, even
+behind you. DEVINOS's card read DAMAGE 10, 20.29 s to kill; it reads 10 TO 50 and its time at full range. A dead player's items went blind 0.9 m
+round the body, 3 to 5% inside a box and some past a ledge, where they outlived a restore; they take a clear bearing on the body's floor. A
+quarter of tap pings marked loot they missed; a ping must pass within 0.8 m of it. A package's mark went 2 s before it landed, a LOOT ping stayed
+10 s after the item, a ghost's Tab listed guns on the floor, and Counted ammo could not reload after a loot match (loadout.ts, main.ts, brplay.ts, loot.ts, brmatch.ts, lootcard.ts).
+
+- **Checked:** tsc, verify, rules; e2e speedkills, brsolo, gulag, sksquad, skship, range.
+
+## Milestone 990 — What a shot does, from a review of the guns
+
+Every frame with a shot snapped the camera level, throwing away the lean, the wall run's roll and the landing's, 18 flicks a second on USSO: gone.
+A lurch turned the crosshair 2 degrees off where the shots went; it rolls now. In a battle royale rounds stopped on a squad mate and said you hit,
+a rocket bursting on them for nothing; they pass, as in the team modes. A kill or shield break's mark was cut to 0.12 s by the next round. PANDA's
+and CHOOCH's sprays changed with the frame rate, up to 93 cm at 20 m by shot 19, as a shot's time was the frame's end; they take the shot's own, and
+the spring reads its heat at each step. A semi gun fired itself when a swap, a melee or a countdown lifted off a held button. A fuse left an overheated
+CHOOCH locked and reset a gun's bloom, and gave CHOOCH none of the "faster reload" the card promises; cooling takes it now. E, E skipped BOOG's
+rechamber. CHOOCH's overheat said RELOADING and warned of ammo. Sights worked on the ship. A bot's CHOOCH waited 2.7 times a player's. "Snipers and
+marksmen" kept the launcher. And a rocket on a range target measured from its foot: most on the raised rows did nothing, and its number at height 0
+sat in the shotgun's check (main.ts, weapon-state.ts, recoil.ts, spread.ts, weapons.ts, loadout.ts, hud.ts, bots.ts, brmatch.ts).
+
+- **Checked:** tsc, verify, rules; arena rules, hudfit; e2e speedkills, brsolo, gulag, sksquad, skship, range.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

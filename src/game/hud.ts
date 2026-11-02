@@ -42,6 +42,9 @@ const SHIELD_CELL: [string, string] = ["#c99bff", "#8a3ff0"];
 /** a shield break's marker (hud.json shieldFx.marker, Milestone 694) */
 const BREAK_MARK = hudCfg.shieldFx.marker;
 
+/** which hit mark holds over which */
+const MARK_RANK = { hit: 0, break: 1, knock: 2, kill: 2 };
+
 /** the warning under the crosshair for a magazine: RELOAD when empty, LOW AMMO from the warn share down, or nothing */
 export function ammoWarning(clip: number, clipSize: number, reloading: boolean): "RELOAD" | "LOW AMMO" | null {
   if (clipSize < LOW_AMMO.minClip || reloading) return null;
@@ -482,7 +485,7 @@ export class Hud {
   /** the low-ammo line for the last state handed in, drawn or not (tools/e2e.ts) */
   get ammoWarningNow(): "RELOAD" | "LOW AMMO" | null {
     const s = this.last;
-    return !s || s.unarmed || s.holstered ? null : ammoWarning(s.clip, s.clipSize, s.reloading);
+    return !s || s.unarmed || s.holstered ? null : ammoWarning(s.clip, s.clipSize, s.reloading || !!s.heat);
   }
 
   /** the damage numbers up now, newest last (tools/e2e.ts) */
@@ -496,6 +499,8 @@ export class Hud {
    * spray you could not tell the round that finished them.
    */
   hitMarker(now: number, head: boolean, kind: "hit" | "knock" | "kill" | "break" = "hit", color = 0x3b8bff): void {
+    // (the next round's plain hit waits: it cut a kill's or a shield break's held mark to 0.12 s, Milestone 990)
+    if (now < this.hitMarkerUntil && MARK_RANK[kind] < MARK_RANK[this.hitMarkerKind as keyof typeof MARK_RANK]) return;
     this.hitMarkerUntil = now + (kind === "hit" ? 0.12 : kind === "break" ? BREAK_MARK.hold : KILL_MARK.hold);
     this.hitMarkerHead = head;
     this.hitMarkerKind = kind;
@@ -623,7 +628,7 @@ export class Hud {
     this.drawDamageNumbers(now, camera, u);
     this.drawCrosshair(now, s, u);
     // LOW AMMO / RELOAD under the crosshair, where the eyes are in a fight
-    this.lastAmmoWarning = s.unarmed || s.holstered ? null : ammoWarning(s.clip, s.clipSize, s.reloading);
+    this.lastAmmoWarning = s.unarmed || s.holstered ? null : ammoWarning(s.clip, s.clipSize, s.reloading || !!s.heat);
     if (this.lastAmmoWarning) this.text(this.lastAmmoWarning, this.w / 2, this.h / 2 + 64 * u, 700, 15 * u, this.lastAmmoWarning === "RELOAD" ? RED : "#ffb13d", "center");
     this.drawDamageDirs(s, u);
     this.drawMatchCard(s, u);
@@ -3810,7 +3815,8 @@ export class Hud {
     const right = this.w - L.margin.x * u;
     const xR = this.w - (L.margin.x + L.ammo.right) * u;
     const base = this.h - L.margin.bottom * u;
-    const warn = s.unarmed ? null : ammoWarning(s.clip, s.clipSize, s.reloading);
+    // (no ammo words on a gun that has heat, not ammo)
+    const warn = s.unarmed ? null : ammoWarning(s.clip, s.clipSize, s.reloading || !!s.heat);
     const clipColor = s.clip === 0 ? RED : s.swapping || s.holstered ? DIM : warn ? "#ffb13d" : WHITE;
     const clipText = s.unarmed ? "-" : `${s.clip}`;
     // the rounds on a plate of their own, gold-edged for the gun in your hands (Milestone 697)
@@ -3891,7 +3897,8 @@ export class Hud {
       const x = Math.round((this.w - w) / 2);
       const y = Math.round(this.h / 2 + 46 * u);
       this.bar(x, y, w, 5 * u, s.reloadProgress, "rgba(255,255,255,0.18)", "rgba(255,210,122,0.72)", u * 0.67);
-      this.text("RELOADING", x + w / 2, y - 6 * u, 600, 10 * u, "rgba(230,236,242,0.5)", "center");
+      // (a CHOOCH has no reload: "COOLS, NEVER RELOADS", its own card says)
+      this.text(s.heat?.locked ? "OVERHEATED" : "RELOADING", x + w / 2, y - 6 * u, 600, 10 * u, "rgba(230,236,242,0.5)", "center");
     }
   }
 

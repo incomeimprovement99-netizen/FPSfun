@@ -35,6 +35,14 @@ export class WeaponState {
   private reloadTotal = 1;
   adsFrac = 0;
   private nextShotAt = 0;
+  /** when it can next fire */
+  get readyAt(): number {
+    return this.nextShotAt;
+  }
+  /** it cannot fire before `at` (a gun taken back up from the floor) */
+  owes(at: number): void {
+    this.nextShotAt = Math.max(this.nextShotAt, at);
+  }
   private triggerWasDown = false;
   readonly spread: SpreadState;
   readonly kick: ViewKick;
@@ -100,6 +108,13 @@ export class WeaponState {
     if (!this.overheated) this.reloading = false;
   }
 
+  /** fused, full: nothing left to load or to cool. (A full CHOOCH stayed locked for the rest of its overheat, Milestone 990) */
+  cooled(): void {
+    this.reloading = false;
+    this.overheated = false;
+    this.coolAcc = 0;
+  }
+
   /**
    * The same gun rebuilt (its fusion level up). Unlike a deploy this must NOT
    * touch the recoil spring, heat or pattern cursor, or a rebuild becomes an
@@ -108,7 +123,7 @@ export class WeaponState {
    */
   setBuild(w: ResolvedWeapon): void {
     this.w = w;
-    this.spread.setWeapon(w);
+    this.spread.setWeaponKeepState(w);
     this.kick.setWeaponKeepState(w);
     this.clip = Math.min(this.clip, w.clipSize);
   }
@@ -186,7 +201,9 @@ export class WeaponState {
     motion: Motion,
     inAir: boolean,
     crouched: boolean,
-    rnd: () => number
+    rnd: () => number,
+    /** the fire button itself, where `triggerDown` is what the moment lets through */
+    button = triggerDown
   ): ShotRequest[] {
     const m = this.w.mech;
     // ADS transition
@@ -219,7 +236,9 @@ export class WeaponState {
     const fresh = triggerDown && !this.triggerWasDown;
     let wantShot = false;
     if (!this.reloading) wantShot = semi ? fresh : triggerDown;
-    this.triggerWasDown = triggerDown;
+    // (the button itself: a button held through a swap's or a melee's gate read as a new pull when the gate lifted, and a
+    // semi gun fired with no click, Milestone 990)
+    this.triggerWasDown = button;
 
     if (wantShot && this.clip <= 0) {
       if (!this.reloading) this.dryFire = true;
@@ -253,7 +272,9 @@ export class WeaponState {
         this.lastShotAt = now;
         const cone = this.spread.cone();
         this.spread.onShot(now, this.adsFrac);
-        const kick = this.kick.kick(now, this.adsFrac > 0.5, inAir, crouched, rnd);
+        // (the shot's own time, not the frame's end: PANDA's and CHOOCH's gaps sit on the cursor's decay delay, and the frame's
+        // wobble put shot 19 of a spray up to 93 cm apart at 20 m between 30 and 144 fps, Milestone 990)
+        const kick = this.kick.kick(Math.min(now, this.nextShotAt), this.adsFrac > 0.5, inAir, crouched, rnd);
         shots.push({ cone, kick });
         this.nextShotAt += interval;
         if (semi) break;

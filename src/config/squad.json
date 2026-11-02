@@ -8,6 +8,8 @@
   },
   "towerReach": 2.6,
   "_ping": "how long a ping lasts, s",
+  "_packageMark": "seconds a care package's mark lives: its warning and its contest (br.json pod.announce + loot.json podFall + br.json contest).",
+  "packageMark": 59,
   "pingLife": {
     "enemy": 6,
     "loot": 10,

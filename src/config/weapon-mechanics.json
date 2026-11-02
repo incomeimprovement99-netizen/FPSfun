@@ -3,7 +3,7 @@
 
   "overheat": {
     "_note": "L-STAR: no magazine; the mag level's shots to overheat (24/26/28/30), a forced cooldown of 1.19/1.15/1.11/1.07 s from full, cooling from 0.08 s after you stop, a full cool over the data's charge_cooldown_time (2.45 s).",
-    "lstar": { "lockout": [1.19, 1.15, 1.11, 1.07, 1.07], "coolDelay": 0.08, "coolTime": 2.45 }
+    "lstar": { "lockout": 1.19, "coolDelay": 0.08, "coolTime": 2.45 }
   },
   "blast": {
     "_note": "Shotgun blast patterns (blast.ts). The game fires a fixed shape per gun rather than a random cone; the data has each gun's blast_pattern_default_scale, _ads_scale and _zero_distance but not the shape, so the shapes are the game's known ones and their `unit` (hammer units at the zero distance) is ours, sized from how wide each blast reads at about 8 m: the Mastiff's line about 6 degrees, the Peacekeeper's star 8 closing to 3.6 with the choke, the EVA-8's figure 8 about 7 tall by 3 wide, the Mozambique's triangle 5, the Triple Take's three 2.3 closing to 0.9. `shape` is [across, up] per pellet, one entry per pellet; `jitter` is degrees of random on each, so no two blasts are the same. The spread stat deviates the whole blast once a pull.",

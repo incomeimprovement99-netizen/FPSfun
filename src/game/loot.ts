@@ -765,9 +765,9 @@ export class LootField {
 
   /**
    * The item you would take: within reach of the eye and nearest the
-   * crosshair's line (within about 25 degrees), or null.
+   * crosshair's line (within about 25 degrees, and `lineGap` metres of the line), or null.
    */
-  nearest(eye: THREE.Vector3, fwd: THREE.Vector3, reach = cfg.pickupReach): LootDrop | null {
+  nearest(eye: THREE.Vector3, fwd: THREE.Vector3, reach = cfg.pickupReach, lineGap = Infinity): LootDrop | null {
     let best: LootDrop | null = null;
     let bestScore = Infinity;
     const to = new THREE.Vector3();
@@ -779,7 +779,7 @@ export class LootField {
       const flat = Math.hypot(d.pos.x - eye.x, d.pos.z - eye.z);
       if (flat > reach) continue;
       const cos = to.dot(fwd) / Math.max(1e-6, dist);
-      if (cos < 0.9) continue;
+      if (cos < 0.9 || dist * Math.sqrt(Math.max(0, 1 - cos * cos)) > lineGap) continue;
       const score = (1 - cos) * 10 + dist * 0.1;
       if (score < bestScore) {
         bestScore = score;

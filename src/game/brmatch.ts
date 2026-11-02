@@ -136,7 +136,7 @@ function openGround(x: number, z: number): { x: number; z: number } {
 /** a bot goes only for loot within this height of its feet (src/config/bots.json loot.floor) */
 const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import { actCode, airborne, type Dummy } from "./dummy";
-import type { ProjectileSystem } from "./projectile";
+import { solidHit, type ProjectileSystem } from "./projectile";
 import { navTree, reachedFrom, type NavTree } from "./navgraph";
 import { DISTRICT_HOLDS, ROOF_ROUTES, SPIRE_TOP } from "./world";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, ringPace, type Circle, type RingPhase } from "./ring";
@@ -303,6 +303,24 @@ export interface BrHud {
  * the seam between two steps of a stair, or past a box's edge, to the floor below: a gun swapped on the stairs went down a
  * storey, and 23 of a fresh floor's 1,315 items would have moved, one 9 m (Milestone 862).
  */
+/**
+ * Where a dead player's item goes: round the body on a bearing with nothing in the way and the body's floor under it, the
+ * first of six from `bearing`, else on the body. Laid blind, 3 to 5% of guns went inside a box where nobody saw them, and one
+ * past a ledge lay on after a restore had given it back, a copy for anyone (Milestone 969).
+ */
+function deathSpot(at: THREE.Vector3, floor: THREE.Vector3, bearing: number): THREE.Vector3 {
+  const R = LOOT.deathSpread;
+  const from = floor.clone().setY(floor.y + LOOT.deathChest);
+  for (let i = 0; i < 6; i++) {
+    const a = bearing + (i * Math.PI) / 3;
+    const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    if (solidHit(from, dir, R) < R) continue;
+    const spot = at.clone().addScaledVector(dir, R);
+    if (Math.abs(restingSpot(spot).y - floor.y) <= LOOT.deathStep) return spot;
+  }
+  return at;
+}
+
 export function restingSpot(p: THREE.Vector3): THREE.Vector3 {
   const r = MOVE.radius;
   let y = floorAt(p.x, p.z);
@@ -956,10 +974,10 @@ export class BrMatch extends Duel {
   dropDeath(items: LootItem[], at: THREE.Vector3): void {
     // (each on the floor under its spot, as every drop is: a player killed in the air, falling from the drop or
     // mid-jump, left it all hanging where they died, the echo out of a mate's reach below it)
+    const floor = restingSpot(at);
     items.forEach((it, i) => {
       if (it.kind === "echo") return void this.dropLoot(it, at);
-      const a = (i / Math.max(1, items.length)) * Math.PI * 2;
-      this.dropLoot(it, at.clone().add(new THREE.Vector3(Math.cos(a) * 0.9, 0, Math.sin(a) * 0.9)));
+      this.dropLoot(it, deathSpot(at, floor, (i / Math.max(1, items.length)) * Math.PI * 2));
     });
   }
 
@@ -2272,6 +2290,9 @@ export class BrMatch extends Duel {
     // the ship flies on every browser, on its own clock, from when this page has shown the match
     if (local.shipHeld) this.holdShip(now);
     this.placeShip(now);
+    // A squad mate is no target for your rounds, as a team mate is not in the modes: they stopped on the mate and told you
+    // that you hit, with number, marker and stats, and a rocket burst on them for nothing (Milestone 990).
+    for (const r of this.remotes.values()) if (this.friendly(r.id)) (this.friendlyFire ? this.projectiles.addDummy(r.avatar) : this.projectiles.removeDummy(r.avatar));
     // the Gulag: your first death's way back, while there is a match to go back to (the end card's seconds took a mate's
     // win's waiting player into the room and cut the killcam and the recap, Milestone 726)
     if (this.phase !== "matchEnd" && !this.brOver) this.gulagFrame(now, frameDt, local);

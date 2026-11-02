@@ -282,7 +282,8 @@ export class BrPlay {
     // an intent's own life when the wheel chose one (its label says which),
     // else the kind's: a plan outlives a warning (src/config/squad.json)
     const intent = PING_INTENTS.find((x) => x.label === label);
-    const life = intent ? (squad.pingWheel.life as Record<string, number>)[intent.id] : squad.pingLife[kind];
+    // (from under 0 is a care package: its mark went 2 s before it landed)
+    const life = intent ? (squad.pingWheel.life as Record<string, number>)[intent.id] : from < 0 ? squad.packageMark : squad.pingLife[kind];
     this.markers.push({ k: kind, at: at.clone(), label, from, until: now + life, target, born: now });
     this.deps.sound("ping");
     if (kind === "enemy") this.deps.onEnemyPing?.();
@@ -371,7 +372,8 @@ export class BrPlay {
       return "enemy";
     }
     // an item near the line and in sight of you: one behind the wall you looked at was marked (Milestone 929)
-    const drop = match.lootField?.nearest(eye, fwd, 40);
+    // (and on the line, not only in the cone: at 40 m that is 18 m wide, and a quarter of tap pings marked what they missed, Milestone 969)
+    const drop = match.lootField?.nearest(eye, fwd, 40, LOOTING.pingGap);
     const seen = (p: THREE.Vector3): boolean => {
       const to = p.clone().setY(p.y + 0.3).sub(eye);
       const dist = to.length();
@@ -407,6 +409,12 @@ export class BrPlay {
     // (and a mate's go with them: one who left kept their marks up for up to 20 s, Milestone 930)
     // (from under 0 is the match's own, a care package's: every one's mark was gone after a frame)
     this.markers = this.markers.filter((m) => now < m.until && (m.from < 0 || m.from === ctx.myId || match.avatars.some((x) => match.remoteOf(x)?.id === m.from)));
+    // (a LOOT ping goes with the item: it stood 10 s over bare ground, and a mate walked to nothing, Milestone 969)
+    const field = match.lootField;
+    if (field && this.markers.some((m) => m.k === "loot")) {
+      const items = [...field.drops.values()];
+      this.markers = this.markers.filter((m) => m.k !== "loot" || items.some((d) => Math.hypot(d.pos.x - m.at.x, d.pos.z - m.at.z) < 0.2));
+    }
     for (const m of this.markers) {
       // an enemy ping follows its figure, while it is seen: gone INVISIBLE it was followed on every screen of the squad
       // (Milestone 929)
@@ -626,14 +634,15 @@ export class BrPlay {
   /** why pickOf picks what it does (the loot card's cue) */
   private pickHow(rows: ReachRow[], eye: THREE.Vector3, fwd: THREE.Vector3, f: NonNullable<BrMatch["lootField"]>): "cycled" | "aimed" | "nearest" {
     if (this.picked !== null && rows.some((r) => r.key === this.picked)) return "cycled";
-    const aimed = f.nearest(eye, fwd);
+    const aimed = f.nearest(eye, fwd, LOOTING.reach);
     return aimed && rows.some((r) => r.key === aimed.key) ? "aimed" : "nearest";
   }
 
   /** the row the prompt points at: your cycled one, else what you aim at, else the nearest */
   private pickOf(rows: ReachRow[], eye: THREE.Vector3, fwd: THREE.Vector3, f: NonNullable<BrMatch["lootField"]>): number {
     if (this.picked !== null && rows.some((r) => r.key === this.picked)) return this.picked;
-    const aimed = f.nearest(eye, fwd);
+    // (as far as the list reaches: past 2.2 m what you aimed at lost to whatever was nearest, even behind you, Milestone 969)
+    const aimed = f.nearest(eye, fwd, LOOTING.reach);
     if (aimed && rows.some((r) => r.key === aimed.key)) return aimed.key;
     return rows[0].key;
   }

@@ -300,5 +300,67 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   check("a won Gulag does not hear the match's opening again", /if \(!d\.backFromGulag\) hud\.notice\(`DROPPING INTO/.test(main));
 }
 
+console.log("\nThe hands and the guns (src/game/loadout.ts, weapon-state.ts, recoil.ts, lootcard.ts)");
+{
+  const { Loadout } = await import("../../src/game/loadout");
+  const { WeaponState } = await import("../../src/game/weapon-state");
+  const { resolveWeapon, weaponIds } = await import("../../src/game/weapons");
+  const { gunStats } = await import("../../src/game/lootcard");
+  const page = readFileSync(new URL("../../src/main.ts", import.meta.url), "utf8");
+  const brs = readFileSync(new URL("../../src/game/brmatch.ts", import.meta.url), "utf8");
+  // (Milestone 969) one gun, and Q: it stays in your hand
+  const one = new Loadout(["vinson", "r97"]);
+  one.clearSlot(1);
+  check("with one gun Q and the other slot's key do nothing, where they left you on fists", !one.requestNext(100) && !one.requestSwap(1, 100) && !one.active.empty);
+  const two = new Loadout(["vinson", "r97"]);
+  two.land(1, 100);
+  check("a restore lands on the gun held, one raise, no swap", two.activeIndex === 1 && two.display === two.active, `slot ${two.activeIndex}, ${two.swapProgress(100).toFixed(2)} through`);
+  check("from fists the keys still work, and a restore gives both guns at once", /const canSwap = holster === "out" && !knockedOut;/.test(page) && /giveGuns\(deathKit, deathHand\)/.test(page));
+  check("a loadout picked on the ship leaves a loot start's hands alone", /duel instanceof BrMatch && duel\.phase !== "waiting" && \(duel\.startLoot/.test(page));
+  check("a dead player's items go on a clear bearing", /deathSpot\(at, floor,/.test(brs));
+  const rocket = gunStats(weaponIds().find((id) => !!resolveWeapon(id, [], 0).blast)!, 0);
+  check("a launcher's card reads its full range, with its point-blank damage beside it", rocket.ttk < 3 && / TO /.test(rocket.dmg), `${rocket.dmg}, ${rocket.ttk.toFixed(2)} s`);
+  // (Milestone 990) a semi gun's button held through a gate is no new pull
+  const gun = resolveWeapon("wingman", [], 0);
+  const semi = new WeaponState(gun);
+  semi.onDeploy();
+  let t = 100;
+  const step = (s: InstanceType<typeof WeaponState>, gate: boolean, button: boolean): number => s.update(1 / 60, (t += 1 / 60), gate && button, false, "stand", "still", false, false, () => 0.5, button).length;
+  for (let i = 0; i < 90; i++) step(semi, false, false);
+  step(semi, true, true);
+  let more = 0;
+  for (let i = 0; i < 60; i++) step(semi, false, true);
+  for (let i = 0; i < 60; i++) more += step(semi, true, true);
+  check("a semi gun does not fire itself when a gate lifts off a held button", more === 0, `${more} shots with no new click`);
+  // a spray walks one pattern at any frame rate
+  const heads = [30, 60, 144].map((fps) => {
+    const s = new WeaponState(resolveWeapon("vinson", [], 0));
+    s.onDeploy();
+    let now = 100;
+    let n = 0;
+    const sprayed = resolveWeapon("vinson", [], 0).clipSize;
+    while (n < sprayed) n += s.update(1 / fps, (now += 1 / fps), true, false, "stand", "still", false, false, () => 0.5).length;
+    return s.kick.cursor();
+  });
+  check("PANDA's pattern cursor is the same at 30, 60 and 144 fps", Math.max(...heads) - Math.min(...heads) <= 1.5, heads.map((c) => c.toFixed(1)).join(" "));
+  // fusing a CHOOCH that has overheated
+  const hot = new Loadout(["lstar", "r97"]);
+  const heat = hot.active.state;
+  heat.overheated = true;
+  heat.reloading = true;
+  hot.fuse(0, 1);
+  check("a fused CHOOCH is not locked, and its levels cool faster", !heat.overheated && !heat.reloading && resolveWeapon("lstar", [], 5).mech.overheat!.lockout < resolveWeapon("lstar", [], 0).mech.overheat!.lockout);
+  // a gun taken back owes its bolt
+  const bolt = new WeaponState(resolveWeapon("sentinel", [], 0));
+  bolt.onDeploy();
+  bolt.owes(200);
+  check("a gun taken back up still owes its bolt", bolt.readyAt === 200 && /st\.owes\(boltOwed\.get\(it\.id\) \?\? -Infinity\)/.test(page));
+  check("a shot leaves the camera's roll alone", !/if \(!third\) camera\.quaternion\.copy\(player\.orientation\(off\.pitchUp, off\.yawLeft\)\);/.test(page));
+  check("a squad mate is no target for your rounds", /if \(this\.friendly\(r\.id\)\) \(this\.friendlyFire \? this\.projectiles\.addDummy/.test(brs));
+  check("no sights on the ship or in a dive", /!loadout\.active\.empty && !player\.dropping && !player\.aboard;/.test(page));
+  check("a rocket on a range target goes by its face", /const point = t\.hitMeshes\[0\]\.getWorldPosition/.test(page));
+  check("a rule keeps the guns on its own list", /if \(s\.empty \|\| list\.includes\(s\.id\)\) continue;/.test(page));
+}
+
 console.log(fails === 0 ? "\nARENA RULES PASS" : `\nARENA RULES FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

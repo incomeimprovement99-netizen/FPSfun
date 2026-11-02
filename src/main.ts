@@ -3,7 +3,7 @@ import { setFigureView } from "./game/figlod";
 import { WALL, WALLS, clearWalls, putWall, stepWalls, type PutWall } from "./game/walls";
 import playerCfg from "./config/player.json";
 import { GAME, PROFILE } from "./game/game";
-import { resolveWeapon, weaponClass, weaponIds, weaponKind, weaponLabel, weaponName } from "./game/weapons";
+import { resolveWeapon, weaponIds, weaponKind, weaponLabel, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
 import { padButtons, padFamilyOf, padLabel, type PadSettings } from "./game/gamepad";
@@ -1263,7 +1263,6 @@ let strideT = 0;
 let sprintRoll = 0;
 const FORWARD_AXIS = new THREE.Vector3(0, 0, 1);
 /** the camera's own up, for the lurch kick (src/config/player.json `feel`) */
-const UP_AXIS = new THREE.Vector3(0, 1, 0);
 const LS_SHAKE = "range.sprintShake";
 try {
   const sm = localStorage.getItem(LS_SHAKE);
@@ -1619,7 +1618,8 @@ function rocketBlast(at: THREE.Vector3, travelled: number, w: ResolvedWeapon, on
   for (const t of targets) {
     if (!t.isLive(gameTime) || !t.group.visible) continue;
     const k = blastShare(travelled, meshGap(at, t.hitMeshes));
-    const point = t.group.getWorldPosition(new THREE.Vector3());
+    // (its face: the group is its foot, the number stood on the floor and the blast looked for the top of a raised board's plinth)
+    const point = t.hitMeshes[0].getWorldPosition(new THREE.Vector3());
     if (k <= 0 || !blastSees(at, point, solidHit)) continue;
     t.hit(gameTime, false, full * k);
     onImpact({ dummy: null, report: null, target: t, targetHead: false, damage: full * k, point, distance: point.distanceTo(player.pos), weapon: w.id });
@@ -2275,6 +2275,8 @@ killcamSel.addEventListener("change", () => {
 /** you are out: the recap is written now, and the killcam starts if there is a killer to watch */
 /** what you had when you last died in a battle royale: a restore at your echo gives it back (onEliminated, respawnForMatch) */
 let deathKit: LootItem[] = [];
+/** which gun was in your hand then */
+let deathHand = "";
 function onEliminated(d: MatchLike, by: number): void {
   const t = realNow();
   // a loot battle royale: what you had, loose where you fell, and your echo for the squad (one: a Gulag lost is not a
@@ -2286,6 +2288,7 @@ function onEliminated(d: MatchLike, by: number): void {
     // (your guns and nothing else: the reserve is endless, and the floor is guns and hack cores)
     // what a restore at your echo gives back: kept here, not taken off the floor, where anyone may have it by then
     deathKit = items.map((it) => ({ ...it }));
+    deathHand = loadout.active.empty ? "" : loadout.active.id;
     // an echo only where there is a squad to bring you back: in solo the others are opponents
     if (d.players > 1 && d.team.size > 1) items.push({ kind: "echo", id: "echo", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
     // an out-of-bounds death leaves it where you last stood in the city, so a restore is never out there
@@ -2987,7 +2990,7 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   following = null;
   // (said here too: only a straight drop told anyone, on the ship the hot zone was the match's secret, Milestone 967)
   const hot = d.hotZone();
-  if (hot) window.setTimeout(() => hud.notice(`HOT ZONE: ${hot.name.toUpperCase()}  ·  KITTED GUNS, AND EVERYONE KNOWS`, gameTime, 4), 4000);
+  if (hot) window.setTimeout(() => hud.notice(`HOT ZONE: ${hot.name.toUpperCase()}  ·  THE BEST GUNS, AND EVERYONE KNOWS`, gameTime, 4), 4000);
   // the first of your squad leads it down (the host, unless the friends are split into squads)
   linkedTo = d.jumpmaster();
   masterWent = null;
@@ -3133,7 +3136,7 @@ function respawnForMatch(d: MatchLike): void {
         // and the hot zone, so the match's own decision is one everybody has:
         // kitted guns in one named place, and everyone told where
         const hot = d.backFromGulag ? null : d.hotZone();
-        if (hot) window.setTimeout(() => hud.notice(`HOT ZONE: ${hot.name.toUpperCase()}  ·  KITTED GUNS, AND EVERYONE KNOWS`, gameTime, 4), 1200);
+        if (hot) window.setTimeout(() => hud.notice(`HOT ZONE: ${hot.name.toUpperCase()}  ·  THE BEST GUNS, AND EVERYONE KNOWS`, gameTime, 4), 1200);
       }
     }
   } else player.teleport(sp.x, 0, sp.z, openYaw(sp.x, sp.z, sp.yaw));
@@ -3192,7 +3195,7 @@ function respawnForMatch(d: MatchLike): void {
         }
       }
     }
-    for (const it of deathKit) applyLoot(it);
+    giveGuns(deathKit, deathHand);
     deathKit = [];
   }
   // The Gulag: in, the fight's two guns and their ammo; won, the same guns
@@ -3202,9 +3205,7 @@ function respawnForMatch(d: MatchLike): void {
     loadout.clearSlot(0);
     loadout.clearSlot(1);
     loadout.ammo.empty();
-    for (const gun of gulagGuns) {
-      applyLoot({ kind: "weapon", id: gun, n: 1, rarity: "common" });
-    }
+    giveGuns(gulagGuns.map((id) => ({ kind: "weapon", id, n: 1, rarity: "common" })), gulagGuns[0]);
     killcam.stop();
     recap = null;
     // back from a Gulag won: the echo your first death left goes, and what a restore at it would have given back
@@ -4692,6 +4693,23 @@ function takeFromArmory(st: ArmoryStation): void {
   applyLoot(st.kind === "gun" ? { kind: "weapon", id: st.id, n: 1, rarity: "common", fusion: 0 } : { kind: "hack", id: st.id, n: 0, rarity: "common" });
 }
 
+/**
+ * Guns into empty hands all at once, the one you held up in one raise. One at a time, as loot, each was a pickup with its
+ * sounds and its name over the notice saying where you are, and you stood 1.28 s gunless to end on the second gun whichever
+ * you had died holding (Milestone 969).
+ */
+/** when each gun you put down could next fire */
+const boltOwed = new Map<string, number>();
+
+function giveGuns(kit: LootItem[], hand: string): void {
+  let i = 0;
+  for (const it of kit) {
+    if (i >= loadout.slots.length || loadout.slots.some((s) => !s.empty && s.id === it.id)) continue;
+    loadout.give(i++, it.id, it.fusion ?? 0);
+  }
+  if (i) loadout.land(Math.max(0, loadout.slots.findIndex((s) => !s.empty && s.id === hand)), gameTime);
+}
+
 function applyLoot(it: LootItem): void {
   const d = duel instanceof BrMatch ? duel : null;
   // the hands take it off the ground (a gun comes into them by the swap instead)
@@ -4745,6 +4763,8 @@ function applyLoot(it: LootItem): void {
       const loaded = (i: number): void => {
         const st = loadout.slots[i].state;
         if (it.clip !== undefined) st.clip = Math.max(0, Math.min(loadout.slots[i].weapon.clipSize, it.clip));
+        // (and the bolt it owes: fire, E, E skipped BOOG's rechamber, 0.92 s for 1.62, Milestone 990)
+        st.owes(boltOwed.get(it.id) ?? -Infinity);
       };
       const empty = loadout.emptySlot;
       if (empty >= 0) {
@@ -4757,6 +4777,7 @@ function applyLoot(it: LootItem): void {
         // gun's rounds and its raise went to the other slot's gun, the new one full in a slot not in hand (Milestone 927)
         const slot = loadout.activeIndex;
         const s = loadout.slots[slot];
+        boltOwed.set(s.id, s.state.readyAt);
         putBack({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0, clip: s.state.clip });
         loadout.give(slot, it.id, it.fusion ?? 0);
         loaded(slot);
@@ -5630,8 +5651,9 @@ function endMatch(reason: string): void {
   // the match's bullet holes and sprays go with it
   impacts.clear();
   sprays.clear();
-  // back in the range: ammo as Settings says
+  // back in the range: ammo as Settings says (a pouch a loot start emptied filled again, or Counted could not reload, Milestone 969)
   loadout.ammo.infinite = !rangeAmmoCounted;
+  if (rangeAmmoCounted) loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
   killcam.stop();
   recap = null;
   recorder.clear();
@@ -5718,7 +5740,8 @@ function enforceGuns(): void {
   const list = rulesCfg.classes[matchGuns].guns;
   for (let i = 0; i < loadout.slots.length; i++) {
     const s = loadout.slots[i];
-    if (s.empty || weaponClass(s.id) === matchGuns) continue;
+    // (the rule's own list: DEVINOS's data calls it a sniper, and "Snipers and marksmen" kept a launcher, Milestone 990)
+    if (s.empty || list.includes(s.id)) continue;
     loadout.setWeaponId(i, list[i % list.length]);
   }
 }
@@ -6302,6 +6325,11 @@ function applyLoadout(def: LoadoutDef): void {
     ids.forEach((id, i) => {
       if (loadout.slots[i].id !== TUTORIAL_GUN && loadout.slots[i].id !== id) loadout.setWeaponId(i, id);
     });
+  } else if (duel instanceof BrMatch && duel.phase !== "waiting" && (duel.startLoot || duel.phase === "fight")) {
+    // A battle royale has no next round, and a loot start is played with what you find: a loadout picked on the ship armed
+    // you, both guns full, against people landing with nothing (Milestone 969).
+    pendingSlots = null;
+    hud.notice("YOUR NEW LOADOUT IS FOR THE NEXT MATCH", gameTime, 1.6);
   } else if (duel && duel.phase === "fight" && (loadout.slots[0].id !== def.slot1 || loadout.slots[1].id !== def.slot2)) {
     // mid-fight a new gun would come up with a full magazine and no deploy
     // time: it waits for the next round's spawn
@@ -7228,11 +7256,12 @@ function step(): void {
     if (armed && input.pressedNow("reload") && !loadout.swapping && !padInteracts) {
       ws.startReload(now);
     }
-    // weapon select: 1 and 2 pick a slot, Q swaps to the other
-    if (armed && input.pressedNow("slot1") && loadout.requestSwap(0, now)) audio.swap();
-    if (armed && input.pressedNow("slot2") && loadout.requestSwap(1, now)) audio.swap();
+    // weapon select: 1 and 2 pick a slot, Q swaps to the other (and from fists: they are how you get back to a gun)
+    const canSwap = holster === "out" && !knockedOut;
+    if (canSwap && input.pressedNow("slot1") && loadout.requestSwap(0, now)) audio.swap();
+    if (canSwap && input.pressedNow("slot2") && loadout.requestSwap(1, now)) audio.swap();
     // Q or the forward thumb button, which is where most players bind swap
-    if (armed && input.pressedNow("swapWeapon") && loadout.requestNext(now)) audio.swap();
+    if (canSwap && input.pressedNow("swapWeapon") && loadout.requestNext(now)) audio.swap();
     if (!duel && input.pressedNow("dummyMode")) hud.notice(`DUMMIES: ${cycleDummyMode()}`, now, 1.2);
     if (!duel && input.pressedNow("interact") && drill.state === "idle" && drill.onPad(player.pos)) drill.start(now);
     // the armory: the stand in front of you, taken (or fused, taken again)
@@ -7485,7 +7514,8 @@ function step(): void {
   // interact and the movement already do): a magazine held on the spray wall
   // is a thing worth being able to ask for without a fake pad. Not while a melee swings (the owner, 2026-09-29: "WE
   // SHOULDN'T BE ABLE TO SHOOT WITH MELEEING")
-  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && gameTime - swungAt >= MELEE_TIME;
+  const triggerHeld = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire"));
+  const trigger = triggerHeld && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && gameTime - swungAt >= MELEE_TIME;
   // knocked in a 1v1: no aiming either
   // toggle ADS: a press goes in, the next comes out; a sprint, a swap or a holster comes out too
   if (settings.adsToggle) {
@@ -7495,7 +7525,8 @@ function step(): void {
   } else adsLatch = false;
   // a test's script aims as it fires (the trigger below), so a check can read the view aimed for real
   const adsIn = scriptInput ? scriptInput.held("ads") : settings.adsToggle ? adsLatch : input.held("ads");
-  const adsHeld = (input.playing || !!scriptInput) && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty;
+  // (no sights on the ship or in a dive: the view zoomed with no gun out, as the trigger already knew, Milestone 990)
+  const adsHeld = (input.playing || !!scriptInput) && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !player.dropping && !player.aboard;
   // inspect: hold reload with a full magazine; anything that uses the gun ends it
   {
     const slot = loadout.active;
@@ -7595,7 +7626,7 @@ function step(): void {
   const crouched = player.crouched || player.sliding;
   const stance = !player.onGround ? "air" : crouched ? "crouch" : "stand";
   const motion = player.sprinting ? "sprint" : player.speed > 0.6 ? "walk" : "still";
-  const shots = ws.update(dt, now, trigger, adsHeld, stance, motion, !player.onGround, crouched, rnd);
+  const shots = ws.update(dt, now, trigger, adsHeld, stance, motion, !player.onGround, crouched, rnd, triggerHeld);
   if (ws.consumeDryFire()) audio.dry();
   if (ws.consumeNoAmmo()) {
     hud.notice(`NO ${weapon.ammoType.toUpperCase()} AMMO`, now, 1);
@@ -7711,11 +7742,12 @@ function step(): void {
       roll += Math.max(-1, Math.min(1, player.landSide / 6)) * f.landRoll * env * env;
     }
     if (roll !== 0 && k > 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, -roll * DEG * k));
-    // a lurch kicks the view round a touch and settles: a tap-strafe has weight
+    // a lurch rolls the view a touch and settles: a tap-strafe has weight. (A roll: a turn took the crosshair 2 degrees off
+    // where the shots went, 70 cm at 20 m, at the moment of a tap-strafe in a fight, Milestone 990)
     const sinceLurch = gameTime - player.lurchAt;
     if (sinceLurch >= 0 && sinceLurch < f.lurchTime && k > 0) {
       const env = Math.sin((1 - sinceLurch / f.lurchTime) * Math.PI);
-      camera.quaternion.multiply(tmpQ.setFromAxisAngle(UP_AXIS, -player.lurchSide * f.lurchKick * env * DEG * k));
+      camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, -player.lurchSide * f.lurchKick * env * DEG * k));
     }
   }
   // the shots leave from the eye whichever camera is on
@@ -7887,10 +7919,10 @@ function step(): void {
     input.pad.rumble(0.15, 0.35, 40);
   }
   if (shots.length) {
-    // hard recoil moves the base angles, then the camera is refreshed so this
-    // frame renders the post-shot view rather than lagging by a frame
+    // Hard recoil moves the base angles; the view takes them next frame. (It was put back here for this frame, which threw
+    // away the lean, the wall run's roll and the landing's: 18 frames a second of USSO fire flicked the horizon level and
+    // back, and every gun's hard recoil is 0, Milestone 990.)
     player.addAngles(hardPitch, hardYaw);
-    if (!third) camera.quaternion.copy(player.orientation(off.pitchUp, off.yawLeft));
   }
 
   const handleImpact = (e: ImpactEvent): void => {
@@ -8417,7 +8449,8 @@ function step(): void {
     // drawInventory). Read only on purpose: what a player needs mid-match is
     // the answer to "what have I got", and dropping and swapping are done
     // where the item is.
-    inventory: input.held("inventory") ? { ...carryCard(now), key: keyOnDevice("inventory") } : null,
+    // (not out: a ghost's Tab said WHAT YOU ARE CARRYING over guns lying where it fell, Milestone 969)
+    inventory: input.held("inventory") && (!(duel instanceof Duel) || duel.alive) ? { ...carryCard(now), key: keyOnDevice("inventory") } : null,
     damageDirs: duel ? damageDirs() : undefined,
     nearMissDirs: nearMissDirs(),
     reticle,

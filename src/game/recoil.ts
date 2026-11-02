@@ -184,16 +184,17 @@ export class ViewKick {
   update(dt: number, ads: boolean, now: number): void {
     const vk = this.w.viewkick;
     const pre = ads ? "ADS_" : "hipfire_";
-    const h = Math.max(0, Math.min(1, this.heatAt(now)));
-    const kP = this.springConst(vk.spring, vk.springHot, `${pre}pitch_springConstant`, 60, h);
-    const cP = this.springConst(vk.spring, vk.springHot, `${pre}pitch_damping`, 18, h);
-    const kY = this.springConst(vk.spring, vk.springHot, `${pre}yaw_springConstant`, 60, h);
-    const cY = this.springConst(vk.spring, vk.springHot, `${pre}yaw_damping`, 18, h);
 
     // fixed sub-steps keep the integration stable at any frame rate
     const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
     const step = dt / steps;
     for (let i = 0; i < steps; i++) {
+      // (the heat at each step: read once a frame, the blend from hot to cold went with the frame rate, Milestone 990)
+      const h = Math.max(0, Math.min(1, this.heatAt(now - dt + step * (i + 1))));
+      const kP = this.springConst(vk.spring, vk.springHot, `${pre}pitch_springConstant`, 60, h);
+      const cP = this.springConst(vk.spring, vk.springHot, `${pre}pitch_damping`, 18, h);
+      const kY = this.springConst(vk.spring, vk.springHot, `${pre}yaw_springConstant`, 60, h);
+      const cY = this.springConst(vk.spring, vk.springHot, `${pre}yaw_damping`, 18, h);
       stepAxis(this.pitch, kP, cP, step);
       stepAxis(this.yaw, kY, cY, step);
     }

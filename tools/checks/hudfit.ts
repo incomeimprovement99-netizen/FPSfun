@@ -235,6 +235,13 @@ console.log("\nThe maps and marks (src/game/hud.ts, src/main.ts, src/game/brmatc
   check("a hack changed in the tutorial waits for its end", /if \(!duel && !tutorial\.active\) resetHacks\(\)/.test(m));
   check("the Gulag's bot shows its HEAL and JOLT", /bot\.onHeal = \(at\) => this\.onRemoteFx\?\.\("sk", bot\.remote\.id, at, undefined, 3\);\s+this\.gulagBot = bot/.test(br));
   check("no answer from the game's server is said, not the public broker", /performance\.now\(\) >= until\) throw new Error\(SERVER_DOWN\)/.test(link));
+  // (Milestone 990) a kill's mark holds through the next round's plain hit
+  const marks = make(1920, 1080) as unknown as { hitMarker(now: number, head: boolean, kind?: string): void; hitMarkerKind: string; hitMarkerUntil: number };
+  marks.hitMarker(100, false, "kill");
+  marks.hitMarker(100.05, false, "hit");
+  check("a kill's mark holds over the next round's hit", marks.hitMarkerKind === "kill", `${marks.hitMarkerKind}, up to ${(marks.hitMarkerUntil - 100).toFixed(2)} s`);
+  const { ammoWarning } = await import("../../src/game/hud");
+  check("no ammo words on a gun that has heat", ammoWarning(0, 24, true) === null && /ammoWarning\(s\.clip, s\.clipSize, s\.reloading \|\| !!s\.heat\)/.test(h));
 }
 
 console.log(fails === 0 ? "\nHUD FIT PASS" : `\nHUD FIT FAIL (${fails})`);

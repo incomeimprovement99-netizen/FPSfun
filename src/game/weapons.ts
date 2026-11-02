@@ -298,6 +298,8 @@ function speedkillsTuned(r: ResolvedWeapon, fusion: number): ResolvedWeapon {
     clipSize: Math.max(1, Math.round(r.clipSize * (t?.mag ?? 1) * f.mag)),
     reloadTime: r.reloadTime * f.reload,
     reloadEmptyTime: r.reloadEmptyTime * f.reload,
+    // (a gun that cools has no reload for the level's "faster reload" to speed: its cooling takes it, Milestone 990)
+    mech: r.mech.overheat ? { ...r.mech, overheat: { ...r.mech.overheat, lockout: r.mech.overheat.lockout * f.reload, coolTime: r.mech.overheat.coolTime * f.reload } } : r.mech,
     fusion: Math.max(0, Math.round(fusion)),
     // switching guns: quicker as a base and quicker again with each level (speedkills.json fusion swap)
     deployTime: r.deployTime * (f.swap ?? 1),
@@ -341,8 +343,8 @@ function resolveBase(id: string, attach: string[]): ResolvedWeapon {
     },
     mech: {
       overheat: (() => {
-        const c = mechOf<{ lockout: number[]; coolDelay: number; coolTime: number }>("overheat", id);
-        return c ? { lockout: c.lockout[0], coolDelay: c.coolDelay, coolTime: c.coolTime } : null;
+        const c = mechOf<{ lockout: number; coolDelay: number; coolTime: number }>("overheat", id);
+        return c ? { lockout: c.lockout, coolDelay: c.coolDelay, coolTime: c.coolTime } : null;
       })(),
       blast: (() => {
         const c = mechOf<{ shape: Array<[number, number]>; unit: number; jitter: number }>("blast", id);

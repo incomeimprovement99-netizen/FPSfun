@@ -25,6 +25,12 @@ export class SpreadState {
     this.base = Math.min(this.base, w.spread.standHip);
   }
 
+  /** the same gun rebuilt: its bloom stays, or a fuse under fire is a cone reset */
+  setWeaponKeepState(w: ResolvedWeapon): void {
+    this.w = w;
+    this.base = Math.min(this.base, w.spread.standHip);
+  }
+
   private target(stance: Stance, motion: Motion, adsFrac: number): number {
     const s = this.w.spread;
     let hip = s.standHip;
