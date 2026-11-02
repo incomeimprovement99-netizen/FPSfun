@@ -1430,7 +1430,8 @@ async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3
     const to = await ev<{ x: number; z: number }>(mover, `(() => { const p = window.__range.player; const b = window.__range.duel().arenaBounds; const cx = b.circle ? b.circle.x : (b.minX + b.maxX) / 2, cz = b.circle ? b.circle.z : (b.minZ + b.maxZ) / 2; const dx = cx - p.pos.x, dz = cz - p.pos.z, d = Math.hypot(dx, dz) || 1; p.teleport(p.pos.x + (dx / d) * 4, p.pos.y, p.pos.z + (dz / d) * 4, p.yaw); return { x: p.pos.x, z: p.pos.z }; })()`);
     // Seen where the mover is, read again each time, and that within a metre of where it was put: a body put down
     // against a piece is pushed out of its collision column, and the watcher saw it half a metre from the asked spot
-    // (sweeps of 2026-10-28 and 10-29), where it really stood
+    // (sweeps of 2026-10-28 and 10-29), where it really stood; and since Milestone 991 by the shortest way out of a piece it
+    // was put down in, 1.5 m on v127's map
     type At = { x: number; z: number };
     let last: { asked: At; at: At; saw: At | null } = { asked: to, at: to, saw: null };
     let moved = false;
@@ -1438,7 +1439,7 @@ async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3
       const at = await ev<At>(mover, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
       const saw = await ev<At | null>(watcher, `(() => { const g = window.__range.duel().remotes.get(${id})?.avatar.group.position; return g ? { x: g.x, z: g.z } : null; })()`);
       last = { asked: to, at, saw };
-      moved = !!saw && Math.hypot(at.x - to.x, at.z - to.z) < 1 && Math.hypot(saw.x - at.x, saw.z - at.z) < 0.2;
+      moved = !!saw && Math.hypot(at.x - to.x, at.z - to.z) < 2.5 && Math.hypot(saw.x - at.x, saw.z - at.z) < 0.2;
       if (!moved) await sleep(100);
     }
     const r2 = (p: At | null) => p && { x: +p.x.toFixed(2), z: +p.z.toFixed(2) };
@@ -7559,9 +7560,11 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   const burst = await ev<{ open: boolean; walled: boolean; slam: string | null; after: string | null } | null>(
     page,
     `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.bot.aboard); if (!b) return ok(null);
-      const id = b.bot.remote.id; const p = b.bot.pos.clone(); const open = r.sk.burstReach(p.x + 2, p.y, p.z).includes(id);
-      const wall = { minX: p.x + 0.9, maxX: p.x + 1.1, minZ: p.z - 3, maxZ: p.z + 3, top: p.y + 4, base: p.y - 1 }; r.solids.push(wall);
-      const walled = r.sk.burstReach(p.x + 2, p.y, p.z).includes(id); r.solids.splice(r.solids.indexOf(wall), 1);
+      // (from whichever side of it is open: from one side only, a bot standing by a piece of the map's read as walled off already)
+      const id = b.bot.remote.id; const p = b.bot.pos.clone(); const side = [1, -1].find((k) => r.sk.burstReach(p.x + 2 * k, p.y, p.z).includes(id)) ?? 1;
+      const open = r.sk.burstReach(p.x + 2 * side, p.y, p.z).includes(id);
+      const wall = { minX: p.x + (side > 0 ? 0.9 : -1.1), maxX: p.x + (side > 0 ? 1.1 : -0.9), minZ: p.z - 3, maxZ: p.z + 3, top: p.y + 4, base: p.y - 1 }; r.solids.push(wall);
+      const walled = r.sk.burstReach(p.x + 2 * side, p.y, p.z).includes(id); r.solids.splice(r.solids.indexOf(wall), 1);
       const back = r.player.pos.clone(); r.sk.setHack("slam"); r.sk.use("mobility"); const slam = r.sk.state().slam; d.alive = false;
       requestAnimationFrame(() => requestAnimationFrame(() => { const after = r.sk.state().slam; d.alive = true; r.player.teleport(back.x, back.y, back.z, 0); ok({ open, walled, slam, after }); })); }))()`,
   );
