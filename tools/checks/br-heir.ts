@@ -123,8 +123,9 @@ console.log("A battle royale's care packages across a change of host (src/game/b
   heir.lootField.add({ kind: "weapon", id: "r97", n: 1, rarity: "common", fusion: 0 }, pod.at.clone().add(new THREE.Vector3(1, 0, 0)), heir.lootField.keyNext);
   heir.takeOver(snap);
   run(ls.slice(1), 2, wire);
-  const near = [...heir.lootField.drops.values()].filter((d: Any) => d.key >= pod.keyAt && d.item.id !== "r97" && Math.hypot(d.pos.x - pod.at.x, d.pos.z - pod.at.z) < 4);
-  check("a package down between the host going and the heir taking over is laid by the heir, a death's gun beside it or not (it lay empty all match)", landedFirst && near.length === 3, `${near.length} of 3 items on the floor`);
+  // (counted by the package's own keys: anything else laid near it in those seconds, a bot's death, a restock, is not it)
+  const near = pod.keys.filter((k: number) => heir.lootField.drops.has(k)).length;
+  check("a package down between the host going and the heir taking over is laid by the heir, a death's gun beside it or not (it lay empty all match)", landedFirst && near === 3, `${near} of 3 items on the floor`);
 }
 {
   // (Milestone 1006) the host laid it, everything was taken, and the host went within the second: not laid a second time
@@ -143,7 +144,8 @@ console.log("A battle royale's care packages across a change of host (src/game/b
   run(ls.slice(1), 1, wire);
   heir.takeOver(snap);
   run(ls.slice(1), 1, wire);
-  const again = [...heir.lootField.drops.values()].filter((d: Any) => d.key >= pod.keyAt && Math.hypot(d.pos.x - pod.at.x, d.pos.z - pod.at.z) < 4).length;
+  // (by its keys too: a bot's death beside it in that second read as a second package, and failed the deploy's gate once)
+  const again = pod.keys.length - heard;
   check("a package the old host laid, all taken, is not laid again by the heir", heard === 3 && again === 0, `${heard} heard laid, ${again} laid again`);
 }
 {
