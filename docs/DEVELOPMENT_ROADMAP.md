@@ -14514,6 +14514,14 @@ is stepped as before. The end of a rope, which put a bot 1.2 m down at once and 
 - **Checked:** tsc, verify, rules; arena-rules (a new check: 0.13 m at most in a frame and 26 frames in the air off a 1.71 m ledge, where the old walk dropped
   1.71 m in one with none); e2e bots, modes, skbots, brsolo.
 
+## Milestone 1010 — The menu scrolls past a number box
+
+From the review of the settings, the last of its smaller list. Scrolling the menu with a number box focused (the mouse's DPI, a sensitivity, the FOV, a
+crosshair's size: ten of them) turned the box's value instead, a step a notch, the browser's own way with a focused number box, and nothing said so: three
+notches over the DPI box took 800 to 950. The box lets go as the wheel turns over it, and the menu scrolls (main.ts).
+
+- **Checked:** tsc, verify, rules; e2e panel (a new check, failing with the fix taken out).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

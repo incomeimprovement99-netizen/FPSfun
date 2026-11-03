@@ -640,6 +640,16 @@ document.title = PROFILE.identity.title;
  */
 let currentWeapon = () => resolveWeapon(LOADOUT_IDS[0]);
 const overlay = $("overlay");
+// The menu scrolled with a number box focused turned its value instead, a step a notch, with nothing to say so (the
+// browser's own way with a focused number box): the box lets go, and the menu scrolls (Milestone 1010)
+overlay.addEventListener(
+  "wheel",
+  (e) => {
+    const t = e.target;
+    if (t instanceof HTMLInputElement && t.type === "number" && document.activeElement === t) t.blur();
+  },
+  { passive: true }
+);
 const inDpi = $<HTMLInputElement>("dpi");
 const inSens = $<HTMLInputElement>("sens");
 const inAds = $<HTMLInputElement>("ads");

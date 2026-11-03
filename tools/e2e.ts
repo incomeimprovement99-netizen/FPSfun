@@ -10097,6 +10097,20 @@ async function lobbyPanelTest(browser: Browser): Promise<void> {
   const moved = await ev<{ code: string | null; mode: string | null; picked: string }>(page, `({ code: window.__range.lobbyCode(), mode: window.__range.lobbyMode(), picked: document.getElementById("duelMode").value })`);
   check("With friends on another mode while a code waits: the same code, now that mode's", !!firstCode && moved.code === firstCode && moved.mode === "tdm" && moved.picked === "tdm", JSON.stringify({ firstCode, ...moved }));
   await ev(page, `(() => { const b = document.getElementById("duelLeave"); if (b && !b.hidden) b.click(); })()`);
+  // (Milestone 1010) the Settings tab scrolled with its DPI box focused: the box turned a step a notch, unseen
+  await ev(page, "window.__range.toMenu()");
+  await ev(page, `window.__range.menu.show("settings")`);
+  await sleep(300);
+  const dpiWas = await ev<string>(page, `document.getElementById("dpi").value`);
+  await page.focus("#dpi");
+  const dpiBox = await (await page.$("#dpi"))!.boundingBox();
+  if (dpiBox) {
+    await page.mouse.move(dpiBox.x + dpiBox.width / 2, dpiBox.y + dpiBox.height / 2);
+    for (let i = 0; i < 3; i++) await page.mouse.wheel({ deltaY: -100 });
+    await sleep(300);
+  }
+  const dpiNow = await ev<string>(page, `document.getElementById("dpi").value`);
+  check("scrolling the Settings tab over a focused number box scrolls it, and leaves the box's value alone", !!dpiBox && dpiNow === dpiWas, `${dpiWas} -> ${dpiNow}`);
   await page.close();
 }
 
