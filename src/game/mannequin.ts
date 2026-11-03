@@ -1889,13 +1889,28 @@ export class MannequinFigure {
       return;
     }
     const next = this.mixer.clipAction(clip);
-    next.reset();
+    // A looping clip still going out from a change a moment ago comes back from where it is, its time and its weight
+    // (a crouch let go and pressed again: started over at nothing, the crouch it was nearly still in went in a frame)
+    const back = !once && next.isRunning() && next.getEffectiveWeight() > 1e-3;
+    const from = back ? next.getEffectiveWeight() : 0;
+    if (!back) next.reset();
+    // (full, with the fade below over it: a clip let go of half way through a fade keeps the weight it was given then)
+    next.setEffectiveWeight(1);
     next.timeScale = timeScale;
     next.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
     next.clampWhenFinished = once;
     next.play();
     const prev = layer === "lower" ? this.lower : this.upper;
-    if (prev) next.crossFadeFrom(prev, fade, false);
+    if (prev) {
+      // The last clip fades out from the weight it has now (Milestone 1023): three.js's crossFadeFrom fades it out from
+      // full, so a change half way into a fade threw the clip coming in back up to full against the one still going out.
+      // Stood up from a crouch walk (the crouch walk to a walk, then to standing 30 ms on) the pelvis rose 15 cm in a
+      // frame, and a crouch let go and pressed again 32
+      prev.setEffectiveWeight(prev.getEffectiveWeight());
+      prev.fadeOut(fade);
+      // (from its own weight: three.js's fadeIn is from nothing, and has no other way in)
+      (next as unknown as { _scheduleFading(duration: number, from: number, to: number): void })._scheduleFading(fade, from, 1);
+    }
     if (layer === "lower") {
       this.lower = next;
       this.lowerName = key;

@@ -8501,6 +8501,40 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("DEVINOS fired from the hip holds its tube on the right shoulder (10 cm or more right of the head), and reloaded from there keeps it out of the body (over 15 mm on 3 frames at most, 20 mm the deepest)", hip.side >= 10 && hip.frames <= 3 && hip.worst <= 20, JSON.stringify(hip));
+  // A change of clip half way into a fade (Milestone 1023): three.js's crossfade took the clip going out from full, so a
+  // second change 30 ms after the first threw it back up against the one still fading: stood up from a crouch walk the
+  // pelvis rose 17 cm in a frame, and a crouch let go and pressed again 32
+  const midFade = await ev<Record<string, number>>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 150); r.figureLabManual(true);
+      for (let i = 0; i < 900 && !(f.mq && f.mq.gunObject && f.mq.bones.pelvis); i++) r.figureLabStep(1 / 60);
+      const st = (o) => ({ speed: 0, stance: "stand", pitch: 0, ...o });
+      const out = {};
+      for (const [name, steps] of [
+        ["stood up from a crouch walk", [[st({ stance: "crouch", speed: 2 }), 1], [st({ speed: 1.5 }), 2 / 60], [st({}), 0.6]]],
+        ["crouched again at once", [[st({ stance: "crouch" }), 1], [st({}), 3 / 60], [st({ stance: "crouch" }), 0.6]]],
+      ]) {
+        r.figureLabPose(0, st({})); r.figureLabStep(1);
+        let last = null, most = 0;
+        for (const [pose, secs] of steps) {
+          r.figureLabPose(0, pose);
+          for (let i = 0; i < Math.round(secs * 60); i++) {
+            r.figureLabStep(1 / 60);
+            f.group.updateMatrixWorld(true);
+            const pel = f.group.worldToLocal(f.mq.bones.pelvis.getWorldPosition(new T.Vector3()));
+            if (last) most = Math.max(most, pel.distanceTo(last));
+            last = pel;
+          }
+        }
+        out[name] = Math.round(most * 100);
+      }
+      return out;
+    })()`,
+  );
+  check("a change of stance half way into another's fade takes no jump: the pelvis moves 8 cm a frame at most (60 Hz) standing up from a crouch walk and crouching again at once", Object.values(midFade).every((cm) => cm <= 8), JSON.stringify(midFade));
   // A salute's hand at the brow (Milestone 842): swung about the figure's axes its fingertips stopped 20 cm off, at the collar
   const salute = await ev<number>(
     page,

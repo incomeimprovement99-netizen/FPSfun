@@ -19367,3 +19367,24 @@ fails on version 131; the map agent applied each alone and baked them together w
 - **Checks that learned the new work:** each item a check, each failing on version 131 and passing on the map that came of
   it, measured first by proposal agents as dry runs on version 131's collision, each climb walked by the game's own Player.
 - **Checked:** version 132's lo, hi and max baked, the layout rerun after each with no difference, all 375 map checks; the edge check and the ground check each failing with its fault put back (1,295 of 1,722 points open on version 131's collision, THE STRIP's black glass at 0.11), each proposal's check failing on version 131 and on the faults its agent put back, every new climb walked by the game's own Player; the changed places photographed and three fixed after their first pictures. verify, rules and tsc. Map files version 132: lo 203.3 MB, hi 286.4 MB, max 593.1 MB.
+
+## Milestone 1023 — No jump when a stance changes half way into another's fade
+
+Your own soldier in the third person, driven on the range by real input and measured at every drawn frame
+(node_modules/.scratch/selfpop.mts, standup.mts), rose 15 to 22 cm in one frame standing up from a crouch walk. The legs'
+clip changed twice in 30 ms (the crouch walk to a walk as the stance went to standing, then to standing still as it
+slowed), and three.js's crossfade takes the clip going out from full: the walk, only 30% faded in, was thrown back to full
+against the crouch walk still at 70%. The lab's stance changes never changed clip twice that quickly, so it never showed
+there; every soldier you see does it, an enemy's as well as your own. The same in the lab: 17 cm in a frame, and a crouch
+let go and pressed again within 50 ms 32 (the crouch clip, still fading out, was started over from its first frame at
+nothing).
+
+- **Faded from where it is:** the clip going out fades from the weight it has now, and a looping clip still going out
+  that is wanted again comes back from its own time and weight (mannequin.ts play). 1 cm a frame at 240 frames a second,
+  5 at 60, for both.
+- **Nothing else moved:** every change of stance in the pop scan (node_modules/.scratch/popscan.mts, 34 of them now with a
+  crouch, strafe, aim, stop and jump spammed) on USSO, DEVINOS and APUHTHEE is as it was.
+- **Left, DEVINOS's own:** its tube up at a slide's start (Milestone 1021's quick raise, 40 cm in a frame at 60) and back
+  to its carry at a reload's end (25): quick swings, not jumps, looked at next.
+- **Checked:** a new check in the soldier stances stands up from a crouch walk and crouches again at once: on the old code it fails (18 and
+  29 cm in a frame at 60), on the new it passes (5 and 5). The soldier stances pass, 350 checks.
