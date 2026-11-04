@@ -8535,6 +8535,36 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("a change of stance half way into another's fade takes no jump: the pelvis moves 8 cm a frame at most (60 Hz) standing up from a crouch walk and crouching again at once", Object.values(midFade).every((cm) => cm <= 8), JSON.stringify(midFade));
+  // A long gun onto the back by a phase (Milestone 1024), as it comes back: put straight there as a climb, an emote, an
+  // interact or a throw took the hands, it jumped 63 cm and 86 degrees in a frame, drawn
+  const onBack = await ev<Record<string, { turn: number; cm: number }>>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 150); r.figureLabManual(true);
+      for (let i = 0; i < 900 && !(f.mq && f.mq.gunObject && f.mq.bones.pelvis); i++) r.figureLabStep(1 / 60);
+      const out = {};
+      for (const [name, pose] of [["climb", { speed: 2, stance: "climb", pitch: 0 }], ["interact", { speed: 0, stance: "stand", pitch: 0, act: "interact" }]]) {
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.5);
+        const read = () => { const m = f.mq, g = m.gunObject; return { q: g.getWorldQuaternion(new T.Quaternion()).premultiply(f.group.getWorldQuaternion(new T.Quaternion()).invert()), at: f.group.worldToLocal(g.getWorldPosition(new T.Vector3())), seen: g.visible && m.gunSweep.phase.value > 0.05 }; };
+        // (from the frame before the hands are taken: the jump was the first frame after)
+        let last = read(), turn = 0, cm = 0;
+        r.figureLabPose(0, pose);
+        for (let i = 0; i < 40; i++) {
+          r.figureLabStep(1 / 60);
+          const now = read();
+          // (a move while it is drawn: between two frames it shows in)
+          if (last.seen && now.seen) { turn = Math.max(turn, (now.q.angleTo(last.q) * 180) / Math.PI); cm = Math.max(cm, now.at.distanceTo(last.at) * 100); }
+          last = now;
+        }
+        out[name] = { turn: Math.round(turn), cm: Math.round(cm) };
+      }
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.5);
+      return out;
+    })()`,
+  );
+  check("a long gun goes onto the back by a phase as a climb or an interact takes the hands: drawn, it moves 15 cm and turns 20 degrees a frame at most (60 Hz)", Object.values(onBack).every((v) => v.turn <= 20 && v.cm <= 15), JSON.stringify(onBack));
   // A salute's hand at the brow (Milestone 842): swung about the figure's axes its fingertips stopped 20 cm off, at the collar
   const salute = await ev<number>(
     page,

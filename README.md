@@ -664,7 +664,8 @@ standing or crouched still its feet stay planted on the floor as it turns,
 then step round one at a time, and at an edge they stand on it. It slides
 sat up with the gun at its eye. On a zip
 line it hangs from the rope by its left hand, the gun in its right; in the
-skydive, an emote, an interact or a climb a long gun rides on its back. Out,
+skydive, an emote, an interact or a climb a long gun rides on its back, phased
+out of the hands and in there, and back the same way. Out,
 the figure drops its gun and it lies by the body.
 
 ## Controls

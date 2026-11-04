@@ -841,6 +841,8 @@ export class MannequinFigure {
   private gunComing = false;
   /** when a gun coming back began its phase, on the figure's clock; below 0 none (soldierhold.json gunReturn) */
   private comeAt = -1;
+  /** when a gun going from the hands onto the back began its phase, the same way round; below 0 none */
+  private goAt = -1;
   /** 0..1 each, eased: the lowered carry a swap's own, and a sprint jump's own (rifle.ts carryOf) */
   private carryW = { swap: 0, air: 0, vent: 0 };
   /** how far lowered the gun was as a vent began */
@@ -1941,6 +1943,8 @@ export class MannequinFigure {
     this.owed = 0;
     // (armed coming in: it is put down below for what takes the hands, and the gun is then put on the back: the end)
     const armedIn = armed;
+    // (where the gun was as the frame began: in the hands, or not)
+    const inHandBefore = this.gunInHand;
     const speed = Math.max(0, p.speed);
     this.t += dt;
     this.layBody(p, dt);
@@ -2508,15 +2512,45 @@ export class MannequinFigure {
     // it vanished and came back, so an enemy dancing or looting showed no gun at all
     // (from the moment something takes the hands until the gun is in them again: a gun not yet shown as a figure is made
     // is not put away, and the back measured in that first frame's pose put the gun off to the right side, for good)
+    const wasSlung = this.slung;
     if (armedIn && !armed) this.slung = true;
     else if (!armedIn || this.gun?.visible) this.slung = false;
+    // Off the hands onto the back by a phase, as it comes back (Milestone 1024): out where the hands had it, then in on
+    // the back. Put straight there it jumped in a frame, 63 cm and 86 degrees at a climb's start, and at every emote,
+    // interact and throw
+    if (this.slung && !wasSlung) this.goAt = inHandBefore ? this.t : -1;
+    else if (!this.slung) this.goAt = -1;
+    const goU = this.goAt < 0 ? Infinity : this.t - this.goAt;
     const away = !!this.gun && armedIn && this.slung;
     if ((this.skyW > 0.5 || away) && this.gun && this.mount && this.gunShown && !this.dead && !pistolStance(this.gunId)) {
-      const at = this.holsterMount(this.skyW <= 0.5);
-      if (at) {
-        at.decompose(this.mount.position, this.mount.quaternion, this.mount.scale);
+      // (still where the hold puts it, going: the hands are off it)
+      const going = away && this.skyW <= 0.5 && goU < GUN_RETURN.out;
+      const at = going ? null : this.holsterMount(this.skyW <= 0.5);
+      if (at) at.decompose(this.mount.position, this.mount.quaternion, this.mount.scale);
+      if (at || going) {
         this.gun.visible = true;
         this.gunInHand = false;
+        if (goU < GUN_RETURN.out + GUN_RETURN.in) {
+          const G = this.gunSweep;
+          G.phase.value = Math.min(G.phase.value, going ? 1 - smooth(0, GUN_RETURN.out, goU) : smooth(GUN_RETURN.out, GUN_RETURN.out + GUN_RETURN.in, goU));
+          G.radial.value = 1;
+          this.gun.updateWorldMatrix(true, false);
+          G.origin.value.copy(this.gunNear).applyMatrix4(this.gun.matrixWorld);
+          G.dir.value.copy(this.gunFar).applyMatrix4(this.gun.matrixWorld).sub(G.origin.value);
+          G.len.value = Math.max(1e-4, G.dir.value.length());
+          G.dir.value.normalize();
+          G.center.value.copy(this.gunMid).applyMatrix4(this.gun.matrixWorld);
+          G.radius.value = this.gunRadius * this.gun.getWorldScale(new THREE.Vector3()).x;
+          // (the magazine with it, as a swap's)
+          const S = this.magSweep;
+          S.phase.value = Math.min(S.phase.value, G.phase.value);
+          S.origin.value.copy(G.origin.value);
+          S.dir.value.copy(G.dir.value);
+          S.len.value = G.len.value;
+          S.radial.value = G.radial.value;
+          S.center.value.copy(G.center.value);
+          S.radius.value = G.radius.value;
+        }
       }
     }
   }

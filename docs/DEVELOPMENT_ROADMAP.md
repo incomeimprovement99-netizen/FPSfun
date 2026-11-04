@@ -19396,3 +19396,18 @@ nothing).
   to its carry at a reload's end (25): quick swings, not jumps, looked at next.
 - **Checked:** a new check in the soldier stances stands up from a crouch walk and crouches again at once: on the old code it fails (18 and
   29 cm in a frame at 60), on the new it passes (5 and 5). The soldier stances pass, 350 checks.
+
+## Milestone 1024 — A long gun onto the back by a phase
+
+Driven on the range by real input (node_modules/.scratch/selfpop.mts), your own soldier's gun turned 80 to 107 degrees in
+a frame at a climb's start. Frame by frame in the lab (climbgun.mts): as a climb, an emote, an interact or a throw takes
+the hands, a long gun was put on the back that same frame, drawn, 63 cm and 86 degrees from where the hands had it
+(Milestone 617). Its way back to the hands has gone by a phase since Milestone 840, away on the back and in between the
+hands; the way there had none.
+
+- **Off the hands the same way round:** it phases out where the hold has it (soldierhold.json gunReturn `out`), moves to
+  the back unseen, and phases in there (`in`), its magazine with it (mannequin.ts goAt). Drawn, it moves 13 cm and turns
+  13 degrees a frame at most now.
+- **Checked:** a new check in the soldier stances watches the gun as a climb and an interact take the hands: on the old
+  code it fails (the gun 57 cm and 86 degrees in a frame at a climb, 58 and 86 at an interact), on the new it passes (13 and
+  13, 11 and 9). The soldier stances pass, 351 checks.
