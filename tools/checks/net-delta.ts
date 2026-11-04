@@ -170,6 +170,20 @@ check("an ack goes a few times a second, and history outlasts the round trip it 
     dequantise(q1).dj === 3 && moved.d.dj === 3 && !!after && dequantise(after).dj === 3 && stateOf(stateMsg(jumped)).dj === 3 && dequantise(quantise({ ...s, dj: 300 })).dj === 44,
     JSON.stringify({ key: dequantise(q1).dj, diff: moved.d.dj, applied: after && dequantise(after).dj, full: stateOf(stateMsg(jumped)).dj })
   );
+  // The guns on a back and a gun put away (Milestone 1025): through a keyframe, a difference and a full packet, and gone
+  // again when the second gun is dropped or the gun drawn (said in the clear mask, not left out, or the figure kept them)
+  const backed = { ...s, bk: "vinson,mastiff", ho: 1 };
+  const b1 = quantise(backed);
+  const bMoved = diff(q0, b1);
+  const bAfter = applyDiff(q0, bMoved.d, bMoved.c);
+  const bGone = diff(b1, q0);
+  const bCleared = applyDiff(b1, bGone.d, bGone.c);
+  const bFull = stateOf(stateMsg(backed));
+  check(
+    "the guns on a back and a gun put away come through a keyframe, a difference and a full packet, and clear when they go",
+    dequantise(b1).bk === "vinson,mastiff" && dequantise(b1).ho === 1 && !!bAfter && dequantise(bAfter).bk === "vinson,mastiff" && dequantise(bAfter).ho === 1 && bFull.bk === "vinson,mastiff" && bFull.ho === 1 && !!bCleared && dequantise(bCleared).bk === undefined && dequantise(bCleared).ho === undefined,
+    JSON.stringify({ key: dequantise(b1).bk, applied: bAfter && dequantise(bAfter).bk, full: bFull.bk, cleared: bCleared && [dequantise(bCleared).bk, dequantise(bCleared).ho] })
+  );
   // A reload from empty goes as its own act code, 9, the tactical one keeping 1 (dummy.ts actCode): an older page reads
   // 9 as nothing, a newer one as a reload from empty (the rack at its end), and through the codec it is kept
   const codes = { tactical: actCode("reload"), empty: actCode("reload", true) };

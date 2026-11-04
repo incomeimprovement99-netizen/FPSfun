@@ -206,6 +206,23 @@ const HOLSTERS = new Map<string, THREE.Matrix4>();
 const SKYDIVE = figureCfg.skydive as unknown as { glide: number; dive: number; rateIn: number; rateOut: number; flutter: number[]; glideLimbs: Limbs; diveLimbs: Limbs; holster: { tilt: number; gap: number; band: number; height: number } };
 /** and on the back standing, for an emote, an interact or a throw: more upright and higher (figure.json sling) */
 const SLING = figureCfg.sling as { tilt: number; height: number };
+/** the gun carried but not in hand, on the back, and how far a second one stands off it (figure.json back, Milestone 1025) */
+const BACK = figureCfg.back as { tilt: number; height: number; gap: number; clear: number };
+interface BackGun {
+  id: string;
+  gun: THREE.Object3D;
+  mount: THREE.Object3D;
+  sweep: PhaseSweep;
+  /** when it came, on the figure's clock (-Infinity: there whole) */
+  at: number;
+  /** its middle, back and front in its own frame and half its size corner to corner, for its phase */
+  mid: THREE.Vector3;
+  near: THREE.Vector3;
+  far: THREE.Vector3;
+  radius: number;
+  /** how thick it is across, its own frame: laid flat on the back, a second gun stands that much further off */
+  wide: number;
+}
 /** where a look goes from a glide to a dive, as the skydive's own steering has it (squad.json dive) */
 const DIVE = squadCfg.dive;
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
@@ -1418,6 +1435,16 @@ export class MannequinFigure {
   private gunRadius = 0.3;
   /** when the gun in the hands last changed (setGun), on the figure's clock */
   private gunAt = -1;
+  /**
+   * The guns carried but not in hand, on the back (Milestone 1025): an enemy showed only the gun in its hands, and none
+   * holstered, where Apex's legends carry the other on their backs. The first flat on the back (figure.json back), a second
+   * on top of it at the sling's place; each with its own phase, in as it comes and out as a swap takes it to the hands.
+   */
+  private backGuns: BackGun[] = [];
+  /** a swap's phase this frame, 1 whole: the gun on the back is the one a swap brings, and the one it puts away */
+  private swapBack = 1;
+  /** when it was last knocked out or stood up, on its clock */
+  private deadAt = -1;
 
   /** a swap in place, as the first person's (rifle.ts SWAP_CUP): a signature gun held as a rifle, being swapped */
   private cupSwap(p: FigurePose): boolean {
@@ -1564,6 +1591,7 @@ export class MannequinFigure {
   setDead(on: boolean): void {
     if (on === this.dead) return;
     this.dead = on;
+    this.deadAt = this.t;
     if (this.gun) this.gun.visible = this.gunShown && !on;
     this.gunInHand = !!this.gun && this.gun.visible;
     // (upright for the death clip, which lays it on the floor itself: a figure shot off a wall or out of the sky falls
@@ -1941,6 +1969,7 @@ export class MannequinFigure {
     }
     dt += this.owed;
     this.owed = 0;
+    this.swapBack = 1;
     // (armed coming in: it is put down below for what takes the hands, and the gun is then put on the back: the end)
     const armedIn = armed;
     // (where the gun was as the frame began: in the hands, or not)
@@ -2014,6 +2043,9 @@ export class MannequinFigure {
     // carried in the right hand through the climb clip, which planted it muzzle-down on the ledge and swung it about); a
     // pistol is put away, as in the skydive (Milestone 839: kept, it hung under the fist, 11 cm off its grip)
     if ((p.stance === "climb" || p.stance === "mantle") && this.rifle) armed = false;
+    // and a gun put away goes onto the back, and comes back from it, by the same phases (Milestone 1025): a player
+    // holstered, 15% faster, was drawn holding it
+    if (p.holstered && this.rifle) armed = false;
     // A slide has a way in and a way out (the free library's Slide_Start and
     // Slide_Exit, once they have loaded): it used to cut straight into its
     // loop and straight out of it, which every other player saw as a pop.
@@ -2029,7 +2061,8 @@ export class MannequinFigure {
     // two-handed hold, whose reach onto the gun ran after the clip and pulled
     // both arms straight back onto it.
     // SpeedKills' soldier with a long gun strikes with it instead (rifle.ts melee): it keeps it, and both hands on it
-    const rifleMelee = act === "melee" && !!this.rifle && !!this.mount;
+    // (holstered, it is a punch: the gun is on the back)
+    const rifleMelee = act === "melee" && !!this.rifle && !!this.mount && !p.holstered;
     if (act !== this.lastAct) {
       if (act === "melee") this.meleeSwing = (this.meleeSwing + 1) % MELEE_SWINGS.length;
       this.lastAct = act;
@@ -2442,6 +2475,7 @@ export class MannequinFigure {
         this.gunComing = false;
       }
       const swapPh = Math.min(swapR01, comePh);
+      this.swapBack = swapR01;
       const G = this.gunSweep;
       G.phase.value = swapPh;
       G.time.value = this.t;
@@ -2525,7 +2559,8 @@ export class MannequinFigure {
     if ((this.skyW > 0.5 || away) && this.gun && this.mount && this.gunShown && !this.dead && !pistolStance(this.gunId)) {
       // (still where the hold puts it, going: the hands are off it)
       const going = away && this.skyW <= 0.5 && goU < GUN_RETURN.out;
-      const at = going ? null : this.holsterMount(this.skyW <= 0.5);
+      // (on top of a gun already on the back, Milestone 1025)
+      const at = going ? null : this.holsterMount(this.skyW <= 0.5, undefined, SLING, this.overBack());
       if (at) at.decompose(this.mount.position, this.mount.quaternion, this.mount.scale);
       if (at || going) {
         this.gun.visible = true;
@@ -2553,6 +2588,144 @@ export class MannequinFigure {
         }
       }
     }
+    this.placeBackGuns();
+  }
+
+  /**
+   * The guns carried but not in hand (Milestone 1025), long guns only: a pistol is put away, as in the skydive. Those
+   * already on the back keep their places as another comes or goes. A figure not yet run (just made, or made again for a
+   * new look) has them there whole; on one already running, a new one phases in.
+   */
+  setBackGuns(ids: readonly string[]): void {
+    if (!this.tpl.rifle || !this.bones.spine_03) return;
+    const want = ids.filter((id) => !!id && !pistolStance(id)).slice(0, 2);
+    if (want.length === this.backGuns.length && want.every((id, i) => this.backGuns[i].id === id)) return;
+    const left = [...want];
+    const next: BackGun[] = [];
+    for (const g of this.backGuns) {
+      const i = left.indexOf(g.id);
+      if (i < 0) {
+        g.mount.removeFromParent();
+        disposeSweep(g.sweep);
+        continue;
+      }
+      left.splice(i, 1);
+      next.push(g);
+    }
+    for (const id of left) {
+      const g = this.makeBackGun(id);
+      if (g) next.push(g);
+    }
+    this.backGuns = next;
+  }
+
+  /** the guns on the back, for a finish to be painted on and the far LOD (dummy.ts) */
+  get backGunRoots(): Array<{ id: string; root: THREE.Object3D }> {
+    return this.backGuns.map((g) => ({ id: g.id, root: g.gun }));
+  }
+
+  /** made again whole any gun on the back made before the bought guns were in (as dummy.ts does the gun in hand); true if any was */
+  refreshBackGuns(): boolean {
+    const stale = this.backGuns.filter((g) => !g.gun.userData.paid && displayGunModel(g.id).root.userData.paid);
+    if (!stale.length) return false;
+    this.backGuns = this.backGuns.map((g) => {
+      if (!stale.includes(g)) return g;
+      g.mount.removeFromParent();
+      disposeSweep(g.sweep);
+      const made = this.makeBackGun(g.id);
+      if (made) made.at = -Infinity;
+      return made;
+    }).filter((g): g is BackGun => g !== null);
+    return true;
+  }
+
+  private makeBackGun(id: string): BackGun | null {
+    const chest = this.bones.spine_03;
+    if (!chest) return null;
+    const m = displayGunModel(id);
+    const gun = m.root.clone(true);
+    // as the hands hold it: at the soldier's size for the gun, its grip at the mount (setGun)
+    const size = gunScaleOf(id);
+    gun.scale.setScalar(size);
+    gun.position.set(0, m.grip.u, -m.grip.f).multiplyScalar(size).negate();
+    gun.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
+    });
+    const mount = new THREE.Object3D();
+    mount.name = "backGun";
+    mount.visible = false;
+    // (the held gun's mount undoes the chest's own scale, and so does this one: the same gun the same size on the back)
+    const cs = new THREE.Vector3().setFromMatrixScale(this.tpl.chestAim);
+    mount.scale.set(1 / cs.x, 1 / cs.y, 1 / cs.z);
+    mount.add(gun);
+    chest.add(mount);
+    const sweep = newSweep(feelCfg.phase);
+    phaseMeshes(gun, () => sweep);
+    // its size in its own frame (the muzzle's marker is a point, not the gun)
+    gun.updateMatrixWorld(true);
+    const inv = gun.matrixWorld.clone().invert();
+    const box = new THREE.Box3();
+    gun.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.visible || o.name === "muzzle") return;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      box.union(mesh.geometry.boundingBox!.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld)));
+    });
+    if (box.isEmpty()) {
+      mount.removeFromParent();
+      disposeSweep(sweep);
+      return null;
+    }
+    const cy = (box.min.y + box.max.y) / 2;
+    return {
+      id,
+      gun,
+      mount,
+      sweep,
+      at: this.t > 0 ? this.t : -Infinity,
+      mid: box.getCenter(new THREE.Vector3()),
+      near: new THREE.Vector3(0, cy, box.max.z),
+      far: new THREE.Vector3(0, cy, box.min.z),
+      radius: Math.max(0.01, box.getSize(new THREE.Vector3()).length() / 2),
+      wide: box.max.x - box.min.x,
+    };
+  }
+
+  /** how much further off the back than the sling's own gap a gun goes to lie over the one on the back, figure metres */
+  private overBack(): number {
+    const g = this.backGuns[0];
+    if (!g) return 0;
+    const across = g.wide * (g.gun.getWorldScale(new THREE.Vector3()).x / this.root.getWorldScale(new THREE.Vector3()).x);
+    return BACK.gap - SKYDIVE.holster.gap + across + BACK.clear;
+  }
+
+  /** each gun on the back where it rides, and its phase: in as it came, and out and in again through a swap */
+  private placeBackGuns(): void {
+    // (out as the body falls, as the gun in hand drops by it: lying on its back, they went into the floor)
+    const gone = this.dead ? smooth(0, GUN_RETURN.out, this.t - this.deadAt) : 0;
+    for (let i = 0; i < this.backGuns.length; i++) {
+      const g = this.backGuns[i];
+      // the first flat on the back; a second (holstered, both are carried) on top of it at the sling's place. With a gun in
+      // hand there is only the one: the sling's place is the held gun's, for a climb or an emote
+      const at = i === 0 ? this.holsterMount(true, g, BACK) : this.gun ? null : this.holsterMount(true, g, SLING, this.overBack());
+      if (at) at.decompose(g.mount.position, g.mount.quaternion, g.mount.scale);
+      g.mount.visible = !!at && gone < 1;
+      if (!g.mount.visible) continue;
+      const S = g.sweep;
+      S.phase.value = Math.min(g.at < 0 ? 1 : smooth(0, GUN_RETURN.in, this.t - g.at), i === 0 ? this.swapBack : 1, 1 - gone);
+      S.time.value = this.t;
+      if (S.phase.value < 1) {
+        // (in place, as a swap's: out from its edges in, and in from its middle out)
+        S.radial.value = 1;
+        g.gun.updateWorldMatrix(true, false);
+        S.origin.value.copy(g.near).applyMatrix4(g.gun.matrixWorld);
+        S.dir.value.copy(g.far).applyMatrix4(g.gun.matrixWorld).sub(S.origin.value);
+        S.len.value = Math.max(1e-4, S.dir.value.length());
+        S.dir.value.normalize();
+        S.center.value.copy(g.mid).applyMatrix4(g.gun.matrixWorld);
+        S.radius.value = g.radius * g.gun.getWorldScale(new THREE.Vector3()).x;
+      }
+    }
   }
 
   /**
@@ -2564,14 +2737,16 @@ export class MannequinFigure {
    * chest bone's frame (the mount's own), for each kit and gun. Standing (`stand`), as figure.json sling has it: at the
    * skydive's the gun's lower end hung at the right hip, where a standing figure's right arm went through it.
    */
-  private holsterMount(stand: boolean): THREE.Matrix4 | null {
+  private holsterMount(stand: boolean, on: { gun: THREE.Object3D | null; id: string } = { gun: this.gun, id: this.gunId }, place: { tilt: number; height: number; gap?: number } = SLING, out = 0): THREE.Matrix4 | null {
     const b = this.bones;
-    const gun = this.gun;
-    if (!gun || !this.mount || !b.spine_02 || !b.spine_03 || !b.neck_01) return null;
-    const key = `${soldierCode(this.soldier)}|${this.gunId}|${stand ? "stand" : "sky"}`;
+    const gun = on.gun;
+    if (!gun || !gun.parent || !b.spine_02 || !b.spine_03 || !b.neck_01) return null;
+    const key = `${soldierCode(this.soldier)}|${on.id}|${stand ? `stand|${place.tilt}|${place.height}|${place.gap ?? ""}` : "sky"}|${Math.round(out * 1000)}`;
     const kept = HOLSTERS.get(key);
     if (kept) return kept;
-    const H = stand ? { ...SKYDIVE.holster, ...SLING } : SKYDIVE.holster;
+    // (`out` further off the back: on top of the gun already there, Milestone 1025)
+    const H0 = stand ? { ...SKYDIVE.holster, ...place } : SKYDIVE.holster;
+    const H = { ...H0, gap: H0.gap + out };
     // Standing, measured on the soldier in its bind pose, upright and untwisted, and the bones put back after. It is kept
     // in the chest's frame: measured as the figure stood, the rifleman's stance still turning the chest toward the gun
     // (or a climb bending it), the gun swung off to the right side of the back once the chest came back
@@ -2584,7 +2759,7 @@ export class MannequinFigure {
     const saved = S ? S.bones.map((x) => [x.position.clone(), x.quaternion.clone(), x.scale.clone()] as const) : null;
     S?.pose();
     try {
-      const held = this.measureHolster(H);
+      const held = this.measureHolster(H, gun);
       if (held) HOLSTERS.set(key, held);
       return held;
     } finally {
@@ -2600,10 +2775,9 @@ export class MannequinFigure {
   }
 
   /** holsterMount's place, measured on the figure as it is posed now (the chest bone's frame), or null */
-  private measureHolster(H: { tilt: number; gap: number; band: number; height: number }): THREE.Matrix4 | null {
+  private measureHolster(H: { tilt: number; gap: number; band: number; height: number }, gun: THREE.Object3D): THREE.Matrix4 | null {
     const b = this.bones;
-    const gun = this.gun;
-    if (!gun || !b.spine_02 || !b.spine_03 || !b.neck_01) return null;
+    if (!b.spine_02 || !b.spine_03 || !b.neck_01) return null;
     this.root.updateMatrixWorld(true);
     const toRoot = this.root.matrixWorld.clone().invert();
     const inRoot = (o: THREE.Object3D) => o.getWorldPosition(new THREE.Vector3()).applyMatrix4(toRoot);
@@ -2660,6 +2834,7 @@ export class MannequinFigure {
     for (const m of this.mats) m.dispose();
     disposeSweep(this.magSweep);
     disposeSweep(this.gunSweep);
+    for (const g of this.backGuns) disposeSweep(g.sweep);
     // each clone has its own skeleton (and its bone texture on the GPU), or shares one (disposing a disposed one is nothing)
     this.root.traverse((o) => {
       const m = o as THREE.SkinnedMesh;

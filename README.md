@@ -665,7 +665,10 @@ then step round one at a time, and at an edge they stand on it. It slides
 sat up with the gun at its eye. On a zip
 line it hangs from the rope by its left hand, the gun in its right; in the
 skydive, an emote, an interact or a climb a long gun rides on its back, phased
-out of the hands and in there, and back the same way. Out,
+out of the hands and in there, and back the same way. The gun it carries but
+is not holding rides on its back all the time, as Apex's legends carry theirs;
+holstered, the gun in hand goes onto the back over it and the hands are empty,
+and a swap trades the two, each phased. Out,
 the figure drops its gun and it lies by the body.
 
 ## Controls

@@ -8565,6 +8565,74 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("a long gun goes onto the back by a phase as a climb or an interact takes the hands: drawn, it moves 15 cm and turns 20 degrees a frame at most (60 Hz)", Object.values(onBack).every((v) => v.turn <= 20 && v.cm <= 15), JSON.stringify(onBack));
+  // The gun carried but not in hand, on the back (Milestone 1025): an enemy showed only the gun in its hands and, holstered,
+  // none, where Apex's legends carry the other on their backs. Held, the other rides behind the chest with nothing of the
+  // soldier in it; holstered, the held one goes over it by its phase and back to the hands the same way; a swap trades the
+  // two, each by its phase, never whole one frame and gone the next
+  const backs = await ev<{ behind: number; deep: Record<string, number>; holstered: { inHand: boolean; over: number; whole: boolean }; drawn: boolean; swap: { jump: number; ends: string[] } } | null>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 150); r.figureLabManual(true);
+      for (let i = 0; i < 900 && !(f.mq && f.mq.gunObject && f.mq.bones.pelvis); i++) r.figureLabStep(1 / 60);
+      if (!f.setBackGuns) return null;
+      f.setBackGuns(["alternator_smg"]);
+      r.figureLabStep(1);
+      const m = f.mq;
+      const back = () => m.backGunRoots[0] && m.backGunRoots[0].root;
+      if (!back()) return null;
+      const mid = (o) => f.group.worldToLocal(new T.Box3().setFromObject(o).getCenter(new T.Vector3()));
+      const behind = Math.round((f.group.worldToLocal(m.bones.spine_03.getWorldPosition(new T.Vector3())).z - mid(back()).z) * 100);
+      const depth = () => Math.max(0, ...Object.values(window.__figureAudit(0, { pitch: 0, exact: true, gun: back() }).gunWhere ?? {}));
+      const deep = {};
+      // (a strike sampled through its swing: its left upper arm goes back past the shoulder blade, into a gun 1 cm off the back)
+      for (const [name, pose, secs, n] of [["idle", { speed: 0, stance: "stand", pitch: 0 }, 1, 1], ["sprint", { speed: 7.5, stance: "stand", pitch: 0 }, 0.6, 1], ["crouch", { speed: 0, stance: "crouch", pitch: 0 }, 1, 1], ["climb", { speed: 0, stance: "climb", pitch: 0 }, 0.3, 1], ["reload", { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true }, 1, 1], ["melee", { speed: 0, stance: "stand", pitch: 0, act: "melee" }, 0.05, 6]]) {
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(0.6);
+        r.figureLabPose(0, pose); r.figureLabStep(secs);
+        deep[name] = depth();
+        for (let i = 1; i < n; i++) { r.figureLabStep(0.08); deep[name] = Math.max(deep[name], depth()); }
+      }
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1);
+      // holstered: the held gun phased onto the back over the one there, further off it
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, holstered: true }); r.figureLabStep(0.8);
+      const held = m.gunObject;
+      const holstered = { inHand: !!m.gunInHand, over: Math.round((mid(back()).z - mid(held).z) * 100), whole: held.visible && m.gunSweep.phase.value > 0.99 };
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1);
+      const drawn = !!m.gunInHand;
+      // a swap: the gun on the back is the one coming (out over the first half), the one put away goes on (in over the second)
+      const T0 = r.weaponTimes("r97"), T1 = r.weaponTimes("alternator_smg");
+      let last = m.backGuns[0].sweep.phase.value, jump = 0;
+      const ends = [];
+      const watch = (n) => { for (let i = 0; i < n; i++) { r.figureLabStep(1 / 60); const g = m.backGuns[0]; const ph = g && g.mount.visible ? g.sweep.phase.value : 0; jump = Math.max(jump, Math.abs(ph - last)); last = ph; } };
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "swap", weapon: "r97" });
+      watch(Math.round(T0.holster * 60));
+      ends.push(m.backGunRoots.map((g) => g.id).join(",") + "@" + Math.round(last * 100));
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "swap", weapon: "alternator_smg" });
+      f.setBackGuns(["r97"]);
+      watch(Math.round(T1.deploy * 60) + 6);
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, weapon: "alternator_smg" });
+      watch(20);
+      ends.push(m.backGunRoots.map((g) => g.id).join(",") + "@" + Math.round(last * 100));
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, weapon: "r97" }); f.setBackGuns([]); r.figureLabStep(1);
+      return { behind, deep, holstered, drawn, swap: { jump: Math.round(jump * 100) / 100, ends } };
+    })()`,
+  );
+  check(
+    "the gun carried but not in hand rides on the back (ANAKIN behind the USSO soldier), nothing of the soldier in it standing, sprinting, crouched, climbing, reloading or striking with the gun",
+    !!backs && backs.behind >= 5 && Object.values(backs.deep).every((d) => d <= 10),
+    JSON.stringify(backs && { behind: backs.behind, deep: backs.deep }),
+  );
+  check(
+    "holstered, the gun in hand goes onto the back over the one there, and is drawn back into the hands",
+    !!backs && !backs.holstered.inHand && backs.holstered.whole && backs.holstered.over >= 3 && backs.drawn,
+    JSON.stringify(backs && { holstered: backs.holstered, drawn: backs.drawn }),
+  );
+  check(
+    "a swap trades the gun on the back for the one in hand by their phases: out as it comes, in as the other goes, never a jump of more than a third in a frame",
+    !!backs && backs.swap.ends[0] === "alternator_smg@0" && backs.swap.ends[1] === "r97@100" && backs.swap.jump <= 0.34,
+    JSON.stringify(backs && backs.swap),
+  );
   // A salute's hand at the brow (Milestone 842): swung about the figure's axes its fingertips stopped 20 cm off, at the collar
   const salute = await ev<number>(
     page,

@@ -1170,6 +1170,8 @@ let prevYaw = 0;
 let prevPitch = 0;
 // holster state machine: out -> lowering -> away -> raising -> out
 let holster: "out" | "lowering" | "away" | "raising" = "out";
+/** the gun put away or going (not coming back: that is the gun's return to the hands), as figures show it (Milestone 1025) */
+const putAway = (): boolean => holster === "lowering" || holster === "away";
 let holsterAt = 0;
 /**
  * Screenshot overrides, set by tools/shot.ts through window.__range. They only
@@ -2021,7 +2023,7 @@ function previewFitNow(fig: Dummy): number {
   return need;
 }
 const previewBox = $("loPreview");
-function previewLoadout(now: number, dt: number, gun = loadouts.current.slot1): void {
+function previewLoadout(now: number, dt: number, gun = loadouts.current.slot1, withBack = true): void {
   const def = loadouts.current;
   // the weapon in hand too: it is a loadout, not just an outfit
   // useMannequin() is in the key so the figure is built again once the
@@ -2038,6 +2040,11 @@ function previewLoadout(now: number, dt: number, gun = loadouts.current.slot1): 
     previewScene.add(previewFig.group);
   }
   if (!previewFig) return;
+  // (the loadout's other gun on its back, as the soldier carries it in a match: Milestone 1025; not on the battle royale's
+  // card, whose portrait is framed on the figure as it was)
+  const carried = [def.slot1, def.slot2];
+  const inHand = carried.indexOf(gun);
+  previewFig.setBackGuns(withBack && inHand >= 0 ? carried.filter((id, i) => !!id && i !== inHand) : []);
   // Facing you, and turning slowly so the back of a coat is as visible as the
   // front. It used to sit at Math.PI, which is a figure's own facing and
   // therefore its BACK: the panel showed the back of everybody's head until
@@ -2122,7 +2129,7 @@ function drawPortrait(canvas: HTMLCanvasElement): void {
   // a boot turned out (its boots stand flat by the figure's own flatFeet, Milestone 419). And posed for a moment before its picture: drawn after one update, the hold puts
   // the gun in the hands from where they were the frame before, and the gun hung at its side while the hands held nothing.
   previewKey = "";
-  for (let i = 0; i < C.settleFrames; i++) previewLoadout(gameTime + i / 60, 1 / 60, gun);
+  for (let i = 0; i < C.settleFrames; i++) previewLoadout(gameTime + i / 60, 1 / 60, gun, false);
   previewHeldAt = held;
   // the canvas the size of its box on screen, so the figure is not letterboxed in it
   const box = canvas.getBoundingClientRect();
@@ -7077,6 +7084,14 @@ function localAct(): number {
   return 0;
 }
 
+/** the guns you carry that are not in your hands: your soldier's back, and the others' figure of you (Milestone 1025) */
+function backGunIds(held: string): string[] {
+  const carried = loadout.slots.filter((s) => !s.empty).map((s) => s.id);
+  const i = held ? carried.indexOf(held) : -1;
+  if (i >= 0) carried.splice(i, 1);
+  return carried;
+}
+
 function selfFigure(now: number, dt: number, weaponId: string, op: string, look: string, show: boolean, knocked: boolean): void {
   if (!show) {
     if (selfFig) {
@@ -7109,10 +7124,11 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   // slide onto the floor the same)
   if (!f.knocked) f.group.position.copy(player.pos);
   if (!f.knocked) f.group.rotation.y = player.yaw * DEG + Math.PI;
+  f.setBackGuns(backGunIds(weaponId));
   if (knocked) f.fallDown();
   else if (f.knocked) f.reset();
   const ac = localAct();
-  f.setPose({ speed: player.speed, stance: player.figureStance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac) });
+  f.setPose({ speed: player.speed, stance: player.figureStance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac), holstered: putAway() });
   f.update(now, dt);
   // thinned out as a wall at your back brings the camera up against it (tpcam.ts)
   f.figure?.setFade(selfFadeAt(camera.position.distanceTo(eye)));
@@ -7301,7 +7317,8 @@ function step(): void {
         input.pressedNow("slot1") ||
         input.pressedNow("slot2") ||
         input.pressedNow("swapWeapon"));
-    if (!knockedOut && input.pressedNow("holster") && !loadout.swapping && !gunsAway) {
+    // (a script's holster as well as the keyboard's: the tests put a gun away, Milestone 1025)
+    if (!knockedOut && (scriptInput ?? input).pressedNow("holster") && !loadout.swapping && !gunsAway) {
       if (holster === "out") {
         holster = "lowering";
         holsterAt = now;
@@ -8337,6 +8354,8 @@ function step(): void {
     act: localAct(),
     aimbot: aimbot.enabled,
     airJumps: player.airJumps,
+    back: backGunIds(emptyHand ? "" : onScreen.weapon.id),
+    holstered: putAway(),
   };
   duel?.update(local);
   // A new round or a rematch starts clear: no WALL or MINE from the last one, your hacks ready on your picks. They lived

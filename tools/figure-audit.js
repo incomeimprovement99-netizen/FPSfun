@@ -258,7 +258,8 @@
     };
     const deg = (a) => Math.round((a * 1800) / Math.PI) / 10;
     const cm = (m) => Math.round(m * 1000) / 10;
-    const gun = mq.gunObject;
+    // (opts.gun: another gun on the figure to measure the body against, one on its back, Milestone 1025)
+    const gun = opts.gun ?? mq.gunObject;
     const out = { armed: !!gun && shown(gun), gripReach: mq.gripReach, supportReach: mq.supportReach };
     const palm = (s) => at(`hand_${s}`).lerp(at(`middle_01_${s}`), 0.5);
     const bend = (s) => {
@@ -285,6 +286,7 @@
     // A point of the gun is drawn only behind its phase's front (phase.ts): ahead of it, in a swap or a reload, the gun is
     // not there to clip a hand or the body. Its magazine's on the magazine's sweep, the rest on the gun's.
     const sweepOf = (o) => {
+      if (opts.gun) return null;
       for (let q = o; q && q !== gun; q = q.parent) if (q.name === "mag") return mq.magSweep;
       return mq.gunSweep;
     };

@@ -75,6 +75,8 @@ const ID_MAX = 32;
 // 96: the longest look is 79 (the longest outfit, build and body names, every face piece and the soldier), and at 64
 // it clipped the soldier's code off; a build from before clips at 64 and shows the operator's own soldier
 const LOOK_MAX = 96;
+/** the guns on a back: two ids and the comma between them */
+const BACK_MAX = 2 * ID_MAX + 1;
 
 /**
  * One player's state, as duel.ts has always sent it: the payload of the "s"
@@ -112,6 +114,9 @@ export interface PlayerState {
   lf?: number;
   /** how many double jumps they have made, the low 8 bits: a new one flips their figure (player.ts airJumps) */
   dj?: number;
+  /** the guns they carry but do not hold, comma separated, and 1 with their gun put away: their figure's back (Milestone 1025) */
+  bk?: string;
+  ho?: number;
 }
 
 /** the sender's clock for a state: performance time in milliseconds, the low 16 bits (the receiver unwraps it) */
@@ -125,7 +130,8 @@ export function senderStamp(): number {
  * of a degree, cr crouch, hp sh health and shield, al alive, w the gun, op the
  * operator, nm the name, rd ready, st stance, sp speed, sm shield size, dn
  * down, ad aim down sights, ac the hands' action, bt the practice aim bot,
- * lf the stage of a battle royale life (the Gulag, a ghost, out), dj the double jumps made.
+ * lf the stage of a battle royale life (the Gulag, a ghost, out), dj the double jumps made, bk the guns on the back, ho
+ * the gun put away.
  */
 export type Quant = Record<string, number | string>;
 
@@ -137,9 +143,9 @@ const REQ_KEYS = ["x", "y", "z", "aw", "ap", "cr", "hp", "sh", "al", "w", "op", 
  * last: an older build ignores a key it does not know, and it is never
  * cleared, so it never sets a bit an older build would misread.
  */
-const OPT_KEYS = ["rd", "st", "sp", "sm", "dn", "ad", "ac", "bt", "tm", "lk", "lf", "dj"] as const;
+const OPT_KEYS = ["rd", "st", "sp", "sm", "dn", "ad", "ac", "bt", "tm", "lk", "lf", "dj", "bk", "ho"] as const;
 /** the ones that are text; everything else is a finite number */
-const STR_KEYS = new Set<string>(["w", "op", "nm", "lk"]);
+const STR_KEYS = new Set<string>(["w", "op", "nm", "lk", "bk"]);
 /**
  * The five sent as a difference from the baseline rather than outright. They
  * are the ones that change every tick and the ones with the widest range: a
@@ -194,6 +200,8 @@ export function quantise(s: PlayerState): Quant {
   if (!absent(s.lk)) q.lk = clip(wireStr(s.lk), LOOK_MAX);
   if (!absent(s.lf)) q.lf = Math.round(wireNum(s.lf));
   if (!absent(s.dj)) q.dj = Math.round(wireNum(s.dj)) & 0xff;
+  if (!absent(s.bk)) q.bk = clip(wireStr(s.bk), BACK_MAX);
+  if (!absent(s.ho)) q.ho = Math.round(wireNum(s.ho));
   return q;
 }
 
@@ -225,6 +233,8 @@ export function dequantise(q: Quant): PlayerState {
   if (!absent(q.lk)) s.lk = clip(wireStr(q.lk), LOOK_MAX);
   if (!absent(q.lf)) s.lf = wireNum(q.lf);
   if (!absent(q.dj)) s.dj = wireNum(q.dj);
+  if (!absent(q.bk)) s.bk = clip(wireStr(q.bk), BACK_MAX);
+  if (!absent(q.ho)) s.ho = wireNum(q.ho);
   return s;
 }
 
@@ -526,6 +536,8 @@ export function stateOf(m: StateMsg): PlayerState {
   if (!absent(raw.lk)) s.lk = clip(wireStr(raw.lk), LOOK_MAX);
   if (!absent(raw.lf)) s.lf = wireNum(raw.lf);
   if (!absent(raw.dj)) s.dj = wireNum(raw.dj);
+  if (!absent(raw.bk)) s.bk = clip(wireStr(raw.bk), BACK_MAX);
+  if (!absent(raw.ho)) s.ho = wireNum(raw.ho);
   return s;
 }
 
@@ -558,5 +570,7 @@ export function stateMsg(s: PlayerState, from?: number): StateMsg {
     tm: s.tm,
     lf: s.lf,
     dj: s.dj,
+    bk: s.bk,
+    ho: s.ho,
   } as StateMsg);
 }

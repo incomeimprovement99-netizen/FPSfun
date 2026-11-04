@@ -33,7 +33,7 @@ import squadCfg from "../config/squad.json";
 import netCfg from "../config/net.json";
 import { Dummy, actFromCode, emptyReloadOf, stanceCode, stanceFromCode, type FigureAct, type FigureStance } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
-import { resolveWeapon, type ResolvedWeapon } from "./weapons";
+import { resolveWeapon, weaponIds, type ResolvedWeapon } from "./weapons";
 import type { AckMsg, DeltaMsg, DeltaPart, Link, NetMsg, RoundPhase, StateMsg } from "../net/link";
 import { senderStamp, stateMsg, stateOf, type PlayerState } from "../net/state";
 import { StateSync } from "../net/statesync";
@@ -49,6 +49,8 @@ import { causeName, EDGE_ID } from "./causes";
 import { heardVital } from "./squadview";
 
 const SEND_HZ = 30;
+/** the game's guns: all another page's state may put on a figure's back */
+const ROSTER = new Set(weaponIds());
 /** the least a friend's figure is drawn behind (net.json buffer: it grows with the connection's jitter) */
 const INTERP_DELAY = netCfg.buffer.min;
 export const ROUNDS_TO_WIN = 3;
@@ -139,6 +141,8 @@ interface Sample {
   airJumps?: number;
   /** their reload is from an empty magazine (act code 9) */
   reloadEmpty?: boolean;
+  /** their gun put away (Milestone 1025): on their figure's back, its hands empty */
+  holstered?: boolean;
 }
 
 /** another player as this side sees them */
@@ -246,6 +250,9 @@ export interface LocalState {
   aimbot?: boolean;
   /** how many double jumps this player has made (player.ts airJumps): the others' figure of them flips on a new one */
   airJumps?: number;
+  /** the guns they carry but do not hold, and their gun put away: on their figure's back (Milestone 1025) */
+  back?: string[];
+  holstered?: boolean;
 }
 
 /** what a match (against friends or bots) offers the game loop */
@@ -1466,7 +1473,7 @@ export class Duel implements MatchLike {
     const stale = m.alive && !r.alive && sentAt !== null && r.outAtSent !== undefined && sentAt <= r.outAtSent;
     const alive = m.alive && !stale;
     this.noteLateness(r, at, now);
-    r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (Number.isFinite(m.sp) ? (m.sp as number) : 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), airJumps: typeof m.dj === "number" && Number.isFinite(m.dj) ? m.dj : 0, reloadEmpty: emptyReloadOf(ac) });
+    r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (Number.isFinite(m.sp) ? (m.sp as number) : 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), airJumps: typeof m.dj === "number" && Number.isFinite(m.dj) ? m.dj : 0, reloadEmpty: emptyReloadOf(ac), holstered: m.ho === 1 });
     if (r.samples.length > 30) r.samples.shift();
     r.stateHeardAt = now;
     // Their own numbers lag our hits by a round trip, so just after a hit a
@@ -1493,6 +1500,9 @@ export class Duel implements MatchLike {
     // back in (a respawn): the lockout's "alive since"
     if (alive && !r.alive) this.noteBack(from);
     this.setAvatarLook(r, m.w, m.op, typeof m.lk === "string" ? m.lk : undefined);
+    // the guns they carry but do not hold, on their figure's back (Milestone 1025): two at most, of the game's own (an older
+    // page sends none)
+    r.avatar.setBackGuns(typeof m.bk === "string" ? m.bk.split(",", 2).filter((id) => ROSTER.has(id)) : []);
     if (!alive && r.alive) r.avatar.fallDown();
     r.alive = alive;
     r.avatar.health = 1e9;
@@ -2026,6 +2036,8 @@ export class Duel implements MatchLike {
         ad: local.ads ? Math.round(local.ads * 10) : undefined,
         ac: local.act || undefined,
         dj: local.airJumps ? local.airJumps & 0xff : undefined,
+        bk: local.back?.length ? local.back.join(",") : undefined,
+        ho: local.holstered ? 1 : undefined,
         tm: senderStamp(),
         lf: this.lifeWire(),
       });
@@ -2103,6 +2115,7 @@ export class Duel implements MatchLike {
       act: near.act,
       airJumps: near.airJumps,
       reloadEmpty: near.reloadEmpty,
+      holstered: near.holstered,
     });
     void dt;
   }

@@ -128,6 +128,13 @@
     "tilt": 5,
     "height": 0.38
   },
+  "_back": "The gun carried but not in hand, on the back (mannequin.ts setBackGuns, Milestone 1025): an enemy showed only the gun in its hands, and holstered no gun at all, where Apex's legends carry the other on their backs. Laid as the sling lays a gun (its band), `gap` m off the soldier's skin, `tilt` degrees off upright (negative: its muzzle over the right shoulder) and its middle `height` of the way from the lower chest to the neck, in the chest's frame, so it turns with the rifleman's stance. A second gun on the back (holstered, both are carried), or the held gun slung for a climb or an emote over the one there, lies at the sling's place `clear` m further off the back than the first gun is thick, so the two never meet. Searched through every stance, act and all eight emotes on all eight long guns, held and holstered (node_modules/.scratch/backgunprobe.mts, how deep the soldier goes into the gun on the back): at the sling's own gap, 0.01, a rifle strike's left upper arm went 11 to 16 mm into the magazine of USSO, ANAKIN and REZ, at every tilt from -25 to 20 and height to 0.5 (and turned over, into a scope); at 0.025, nothing of the soldier is in any of them.",
+  "back": {
+    "tilt": -20,
+    "height": 0.4,
+    "gap": 0.025,
+    "clear": 0.01
+  },
   "_slide": "A slide seen on a figure (mannequin.ts, Milestone 831): the clip played whole laid the soldier on its back, the gun 25 to 55 degrees off where it looked, and a player shoots sliding (Apex's legends slide sat up, the gun on the aim). Now the slide's legs and hips are played and the gun held on top: the chest brought up through the spine to `back` degrees behind upright (negative is forward: as it stands, 5 forward), and turned round by however far the slide's hips face from `hipsTurn` degrees, the standing clip's (the slide's face 18 the other way, and the rifleman's stance, which turns the chest from the hips, left the stock in the right collarbone); the gun brought up toward the eye at least `ads` of the way, all of it (at the hip on the seated lap PANDA's went 12 cm into the thighs, DEVINOS's tube carried low 10 cm into the chest, and at 0.7 the tube was against the head). Measured on every gun (node_modules/.scratch/slideprobe.mts): the gun under a degree off the look and no deeper in the soldier than standing aimed in, 26 mm at most.",
   "slide": {
     "back": -6,

@@ -150,6 +150,8 @@ export interface FigurePose {
   airJumps?: number;
   /** a reload from an empty magazine (weapon-state.ts reloadEmpty): the longer one, with the rack; else a tactical one */
   reloadEmpty?: boolean;
+  /** its gun put away (Milestone 1025): onto the back, and its hands empty */
+  holstered?: boolean;
 }
 /**
  * What the hands are doing, as one small number for the network: 0 nothing,
@@ -776,6 +778,7 @@ export class Dummy {
   private paintGuns(): void {
     const mg = this.mq?.gunRoot;
     if (mg) applyFinishTo(mg, this.finish);
+    for (const b of this.mq?.backGunRoots ?? []) applyFinishTo(b.root, this.finish);
   }
 
   /** a different gun in its hands (Gun Run's next level): the same grip, the new model */
@@ -787,6 +790,27 @@ export class Dummy {
     this.farGun = null;
     this.lodFullGun = true;
     this.paintGuns();
+    Dummy.onNewLook?.(this);
+  }
+
+  /**
+   * The guns it carries but does not hold, on its back (Milestone 1025): your own soldier's from your loadout, another
+   * player's from the state they send. Kept here for the soldier it puts on later (dress).
+   */
+  setBackGuns(ids: readonly string[]): void {
+    if (ids.length === this.backIds.length && ids.every((id, i) => id === this.backIds[i])) return;
+    this.backIds = [...ids];
+    if (!this.mq) return;
+    this.mq.setBackGuns(this.backIds);
+    this.backDressed();
+  }
+  private backIds: string[] = [];
+
+  /** what is now on the back takes the figure's finish, its distance's shadow and far gun, and has its shaders built */
+  private backDressed(): void {
+    this.paintGuns();
+    this.setCastShadow(this.lodShadow);
+    if (!this.lodFullGun) this.showFarGun(true);
     Dummy.onNewLook?.(this);
   }
 
@@ -909,6 +933,7 @@ export class Dummy {
     // held the stand-in its gun was then until it was given another gun (main.ts dressed() builds the guns in hand and
     // on the floor again, and no figure's): the bought one once it is in
     if (this.armedWith && this.mq?.gunObject && !this.mq.gunObject.userData.paid && displayGunModel(this.armedWith).root.userData.paid) this.setGun(this.armedWith);
+    if (this.mq?.refreshBackGuns()) this.backDressed();
     // the flash: lit for its few hundredths of a second after a shot
     this.flashLeft = Math.max(0, this.flashLeft - dt);
     if (this.mq?.flash) showFlash(this.mq.flash, this.flashLeft > 0, this.flashSpin);
@@ -959,6 +984,7 @@ export class Dummy {
     this.mq = mq;
     this.group.add(mq.root);
     mq.setGunVisible(this.gunShown);
+    mq.setBackGuns(this.backIds);
     if (this.knocked) {
       mq.setDead(true);
       mq.root.rotation.x = -this.group.rotation.x;
@@ -1189,21 +1215,29 @@ export class Dummy {
   private showFarGun(on: boolean): void {
     const id = this.armedWith;
     const root = this.mq?.gunRoot;
-    if (!root || !id) return;
-    if (on && !this.farGun) {
+    if (root && id) this.farGun = this.farFor(root, id, on, this.farGun);
+    // and the guns on the back the same way (Milestone 1025)
+    for (const b of this.mq?.backGunRoots ?? []) this.farBack.set(b.root, this.farFor(b.root, b.id, on, this.farBack.get(b.root) ?? null));
+  }
+  private readonly farBack = new WeakMap<THREE.Object3D, THREE.Mesh | null>();
+
+  /** a gun's merged far mesh shown in place of its own meshes, or put away (made the first time it is needed) */
+  private farFor(root: THREE.Object3D, id: string, on: boolean, have: THREE.Mesh | null): THREE.Mesh | null {
+    let far = have;
+    if (on && !far) {
       const geo = floorGun(id);
       // (in its own skin, as the same gun lying on the floor: in the flat colours a bought gun's are all white, and so was every
       // enemy's gun past 15 m)
-      const mesh = new THREE.Mesh(geo, (geo.userData.paid ? paidGunMaterial(id) : null) ?? floorGunMat);
-      mesh.castShadow = this.lodShadow;
-      mesh.userData.farGun = true;
-      root.add(mesh);
-      this.farGun = mesh;
+      far = new THREE.Mesh(geo, (geo.userData.paid ? paidGunMaterial(id) : null) ?? floorGunMat);
+      far.castShadow = this.lodShadow;
+      far.userData.farGun = true;
+      root.add(far);
     }
-    if (this.farGun) this.farGun.visible = on;
+    if (far) far.visible = on;
     // the full model's own meshes give way to it, except the muzzle's marker:
     // a shot from a figure across the map still has to flash (muzzle.ts)
-    for (const o of root.children) if (o !== this.farGun && o.name !== "muzzle") o.visible = !on;
+    for (const o of root.children) if (o !== far && o.name !== "muzzle") o.visible = !on;
+    return far;
   }
 
   /**

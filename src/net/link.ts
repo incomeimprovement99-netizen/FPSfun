@@ -103,6 +103,9 @@ export type NetMsg =
       lf?: number;
       /** how many double jumps they have made, the low 8 bits: a new one flips their figure (player.ts airJumps) */
       dj?: number;
+      /** the guns they carry but do not hold, comma separated, and 1 with their gun put away (Milestone 1025) */
+      bk?: string;
+      ho?: number;
     }
   /**
    * The same states, delta compressed (src/net/state.ts), one part per

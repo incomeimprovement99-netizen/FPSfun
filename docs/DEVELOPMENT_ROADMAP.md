@@ -19411,3 +19411,35 @@ hands; the way there had none.
 - **Checked:** a new check in the soldier stances watches the gun as a climb and an interact take the hands: on the old
   code it fails (the gun 57 cm and 86 degrees in a frame at a climb, 58 and 86 at an interact), on the new it passes (13 and
   13, 11 and 9). The soldier stances pass, 351 checks.
+
+## Milestone 1025 — The guns on the back
+
+From the second gap analysis against AAA (docs/PLAN_SOLDIER_AAA_GAPS.md, the owner's ask of 2026-11-04): you carry two
+guns, and every figure showed only the one in its hands. Holstered (15% faster) it showed none, and was drawn holding its
+gun all the same. Apex draws the gun not in hand on the back: in the owner's own clip "pk clutch win", an enemy firing a
+pistol carries a long gun up its back. Warzone, PUBG and Halo do the same.
+
+- **The other gun on the back:** a long gun carried but not held rides flat on the back, at figure.json `back` (its tilt
+  and height on the back; laid as the sling lays a gun), in the chest's frame (mannequin.ts setBackGuns). A pistol is put
+  away, as in the skydive. Your own soldier takes it from your loadout. Others take it from one new field in the state
+  every page sends, `bk` (the net codec carries it, cleared when it goes; an older page sends none and shows none). Past
+  the LOD's far distance it is the same merged mesh the gun in hand turns into.
+- **Holstered:** the gun in hand goes onto the back by the phase a climb's does (Milestone 1024), and the hands are
+  empty; drawn, it comes back by the gun's return (Milestone 840). It is the state's `ho`, and a holstered player's swing
+  is a punch, not a strike with a gun that is on the back.
+- **Two on the back:** the held gun slung for a climb, an emote or a holster (or a second gun with none in hand) lies at
+  the sling's place, `clear` further off the back than the first gun is thick, so the two never meet.
+- **A swap trades them:** the gun on the back is the one a swap brings, so it phases out over the swap's first half, and
+  the one put away phases in on the back over its second.
+- **Measured:** every long gun on the back through 23 stances and acts and all eight emotes, held, unarmed and holstered
+  with each gun slung over another (node_modules/.scratch/backgunprobe.mts, how deep the soldier goes into a gun on its
+  back). At the sling's own 1 cm off the skin, a rifle strike's left upper arm went 11 to 16 mm into the magazine of USSO,
+  ANAKIN and REZ, at every tilt from -25 to 20 degrees and every height to 0.5 (turned over, into a scope instead). At
+  2.5 cm (figure.json `back.gap`), nothing of the soldier is in any of them, in any case. Your own soldier in the game's
+  third-person camera carries it on the left of its back, as the rifleman's stance turns the chest, clear of the
+  crosshair over the right shoulder.
+- **Checked:** three new checks in the soldier stances (the gun on the back with nothing of the soldier in it through a
+  sprint, a climb, a reload and a strike; holstered and drawn again; a swap's two phases) fail with the bug put back (the
+  gap at 1 cm: the strike 13 mm into ANAKIN; a holster not taking the hands; no swap phase on the back: the gun whole and
+  gone in a frame) and pass on the new code. A new check in the net codec (tools/checks/net-delta.ts) fails on the old
+  codec and passes on the new. The soldier stances pass, 354 checks; p2p passes, 54.
