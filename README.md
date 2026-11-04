@@ -474,7 +474,8 @@ carries their own clock, and their figure on your screen is placed by when
 the states were sent, not when they arrived, so a friend running at one speed
 moves at one speed however the connection bunches and gaps. How far behind the
 figure is drawn grows with the connection's jitter (100 ms on a good one, up to
-300 ms), so it never stalls waiting for the next state. The states travel on a
+300 ms), so it never stalls waiting for the next state, and a friend who
+stood still moves off as they did, not with a jump. The states travel on a
 channel of their own that never waits for a lost one to be resent: a lost
 state costs only itself, not every state behind it. And the host sends you the players and bots far from you less often (15 a second past 90 m, 10 past 200 m, against 30 near), which is most of the lobby most of the match: with eight friends spread over the map its upload is about 40% less.
 

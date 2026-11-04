@@ -1473,6 +1473,12 @@ export class Duel implements MatchLike {
     const stale = m.alive && !r.alive && sentAt !== null && r.outAtSent !== undefined && sentAt <= r.outAtSent;
     const alive = m.alive && !stale;
     this.noteLateness(r, at, now);
+    // A player standing still sends nothing until they move (the delta packets skip a state that has not changed), so the
+    // state they move off in comes seconds after the last: drawn between the two, the figure stood on, then went most of a
+    // send's way in a frame, 12 to 25 cm (Milestone 1028). They stood until just before it: the last still state is held
+    // to a send before this one, and the figure moves off over that send as they did.
+    const last = r.samples[r.samples.length - 1];
+    if (last && last.speed < 0.05 && at - last.at > 1.5 / SEND_HZ) r.samples.push({ ...last, at: at - 1 / SEND_HZ });
     r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (Number.isFinite(m.sp) ? (m.sp as number) : 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), airJumps: typeof m.dj === "number" && Number.isFinite(m.dj) ? m.dj : 0, reloadEmpty: emptyReloadOf(ac), holstered: m.ho === 1 });
     if (r.samples.length > 30) r.samples.shift();
     r.stateHeardAt = now;

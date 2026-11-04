@@ -19480,3 +19480,22 @@ the shots, and one shot from its side leant back as well. Halo and Warzone flinc
 - **Checked:** a new check in the soldier stances hits a lab figure from behind, in front and on its left and reads its
   neck a moment later against the same moment unhit: on the old code every hit sends it 1.6 cm back, on the new 1.6
   forward from behind, 1.6 back from the front, 1.6 to its right from its left. The soldier stances pass, 356 checks.
+
+## Milestone 1028 — A friend moving off from standing still, without a jump
+
+The fifth item of docs/PLAN_SOLDIER_AAA_GAPS.md: a friend's soldier as your page draws it from their state packets,
+measured every drawn frame for the first time (node_modules/.scratch/remotepop.mts: a 1v1 on the local transport, the
+guest driven by real input through a run, a sprint, a slide, a jump, strafes, a turn, a stop and a crouch walk, the host
+drawing at 170 frames a second and kept 6 m off it). Up close, the figure moves as smoothly as the lab's: its pelvis 4 cm
+a frame at most, its gun 2 degrees. Further off it animates at 30 and then 15 a second, as the figure LOD means it to.
+
+- **The fault:** a friend moving off from standing still stood on for some frames, then went 12 to 25 cm in one, then
+  all but stopped. Standing still sends nothing (the delta packets skip a state that has not changed), so the state they
+  move off in comes seconds after the one before, and drawn between those two the figure is most of the way there at once.
+- **The fix:** the last still state is held to a send before the first moving one (duel.ts applyState), so the figure
+  moves off over that send as the player did. Every remote figure takes it: a friend, and on a guest's page the host's
+  bots. Measured again: the speed jump a frame as a run begins 42 m/s before, 7 after; a crouch walk's 21 before, 5 after.
+- **Checked:** a new check in the net checks (tools/checks/net-delta.ts, two Duels over the checks' wire) has one player
+  stand three seconds and move off, and reads the other's figure of them a frame at a time: on the old code it jumps 9.9 cm
+  and falls to 0.4 the frame after (a fall of 9.5), on the new it never falls more than 0.6 cm. The duel and p2p sections
+  pass, 84 checks.

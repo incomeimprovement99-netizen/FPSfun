@@ -1251,6 +1251,56 @@ const scene = new THREE.Scene();
   void f;
 }
 
+{
+  // A player moving off from standing still (Milestone 1028). Standing still sends nothing (the delta packets skip a state
+  // that has not changed), so the state they move off in comes seconds after the last, and drawn between those two the
+  // figure stood on, then went most of a send's way in one frame. The other end's figure of them, its step a frame as they
+  // move off against its step a frame running (last of all: it moves the checks' clock on, and the old guest's count of
+  // full packets above came out short with its clock further on)
+  const wire = new Wire();
+  const [h, gl] = wire.pair(0, 1);
+  const host = new Duel(scene, projectiles, { players: 2, myId: 0, link: h, guestId: 1 });
+  const guest = new Duel(scene, projectiles, { players: 2, myId: 1, link: gl });
+  let f = run(wire, [{ d: host, id: 0 }, { d: guest, id: 1 }], [], 0, 120);
+  const stand = { ...walk(0, f), speed: 0 };
+  for (let k = 0; k < 180; k++) {
+    clockMs += 1000 / 60;
+    host.update(stand);
+    guest.update(walk(1, f));
+    wire.drain();
+  }
+  const fig = () => (inside(guest).remotes.get(0) as unknown as { avatar: { group: THREE.Object3D } }).avatar.group.position.clone();
+  let last = fig();
+  let step = 0;
+  let first = 0;
+  let stall = 0;
+  let steady = 0;
+  for (let k = 1; k <= 60; k++) {
+    clockMs += 1000 / 60;
+    host.update(walk(0, f + k));
+    guest.update(walk(1, f));
+    wire.drain();
+    const now = fig();
+    const was = step;
+    step = now.distanceTo(last);
+    last = now;
+    // (a step and then next to none: the jump, and the figure waiting for the run to catch it up)
+    if (k <= 30) {
+      first = Math.max(first, step);
+      stall = Math.max(stall, was - step);
+    } else steady = Math.max(steady, step);
+  }
+  f += 60;
+  check(
+    "a player moving off from standing still is drawn moving off, not jumping and then stalling: its step a frame never falls 3 cm from one frame to the next, nor goes past a running one's",
+    steady > 0.05 && first <= steady * 1.5 && stall <= 0.03,
+    `the most it fell from one frame to the next ${(stall * 100).toFixed(1)} cm, the biggest ${(first * 100).toFixed(1)} moving off and ${(steady * 100).toFixed(1)} running`,
+  );
+  guest.leave();
+  wire.drain();
+  host.dispose();
+}
+
 perf.now = realNow;
 console.warn = warn;
 if (!hadDocument) delete g.document;
