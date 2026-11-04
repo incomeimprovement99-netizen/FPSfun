@@ -19463,3 +19463,20 @@ or a hip shot's second ran out, 25 cm. Every other gun moves 5 to 13 cm a frame 
   change of stance in the pop scan is as it was.
 - **Checked:** a new check in the soldier stances measures DEVINOS's grip a frame as a slide begins and as a reload
   ends: on the old code it fails (38 and 25 cm), on the new it passes (19 and 18). The soldier stances pass, 355 checks.
+
+## Milestone 1027 — A hit's flinch away from the side hit
+
+The fourth item of docs/PLAN_SOLDIER_AAA_GAPS.md. Every hit leant the figure straight back (mannequin.ts, the chest and
+head tipped about its left-right axis), whichever side the hit came from, so a soldier shot in the back leant back into
+the shots, and one shot from its side leant back as well. Halo and Warzone flinch away from the side hit.
+
+- **Away from the side hit:** dummy.ts hit reads the push off the hit's point, which lies on the shooter's side of the
+  body, in the figure's own frame, and the chest and head tip that way (front to back and side to side), by the same
+  amounts as before, now in figure.json `flinch` (`lean` 0.22, `head` 0.25: they were literals). A hit with no side to
+  read (within death.near of the body's middle) flinches straight back as before: a host lays its guests' hits on a bot
+  there, so the host's own page of those stays as it was (the lobby's to change, told).
+- **Seen on the page that lands the hit,** every hit you land on an enemy or a bot. Sending each hit to every other page,
+  the plan's other half, is left: it needs the lobby's battle royale and the net state, for a flinch of 1.6 cm.
+- **Checked:** a new check in the soldier stances hits a lab figure from behind, in front and on its left and reads its
+  neck a moment later against the same moment unhit: on the old code every hit sends it 1.6 cm back, on the new 1.6
+  forward from behind, 1.6 back from the front, 1.6 to its right from its left. The soldier stances pass, 356 checks.

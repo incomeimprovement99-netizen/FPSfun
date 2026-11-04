@@ -61,6 +61,7 @@ Do not fit, left out:
    loadout, and other players get it from one new field in the state they send. Bots carry one gun (their kit), so they
    show none until the lobby's looter carries a second.
 2. **M1026, DEVINOS's quick swings (built 2026-11-04),** on a spring over the frames they took one in.
-3. **M1027, a flinch from the side hit,** and the hit sent so that every page shows it.
+3. **M1027, a flinch from the side hit (built 2026-11-04),** on the page that lands the hit. Sending every hit to every
+   page is left: it needs the lobby's battle royale and the net state, for a flinch of 1.6 cm.
 4. **Remote smoothness:** a two-browser battle royale, frame by frame. A fix gets its own milestone if anything shows.
 5. **A slide's streak,** only with the owner's yes on pictures.

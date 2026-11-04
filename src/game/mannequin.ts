@@ -207,6 +207,9 @@ const SKYDIVE = figureCfg.skydive as unknown as { glide: number; dive: number; r
 /** and on the back standing, for an emote, an interact or a throw: more upright and higher (figure.json sling) */
 const SLING = figureCfg.sling as { tilt: number; height: number };
 /** the gun carried but not in hand, on the back, and how far a second one stands off it (figure.json back, Milestone 1025) */
+/** how far a hit's flinch tips the chest and the head, radians a unit of flinch (figure.json flinch, Milestone 1027) */
+const FLINCH = figureCfg.flinch as { lean: number; head: number };
+const STRAIGHT_BACK = new THREE.Vector2(0, -1);
 const BACK = figureCfg.back as { tilt: number; height: number; gap: number; clear: number };
 interface BackGun {
   id: string;
@@ -416,6 +419,8 @@ export interface MannequinImpulses {
   back?: boolean;
   kick: number;
   flinch: number;
+  /** the way the last hit pushed it, in its own frame: +x its left, +y its front (unset: straight back) */
+  flinchDir?: THREE.Vector2;
   jolt: number;
   legYaw: number;
   ads: number;
@@ -2233,19 +2238,28 @@ export class MannequinFigure {
     this.slideW += ((sliding ? 1 : 0) - this.slideW) * Math.min(1, dt * SLIDE.rate);
     if (b.spine_02 && b.spine_03 && b.neck_01 && this.chestW > 0.01 && !this.dead) this.holdChestUp(b, fig);
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
-    const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
+    // (a hit's flinch the way the hit pushed it, Milestone 1027: about +z, the figure's front, a negative turn tips it to its
+    // left)
+    const push = fx.flinchDir ?? STRAIGHT_BACK;
+    const lean = fx.jolt * 0.45 + fx.flinch * FLINCH.lean * push.y;
+    const sway = -fx.flinch * FLINCH.lean * push.x;
     // (the soldier looking down bends only as far as its gun's hold needs, at the waist, and its head goes down onto the
     // stock for the rest: bent as far as a look up, the head went down between the shoulders and from behind they hid it)
     const bend = pitch < 0 ? (AIM_BEND.downByGun[this.gunId] ?? AIM_BEND.down) : AIM_BEND.up;
     if (b.spine_01 && bend[0]) turnBone(b.spine_01, fig, new THREE.Vector3(1, 0, 0), -pitch * bend[0]);
     if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), -pitch * bend[1] + lean * 0.5);
     if (b.spine_03) turnBone(b.spine_03, fig, new THREE.Vector3(1, 0, 0), -pitch * bend[2] + lean * 0.5 - fx.kick * 0.1);
+    if (sway) {
+      if (b.spine_02) turnBone(b.spine_02, fig, Z_AXIS, sway * 0.5);
+      if (b.spine_03) turnBone(b.spine_03, fig, Z_AXIS, sway * 0.5);
+    }
     // (the soldier's head held up to the look before its deliberate tilts: the clips carried it down with the chest, the
     // head 43 degrees forward of the neck standing, 52 to 56 aimed, 74 to 80 crouched or sprinting, chin on the chest,
     // and from behind a shot at the back of the head it showed took the neck's or torso's volume: 2 to 7 in 100 were
     // headshots sprinting or crouched, the owner unable to headshot one from behind with BOOG)
     if (b.Head && !full && !this.dead) this.holdHeadUp(b.Head, fig, pitch);
-    if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -fx.flinch * 0.25 + 0.1 * fx.ads);
+    if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), fx.flinch * FLINCH.head * push.y + 0.1 * fx.ads);
+    if (b.Head && push.x) turnBone(b.Head, fig, Z_AXIS, -fx.flinch * FLINCH.head * push.x);
     // The emote, on top of everything: the arms raised and swung in figure
     // space (+x is the figure's left, +z its front), the forearms bent at the
     // elbow, the spine and the head turned, the hips swung. Each angle arrives

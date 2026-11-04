@@ -8527,6 +8527,39 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("DEVINOS swings between its low carry and the aim without a big first step: 25 cm a frame at most as a slide begins and 20 as a reload ends (60 Hz)", swing.slide <= 25 && swing["reload's end"] <= 20, JSON.stringify(swing));
+  // A hit's flinch away from the side hit (Milestone 1027): every flinch leant the body straight back, so one shot in the
+  // back leant back into the shots. The neck's move, cm in the figure's own frame (+z its front, +x its left), a moment after
+  // a hit from behind, in front and on its left, against the same moment unhit
+  const flinch = await ev<Record<string, { fwd: number; left: number }>>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      const out = {};
+      for (const [name, at] of [["behind", [0, 1.3, -0.25]], ["front", [0, 1.3, 0.25]], ["left", [0.25, 1.3, 0]]]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 150); r.figureLabManual(true);
+        for (let i = 0; i < 900 && !(f.mq && f.mq.gunObject && f.mq.bones.neck_01); i++) r.figureLabStep(1 / 60);
+        r.figureLabStep(1.5);
+        const neck = () => { f.group.updateMatrixWorld(true); return f.group.worldToLocal(f.mq.bones.neck_01.getWorldPosition(new T.Vector3())); };
+        r.figureLabStep(1 / 60);
+        const still = neck();
+        // (the same frames on, unhit, for the clip's own move over them)
+        r.figureLabStep(2 / 60);
+        const drift = neck().sub(still);
+        const before = neck();
+        f.hit(0, "body", 1, 1, 1, f.group.localToWorld(new T.Vector3(...at)));
+        r.figureLabStep(2 / 60);
+        const moved = neck().sub(before).sub(drift);
+        out[name] = { fwd: Math.round(moved.z * 1000) / 10, left: Math.round(moved.x * 1000) / 10 };
+      }
+      return out;
+    })()`,
+  );
+  check(
+    "a hit's flinch pushes the body away from the side hit: shot from behind its neck goes forward, from the front back, from its left to its right",
+    flinch.behind.fwd >= 1 && flinch.front.fwd <= -1 && flinch.left.left <= -1,
+    JSON.stringify(flinch),
+  );
   // A change of clip half way into a fade (Milestone 1023): three.js's crossfade took the clip going out from full, so a
   // second change 30 ms after the first threw it back up against the one still fading: stood up from a crouch walk the
   // pelvis rose 17 cm in a frame, and a crouch let go and pressed again 32

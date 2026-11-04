@@ -381,6 +381,8 @@ export class Dummy {
   /** shots fired, for the figure (a pump gun's pump after each: MannequinImpulses.shots) */
   private shots = 0;
   private flinchAmt = 0;
+  /** the way the last hit pushed it, in its own frame: +x its left, +y its front (straight back, -y, with no side to read) */
+  private readonly flinchDir = new THREE.Vector2(0, -1);
   private joltAmt = 0;
   /**
    * Knocked out: the gun leaves its hands and falls to the floor beside it,
@@ -950,7 +952,7 @@ export class Dummy {
     }
     const ep = this.emoteIndex !== null ? emotePose(this.emoteIndex, this.emoteT) : null;
     const emoting = !!ep && ep.weight > 0.02;
-    this.mq?.update(p, dt, !!this.armedWith && this.gunShown, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, back, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps, shots: this.shots }, this.lodAnimate);
+    this.mq?.update(p, dt, !!this.armedWith && this.gunShown, { kick: this.kickAmt, flinch: this.flinchAmt, flinchDir: this.flinchDir, jolt: this.joltAmt, legYaw: e.legYaw + plant, back, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps, shots: this.shots }, this.lodAnimate);
     // a scoped figure glints (muzzle.ts, Hyper Scape's lens flare) only while it is looking down its scope (mannequin.ts
     // scoped): not while its gun is away, and not for an aim held through a reload, a swap, a throw or a strike
     if (this.mq?.glint) showGlint(this.mq.glint, this.gunShown ? this.mq.scoped : 0, this.glintT += dt);
@@ -1465,6 +1467,16 @@ export class Dummy {
     else this.flash = 1;
     // a flinch on every hit, a stagger when the shield breaks
     this.flinchAmt = Math.min(1.5, this.flinchAmt + (broke ? 1.3 : 0.5));
+    // away from the side hit (Milestone 1027), the hit's point being on the shooter's side of the body: every flinch leant
+    // the body back, so one shot in the back leant back into the shots. Straight back, as before, for a hit with no side
+    // to read (a host's hit on its bot is laid at the body's middle)
+    const ax = point.x - this.group.position.x;
+    const az = point.z - this.group.position.z;
+    if (Math.hypot(ax, az) >= DEATH.near) {
+      const s = Math.sin(this.group.rotation.y);
+      const c = Math.cos(this.group.rotation.y);
+      this.flinchDir.set(-(ax * c - az * s), -(ax * s + az * c)).normalize();
+    } else this.flinchDir.set(0, -1);
     if (broke) this.staggerAt = this.idleT;
     // a headshot snaps the head back (mannequin.ts Hit_Head), so a player sees which shots were the head
     if (zone === "head") this.headAt = this.idleT;

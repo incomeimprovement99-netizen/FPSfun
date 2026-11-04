@@ -128,6 +128,11 @@
     "tilt": 5,
     "height": 0.38
   },
+  "_flinch": "A hit's flinch (dummy.ts hit, mannequin.ts): the chest tipped `lean` radians for each unit of flinch, half at each of the upper two spine bones, and the head `head` more, the way the hit pushed the body (Milestone 1027): away from the side hit, the hit's point being on the shooter's side. Every flinch tipped the body straight back until then, so a soldier shot in the back leant back into the shots. A hit with no side to read (within death.near of the body's middle: a host lays its guests' hits on a bot there) flinches straight back. A hit adds 0.5 of flinch, a shield's break 1.3, at most 1.5, gone at 5 a second.",
+  "flinch": {
+    "lean": 0.22,
+    "head": 0.25
+  },
   "_back": "The gun carried but not in hand, on the back (mannequin.ts setBackGuns, Milestone 1025): an enemy showed only the gun in its hands, and holstered no gun at all, where Apex's legends carry the other on their backs. Laid as the sling lays a gun (its band), `gap` m off the soldier's skin, `tilt` degrees off upright (negative: its muzzle over the right shoulder) and its middle `height` of the way from the lower chest to the neck, in the chest's frame, so it turns with the rifleman's stance. A second gun on the back (holstered, both are carried), or the held gun slung for a climb or an emote over the one there, lies at the sling's place `clear` m further off the back than the first gun is thick, so the two never meet. Searched through every stance, act and all eight emotes on all eight long guns, held and holstered (node_modules/.scratch/backgunprobe.mts, how deep the soldier goes into the gun on the back): at the sling's own gap, 0.01, a rifle strike's left upper arm went 11 to 16 mm into the magazine of USSO, ANAKIN and REZ, at every tilt from -25 to 20 and height to 0.5 (and turned over, into a scope); at 0.025, nothing of the soldier is in any of them.",
   "back": {
     "tilt": -20,
