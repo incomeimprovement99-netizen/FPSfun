@@ -19443,3 +19443,23 @@ pistol carries a long gun up its back. Warzone, PUBG and Halo do the same.
   gap at 1 cm: the strike 13 mm into ANAKIN; a holster not taking the hands; no swap phase on the back: the gun whole and
   gone in a frame) and pass on the new code. A new check in the net codec (tools/checks/net-delta.ts) fails on the old
   codec and passes on the new. The soldier stances pass, 354 checks; p2p passes, 54.
+
+## Milestone 1026 — DEVINOS swung on a spring
+
+The third item of docs/PLAN_SOLDIER_AAA_GAPS.md, from the pop scan (node_modules/.scratch/popscan.mts, every change of
+stance at 60 frames a second): DEVINOS, carried low unless aimed, moved between that carry and the aim on an ease at a
+rate, so each move began with its biggest step. As a slide began (eased at 40 a second, two thirds of the way in the
+first frame, Milestone 1021) its grip went 38 to 42 cm and the tube turned 34 degrees in one frame; as a reload ended
+or a hip shot's second ran out, 25 cm. Every other gun moves 5 to 13 cm a frame through the same.
+
+- **A spring:** the carry swings on a critically damped spring that sets off and arrives at rest (mannequin.ts lowerV,
+  stepped exactly, so a long frame cannot throw it past either end), at soldierhold.json guns.launcher.carryLow `swing`
+  20 a second, and `raise` 45 up into a slide (figure.json slide.raise, its old rate, gone).
+- **Searched** (node_modules/.scratch/devswing.mts: the grip's and the tube's ends' moves a frame, the turn, and the
+  exact audit's depth of the soldier in the tube, the head and neck apart): a slide now 19 to 21 cm and 14 degrees a frame,
+  a reload's end and a hip shot's 18, aiming in and out 13 (15 before); the head and neck no deeper into the tube than
+  before (30 to 39 mm, 35 to 39 before) and on fewer frames. Slower springs moved less but crossed more: at `swing` 12
+  the tube lay 72 mm across the chest on its way down, at `raise` 25 it went 54 mm into the belly in a slide. Every other
+  change of stance in the pop scan is as it was.
+- **Checked:** a new check in the soldier stances measures DEVINOS's grip a frame as a slide begins and as a reload
+  ends: on the old code it fails (38 and 25 cm), on the new it passes (19 and 18). The soldier stances pass, 355 checks.

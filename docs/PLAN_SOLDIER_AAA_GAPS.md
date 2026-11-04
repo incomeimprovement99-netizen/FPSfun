@@ -60,7 +60,7 @@ Do not fit, left out:
    every pair of the ten guns, standing, crouched, sliding and in every emote. Your own soldier gets it from your
    loadout, and other players get it from one new field in the state they send. Bots carry one gun (their kit), so they
    show none until the lobby's looter carries a second.
-2. **M1026, DEVINOS's quick swings,** eased over the frames they now take one in.
+2. **M1026, DEVINOS's quick swings (built 2026-11-04),** on a spring over the frames they took one in.
 3. **M1027, a flinch from the side hit,** and the hit sent so that every page shows it.
 4. **Remote smoothness:** a two-browser battle royale, frame by frame. A fix gets its own milestone if anything shows.
 5. **A slide's streak,** only with the owner's yes on pictures.

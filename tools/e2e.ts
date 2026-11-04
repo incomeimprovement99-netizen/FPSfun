@@ -8501,6 +8501,32 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("DEVINOS fired from the hip holds its tube on the right shoulder (10 cm or more right of the head), and reloaded from there keeps it out of the body (over 15 mm on 3 frames at most, 20 mm the deepest)", hip.side >= 10 && hip.frames <= 3 && hip.worst <= 20, JSON.stringify(hip));
+  // DEVINOS between its low carry and the aim on a spring (Milestone 1026): eased at a rate, the move began with its biggest
+  // step, the tube's grip 38 to 42 cm in a frame at 60 frames a second as a slide began and 25 cm as a reload ended
+  const swing = await ev<Record<string, number>>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 9, stance: "stand", pitch: 0, weapon: "launcher", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      for (let i = 0; i < 900 && !(f.mq && f.mq.gunObject && f.mq.bones.pelvis); i++) r.figureLabStep(1 / 60);
+      r.figureLabStep(1.5);
+      const out = {};
+      for (const [name, steps] of [["slide", [[{ speed: 9, stance: "stand", pitch: 0 }, 0.8], [{ speed: 9, stance: "slide", pitch: 0 }, 0.8]]], ["reload's end", [[{ speed: 0, stance: "stand", pitch: 0 }, 0.8], [{ speed: 0, stance: "stand", pitch: 0, act: "reload" }, 1.4], [{ speed: 0, stance: "stand", pitch: 0 }, 1]]]]) {
+        const g = f.mq.gunObject;
+        const at = () => { f.group.updateMatrixWorld(true); return f.group.worldToLocal(g.getWorldPosition(new T.Vector3())); };
+        let last = null, most = 0;
+        for (const [pose, secs] of steps) {
+          r.figureLabPose(0, Object.assign({ weapon: "launcher" }, pose));
+          for (let i = 0; i < Math.round(secs * 60); i++) { r.figureLabStep(1 / 60); const now = at(); if (last && f.mq.gunInHand) most = Math.max(most, now.distanceTo(last) * 100); last = now; }
+        }
+        out[name] = Math.round(most);
+      }
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, weapon: "launcher" }); r.figureLabStep(1);
+      return out;
+    })()`,
+  );
+  check("DEVINOS swings between its low carry and the aim without a big first step: 25 cm a frame at most as a slide begins and 20 as a reload ends (60 Hz)", swing.slide <= 25 && swing["reload's end"] <= 20, JSON.stringify(swing));
   // A change of clip half way into a fade (Milestone 1023): three.js's crossfade took the clip going out from full, so a
   // second change 30 ms after the first threw it back up against the one still fading: stood up from a crouch walk the
   // pelvis rose 17 cm in a frame, and a crouch let go and pressed again 32

@@ -183,7 +183,7 @@ const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 /** the soldier's chest held no more than this far forward of upright, degrees (figure.json chestUp) */
 const CHEST_UP = figureCfg.chestUp as { most: number; rate: number };
 /** a slide seen on a figure, sat up with the gun held (figure.json slide, Milestone 831) */
-const SLIDE = figureCfg.slide as { back: number; hipsTurn: number; ads: number; rate: number; raise: number; seated: number };
+const SLIDE = figureCfg.slide as { back: number; hipsTurn: number; ads: number; rate: number; seated: number };
 /** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
 const AIM_BEND = figureCfg.aimBend as { up: number[]; down: number[]; downByGun: Record<string, number[]> };
 /** a runner's lean into a turn: no more than `most` degrees, `share` of a balanced lean, above `minSpeed` m/s (figure.json bank) */
@@ -827,6 +827,8 @@ export class MannequinFigure {
   private gripW = 0;
   /** 0..1 the long gun lowered and canted across the body (a sprint, a swap) */
   private lowered = 0;
+  /** how fast it is going between the two, a second, for a carry-low gun's spring (Milestone 1026) */
+  private lowerV = 0;
   /** how far the still figure's feet are flattened, 0 to 1, eased (figure.json flatFeet) */
   private flatW = 0;
   /** how far a figure standing still is lifted onto its flattened soles, 0 to 1, eased (figure.json flatFeet.lift) */
@@ -1002,7 +1004,10 @@ export class MannequinFigure {
     // A gun carried low unless aimed (DEVINOS's, carryLowOf) goes out of a swap from its carry and the next comes in at its
     // own: the carry changes here, while neither gun shows (the old one phased out, the new one not yet in). Eased, the
     // swap in place had DEVINOS come in at the shoulder and drop through its draw
-    if (this.gunId && id !== this.gunId && !!carryLowOf(this.gunId) !== !!carryLowOf(id)) this.lowered = carryLowOf(id) ? 1 : 0;
+    if (this.gunId && id !== this.gunId && !!carryLowOf(this.gunId) !== !!carryLowOf(id)) {
+      this.lowered = carryLowOf(id) ? 1 : 0;
+      this.lowerV = 0;
+    }
     this.gunId = id;
     this.rifleMem.gunInHand = null;
     const m = displayGunModel(id);
@@ -2400,14 +2405,31 @@ export class MannequinFigure {
       // (and a gun carried low unless aimed in, DEVINOS's tube, whose back half up on the shoulder hid the head from behind)
       const CL = carryLowOf(this.gunId);
       // (on a slide it is up as the other guns are: carried low on the seated lap, the tube went 10 cm into the chest. Up
-      // until the body is out of the slide's seat, and up into it at `raise`: brought between the two as the body sat down
-      // or stood up, it went 76 mm through the neck, Milestone 1021)
+      // until the body is out of the slide's seat, and up into it at its carry's `raise` (soldierhold.json): brought between
+      // the two as the body sat down or stood up, it went 76 mm through the neck, Milestone 1021)
       const carriedLow = !!CL && (sliding ? Math.max(p.ads ?? 0, SLIDE.ads) : (p.ads ?? 0)) < 0.3 && p.act !== "reload" && this.t - this.shotAt > CL.after && this.slideW < SLIDE.seated;
       // (and through a punch, the right hand keeping the gun where it was: brought up to the shoulder for it and down
       // again, it swept the left wrist past 70 degrees)
       const low = holding && !full && (carriedLow || (!rifleMelee && ((p.act === "swap" && !cup) || (p.act === "vent" && !V) || upper === "Pistol_Idle_Loop"))) ? 1 : 0;
-      if (V) this.lowered = (this.ventFrom + (1 - this.ventFrom) * smooth(V.in[0], V.in[1], ventU)) * (1 - smooth(V.out[0], V.out[1], ventU));
-      else this.lowered += (low - this.lowered) * Math.min(1, dt * (CL && sliding && low < this.lowered ? SLIDE.raise : REACH.lower));
+      if (V) {
+        this.lowered = (this.ventFrom + (1 - this.ventFrom) * smooth(V.in[0], V.in[1], ventU)) * (1 - smooth(V.out[0], V.out[1], ventU));
+        this.lowerV = 0;
+      } else if (CL) {
+        // A gun carried low swings between its carry and the aim on a spring that sets off and arrives at rest (Milestone
+        // 1026): eased at a rate, the move began with its biggest step, DEVINOS's tube 40 cm and 34 degrees in a frame as a
+        // slide began (at `raise`) and 25 cm as a reload ended. Critically damped, stepped exactly, so a long frame cannot
+        // throw it past either end
+        const w = sliding && low < this.lowered ? CL.raise : CL.swing;
+        const e = this.lowered - low;
+        const c = this.lowerV + w * e;
+        const k = Math.exp(-w * dt);
+        this.lowered = low + (e + c * dt) * k;
+        this.lowerV = (this.lowerV - w * c * dt) * k;
+        if (this.lowered < 0 || this.lowered > 1) {
+          this.lowered = Math.max(0, Math.min(1, this.lowered));
+          this.lowerV = 0;
+        }
+      } else this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
       // a melee's swing: where it is, and which of a string (a string held on the act goes on from one to the next)
       const swung = rifleMelee ? (this.t - this.actAt) / soldierHold.melee.time : -1;
       const melee = swung >= 0 ? { u: swung % 1, swing: this.meleeSwing + Math.floor(swung) } : null;

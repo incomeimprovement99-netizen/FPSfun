@@ -210,8 +210,8 @@ export function pistolStance(id: string): boolean {
  * every gun is sprinting, except for `after` seconds after a shot and through a reload: DEVINOS's tube, up on the shoulder,
  * lay its back half beside and behind the head, and from 30 degrees behind it hid 54 to 95 of every 100 points of it.
  */
-export function carryLowOf(id: string): { after: number } | null {
-  return (cfg.guns as Record<string, { carryLow?: { after: number } }>)[id]?.carryLow ?? null;
+export function carryLowOf(id: string): { after: number; swing: number; raise: number } | null {
+  return (cfg.guns as Record<string, { carryLow?: { after: number; swing: number; raise: number } }>)[id]?.carryLow ?? null;
 }
 
 /** where the soldier's left hand takes this gun, gun-local, when not where the model's own measures put it (soldierhold.json support) */
