@@ -262,6 +262,34 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   d.takeHit(999, 1);
   run([{ d, l: hl }, { d: gd, l: gl2 }], 1.2, w);
   const after = fig?.group.position.y ?? NaN;
+  {
+    // (Milestone 1012) and lies down as it lands, not flat in the air: knocked 2 and 4 m up over open street, its fall (the
+    // hit zones' topple, which the death clip keeps time with) measured every frame against the height still to fall
+    const flat = Math.PI / 2 - 0.2;
+    const rows: string[] = [];
+    let paced = true;
+    for (const H of [2, 4]) {
+      const b: Any = new Bot(0, scene, projectiles, DIFFICULTY.normal, { x: 0, z: 30, yaw: 0 }, 1, "vinson");
+      b.pos.set(60, H, 60);
+      b.dummy.group.position.copy(b.pos);
+      let t = clock + 400;
+      b.dummy.hit(t, "body", 9999, 1, 1, b.pos.clone().setY(b.pos.y + 1));
+      let flatUp = 0;
+      let atLand = -1;
+      let early = 0;
+      for (let i = 0; i < 120; i++) {
+        b.update((t += 1 / 60), 1 / 60, { target: null, targetId: -1, goal: null, canShoot: false });
+        const tilt = -b.dummy.group.rotation.x / flat;
+        const up = b.dummy.group.position.y;
+        if (i === 6) early = tilt;
+        if (up > 0.2 && tilt > 0.95) flatUp = Math.max(flatUp, up);
+        if (atLand < 0 && up < 1e-3) atLand = tilt;
+      }
+      rows.push(`${H} m: ${Math.round(early * 100)}% down at 0.1 s, ${Math.round(atLand * 100)}% as it lands, flat ${flatUp.toFixed(2)} m up at the most`);
+      if (flatUp > 0 || atLand < 0.85 || early < 0.02) paced = false;
+    }
+    check("a body knocked 2 or 4 m up goes down at once and lies flat as it lands, not in the air", paced, rows.join("; "));
+  }
   check("another player knocked in a jump lies on the floor on your page, not in the air", d.phase === "fight" && !d.alive && fig?.knocked && before > 1.5 && Math.abs(after) < 0.01, `drawn ${before.toFixed(2)} m up, then ${after.toFixed(2)}, ${fig?.knocked ? "down" : "standing"}`);
 }
 {

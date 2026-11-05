@@ -53,11 +53,12 @@ Do not fit, left out:
 1. **M1011, a body knocked in the air comes down** (built; shipping with this plan).
 2. **M1012, the fall lies flat as it lands (gap 3):** the death clip and the hit zones' topple slowed, while the body is
    still in the air, so they are flat as it touches down, never at full speed into a plank in the air.
-3. **M1013, your damage and the net on the HUD (gap 1):** your damage dealt under your kills. Under the FPS, the ping to
+3. **M1013, a player put somewhere else is drawn there:** found on the way, a fault from Milestone 1028.
+4. **M1014, your damage and the net on the HUD (gap 1):** your damage dealt under your kills. Under the FPS, the ping to
    the host (or a host's worst guest) and the state packets lost, with a warning mark when either is bad.
-4. **M1014, the kill leader (gap 2):** the host counts every kill and names a leader once someone has the most, past a
+5. **M1015, the kill leader (gap 2):** the host counts every kill and names a leader once someone has the most, past a
    floor of kills. It tells every page, says it in the feed and the announcer, marks the leader's plate, and says when
    they go down.
-5. **M1015, bots' hits from their side (gap 4).**
-6. **M1016, the match history (gap 5):** the last 20 matches in the Stats tab.
-7. **Sound visualisation (gap 6),** after these, with pictures first.
+6. **M1016, bots' hits from their side (gap 4).**
+7. **M1017, the match history (gap 5):** the last 20 matches in the Stats tab.
+8. **Sound visualisation (gap 6),** after these, with pictures first.

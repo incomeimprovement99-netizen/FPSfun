@@ -48,9 +48,11 @@ export interface HitReport {
 const HEALTH_MAX = 100;
 const RESPAWN_S = 1.2;
 const FALL_S = 0.32;
+/** how far into its fall (0..1) a body is flat: the topple's ease and the death clip both lie down there */
+const FLAT_AT = 0.82;
 /** a death turned away from the shot: how long a hit counts, how near the middle is no side, how fast it turns (figure.json death) */
 const DEG = Math.PI / 180;
-const DEATH = figureCfg.death as { hitFor: number; near: number; turnRate: number; room: number; roomUp: number; roomStep: number; ledge: number; probe: number; feet: number; side: number; slide: number[] };
+const DEATH = figureCfg.death as { hitFor: number; near: number; turnRate: number; room: number; roomUp: number; roomStep: number; ledge: number; probe: number; feet: number; side: number; slide: number[]; airPace: number };
 /** the solids under a fall's line, filled per query (solidsIn's scratch list) */
 const UNDER: Solid[] = [];
 /** the highest floor at (x, z) no higher than y (a top, or the world's own floor) */
@@ -1345,6 +1347,23 @@ export class Dummy {
     p.y = Math.max(floor, p.y - this.downV * dt);
   }
 
+  /**
+   * How fast a body knocked in the air goes into its fall, 0..1 (Milestone 1012): slowed while it comes down so it is flat as
+   * it lands. At its own speed it was flat 0.26 s after the knock, and a body knocked 2 to 4 m up lay flat in the air for 0.2
+   * to 0.4 s more before it reached the street. Never slower than figure.json death.airPace, so the kill is seen at once.
+   */
+  private airPace(): number {
+    if (!this.fallsToFloor || this.fall >= FLAT_AT) return 1;
+    const p = this.group.position;
+    if (this.restedAt?.equals(p)) return 1;
+    const h = p.y - this.restFloor();
+    if (h < 1e-3) return 1;
+    const g = MOVE.gravity;
+    const land = (-this.downV + Math.sqrt(this.downV * this.downV + 2 * g * h)) / g;
+    const left = (FLAT_AT - this.fall) * FALL_S;
+    return Math.max(DEATH.airPace, Math.min(1, left / land));
+  }
+
   /** knocked by something other than a hit here (the 1v1 opponent going down) */
   fallDown(dropGun = true): void {
     if (this.knocked) return;
@@ -1544,10 +1563,12 @@ export class Dummy {
     // what this figure owes at its distance (figlod.ts): its animation, its shadow, its gun
     this.stepLod();
     if (this.knocked && this.respawns && now >= this.respawnAt) this.reset();
+    // (paced before it comes down this frame: asked after, a body a frame from the floor was told it had all but landed)
+    const downDt = this.knocked ? dt * this.airPace() : dt;
     if (this.knocked && this.fallsToFloor) this.comeDown(dt);
     this.stepDropped(dt);
     // the mannequin plays its own death clip
-    if (this.knocked && this.mq) this.mq.updateDead(dt);
+    if (this.knocked && this.mq) this.mq.updateDead(downDt);
 
     // crouched or sliding: the hit zones shrink to two thirds (the same blend at any frame rate: 35% a frame at 60 fps),
     // until the soldier is on it, whose volumes follow its bones down (followBones) and are not squashed too
@@ -1568,18 +1589,18 @@ export class Dummy {
     // Fall over rather than snap to the floor: ease out, with a small bounce
     // at the end, pivoting at the feet and toppling away from the shooter.
     if (this.knocked && this.fall < 1) {
-      this.fall = Math.min(1, this.fall + dt / FALL_S);
+      this.fall = Math.min(1, this.fall + downDt / FALL_S);
       // turned to fall away from the shot as it starts to go (faceTheShot), the shortest way round
       if (this.fallYaw !== null) {
         const d = Math.atan2(Math.sin(this.fallYaw - this.group.rotation.y), Math.cos(this.fallYaw - this.group.rotation.y));
         this.group.rotation.y += d * Math.min(1, dt * DEATH.turnRate);
       }
       const t = this.fall;
-      const ease = t < 0.82 ? Math.pow(t / 0.82, 2) : 1 - Math.sin(((t - 0.82) / 0.18) * Math.PI) * 0.06;
+      const ease = t < FLAT_AT ? Math.pow(t / FLAT_AT, 2) : 1 - Math.sin(((t - FLAT_AT) / (1 - FLAT_AT)) * Math.PI) * 0.06;
       // slid onto its floor as it goes, the way it falls (roomToFall)
       const S = this.fallSlide;
       if (S && this.fallYaw !== null) {
-        const k = S.by * Math.min(1, t / 0.82);
+        const k = S.by * Math.min(1, t / FLAT_AT);
         // (its height its own: a body knocked in the air is coming down as it slides)
         this.group.position.set(S.from.x - Math.sin(this.fallYaw) * k, this.group.position.y, S.from.z - Math.cos(this.fallYaw) * k);
       }

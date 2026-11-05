@@ -1300,6 +1300,41 @@ const scene = new THREE.Scene();
   wire.drain();
   host.dispose();
 }
+{
+  // (Milestone 1013) a player put somewhere else from standing still, not moving off: a rise of 2 m, a DASH 20 m on onto a
+  // ledge 1.5 m up, a respawn 30 m away; each then stands, so nothing more comes. The other end's figure of them, a second
+  // on, against where they are
+  const wire = new Wire();
+  const [h, gl] = wire.pair(0, 1);
+  const host = new Duel(scene, projectiles, { players: 2, myId: 0, link: h, guestId: 1 });
+  const guest = new Duel(scene, projectiles, { players: 2, myId: 1, link: gl });
+  let f = run(wire, [{ d: host, id: 0 }, { d: guest, id: 1 }], [], 0, 120);
+  const fig = () => (inside(guest).remotes.get(0) as unknown as { avatar: { group: THREE.Object3D } }).avatar.group.position.clone();
+  const hold = (s: LocalState, frames: number) => {
+    for (let k = 0; k < frames; k++) {
+      clockMs += 1000 / 60;
+      host.update(s);
+      guest.update(walk(1, f));
+      wire.drain();
+    }
+  };
+  const off: string[] = [];
+  let worst = 0;
+  for (const [name, dx, dy] of [["a rise of 2 m", 0, 2], ["a DASH onto a ledge", 20, 1.5], ["a respawn 30 m off", 30, 0]] as const) {
+    const stand = { ...walk(0, f), speed: 0 };
+    hold(stand, 180);
+    const put = { ...stand, x: stand.x + dx, y: stand.y + dy };
+    hold(put, 60);
+    const miss = fig().distanceTo(new THREE.Vector3(put.x, put.y, put.z));
+    worst = Math.max(worst, miss);
+    off.push(`${name}: ${miss.toFixed(2)} m off`);
+    f += 30;
+  }
+  check("a player put somewhere else and standing there is drawn there, not carried on past it", worst < 0.1, off.join("; "));
+  guest.leave();
+  wire.drain();
+  host.dispose();
+}
 
 perf.now = realNow;
 console.warn = warn;

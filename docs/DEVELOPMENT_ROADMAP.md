@@ -14539,6 +14539,32 @@ down: a bot's walk stopped, and a guest's page stops placing a figure once its p
 - **Checked:** tsc, verify, rules. Three new arena-rules checks fail on the old code: the three falls at rest 1.71, 1.78 and
   1.87 m over their floors, the guest's figure 2.00 m up, the respawned bot on its rope. With the fix they pass.
 
+## Milestone 1012 — The fall lies flat as it lands
+
+From the match's AAA plan ([PLAN_MATCH_AAA_GAPS.md](PLAN_MATCH_AAA_GAPS.md), gap 3), and the character agent's note on
+Milestone 1011. A body knocked in the air now came down, but its fall ran at full speed. Measured on a real page from the side,
+every drawn frame: the head lay flat 256 ms after the knock, while the body reached the street at 475 ms from 2 m and 673 ms
+from 4 m. It lay flat in the air for 0.2 and 0.4 s.
+
+- **The fix:** while a knocked body is still coming down, its death clip and its hit zones' fall are slowed, every frame, to
+  the time it still needs to lie flat against the time left to the floor. It lies flat as it lands (dummy.ts airPace). It
+  is never slower than figure.json `death.airPace` (0.3), so a kill is seen to go at once. On the ground nothing changes.
+- **Checked:** tsc, verify, rules. A new arena-rules check fails on the old code: flat 1.34 m and 3.34 m up for knocks from 2
+  and 4 m. With the fix: flat as it lands (97%), and never flat in the air. e2e skfigure, and the side film again.
+
+## Milestone 1013 — A player put somewhere else is drawn there
+
+Found while checking Milestone 1011. Standing or crouched with no speed, a player whose height had changed was read as a body
+still going up. A rise of 2 m from standing still (onto a ledge, or a respawn up there) was drawn on up past it until the next
+state came, which takes up to the 2 s keyframe for a player standing there. Drawn 0.64 m over before Milestone 1028. Since
+1028, the last still state is held to a send before the next, so the step was a send long and the figure was drawn 9 m over.
+
+- **The fix:** a state standing or crouched with no speed is stopped, whatever the height did, so nothing is drawn past it
+  (duel.ts placeAvatar). A jump, a fall, a wall run or a skydive still carry on past the last state when states are late.
+- **Checked:** tsc, verify, rules. A new net-delta check fails on the old code: a rise of 2 m drawn 9.00 m off. With the fix:
+  0.01 m, and a DASH onto a ledge and a respawn 30 m off are drawn where they are. Milestone 1028's own check still passes.
+  e2e duel and p2p.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

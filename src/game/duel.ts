@@ -2095,7 +2095,10 @@ export class Duel implements MatchLike {
     const span = b.at - a.at;
     const k = span > 1e-6 ? Math.max(0, Math.min(1, (t - a.at) / span)) : 1;
     // (not past a state that says they stopped: drawn on past it, up to a metre, until the next, Milestone 935)
-    const stopped = b.speed < 0.05 && Math.abs(b.y - a.y) < 0.01;
+    // Standing or crouched with no speed is stopped whatever the height did: a rise of 2 m from standing still (put on a
+    // ledge, a respawn) read as a body still going up, and was drawn on up the step to the next state, 0.64 m over, and
+    // 9 m over once the still state was held to a send before it (Milestone 1028) and the step was a send long (Milestone 1013)
+    const stopped = b.speed < 0.05 && (Math.abs(b.y - a.y) < 0.01 || b.stance === "stand" || b.stance === "crouch");
     const ahead = past && !stopped && span > 1e-6 && span < 0.5 ? Math.min(t - b.at, B.extrapolate) / span : 0;
     const g = r.avatar.group;
     const kp = k + ahead;
