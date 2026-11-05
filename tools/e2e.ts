@@ -3169,8 +3169,9 @@ async function shotgunChecks(page: Page): Promise<void> {
   );
   const s0 = await ev<{ shots: number; hits: number; damage: number }>(page, "window.__range.stats()");
   // (this pull's alone: a ?norender page never draws, which is what takes a number away, so an earlier rocket's stood here,
-  // on the floor until Milestone 990 and on its target's face since)
-  await ev(page, "void (window.__range.hud.damageNumbers.length = 0)");
+  // on the floor until Milestone 990 and on its target's face since). The list itself: damageNumbers hands back a copy, so
+  // emptying that one kept every earlier number, and an earlier test's 3 or 15 failed this one in five sweeps and runs.
+  await ev(page, "void (window.__range.hud.numbers.length = 0)");
   await padTap(page, 7, 60);
   await sleep(700);
   const s1 = await ev<{ shots: number; hits: number; damage: number }>(page, "window.__range.stats()");

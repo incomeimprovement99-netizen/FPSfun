@@ -699,6 +699,7 @@ export class Bot {
     const op = OPERATORS[(index + 1) % OPERATORS.length];
     const skin = { ...op, soldier: botSoldierCode(id) };
     this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin, noBase: true });
+    this.dummy.fallsToFloor = true;
     // SpeedKills: a player's one shield (speedkills.json health), whatever armour tier the kit says
     if (PROFILE.health) this.dummy.shieldCap = PROFILE.health.shield;
     this.dummy.setTier(2);
@@ -727,6 +728,8 @@ export class Bot {
   reset(): void {
     this.falling = false;
     this.fallV = 0;
+    // (knocked on a rope or a pad's throw, it came back on it: the flight went on from where it was, Milestone 1011)
+    this.travel = null;
     this.dummy.reset();
     this.dummy.setTier(2);
     this.dummy.setThreat(0);
@@ -1206,6 +1209,8 @@ export class Bot {
     this.clock = now;
     if (!this.alive) {
       this.dummy.update(now, dt);
+      // where its body came down (Dummy.fallsToFloor): the killcam's recording and the guests have it there
+      this.pos.y = this.dummy.group.position.y;
       return [];
     }
     if (this.travel) {

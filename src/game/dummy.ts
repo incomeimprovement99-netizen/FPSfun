@@ -18,6 +18,8 @@ import { emoteAt, emotePose } from "./emotes";
 import { solidHit } from "./projectile";
 import { solidsIn } from "./solidgrid";
 import { floorAt } from "./floors";
+import { botGroundAt } from "./botbody";
+import { MOVE } from "./movement";
 import type { Solid } from "./range";
 import figureCfg from "../config/figure.json";
 import rangeCfg from "../config/rangetools.json";
@@ -299,6 +301,16 @@ export class Dummy {
   shieldCap: number | null = null;
   tier: ArmorTier = 0;
   knocked = false;
+  /**
+   * Knocked in the air, the body comes down onto the floor under it (Milestone 1011): a soldier killed off a ledge, on a
+   * rope, on a pad's throw or in a jump lay where it died, in the air, for the rest of the match, on every page. Its owner
+   * says so (a bot's figure, another player's, your own): a range figure stands on a plinth no floor knows of, and the
+   * killcam's stand-ins are put where the recording had them.
+   */
+  fallsToFloor = false;
+  /** a body knocked in the air: how fast it is coming down (m/s), and where it last came to rest (looked at no more) */
+  private downV = 0;
+  private restedAt: THREE.Vector3 | null = null;
   /** time of the FIRST hit on this dummy since it was last full, or null */
   engagedAt: number | null = null;
   /** if set, this dummy tracks left and right along a rail */
@@ -1266,10 +1278,11 @@ export class Dummy {
   private roomToFall(): void {
     const want = this.fallYaw ?? this.group.rotation.y;
     this.fallSlide = null;
+    // (from the floor it will come to rest on, knocked in the air: from where it was, every way was off an edge)
+    const feet = this.fallsToFloor ? this.restFloor() : this.group.position.y;
     const from = this.group.position.clone();
-    from.y += DEATH.roomUp;
+    from.y = feet + DEATH.roomUp;
     const back = new THREE.Vector3();
-    const feet = this.group.position.y;
     // (across the body's width: the lowest of the line and `side` either side of it, so a body is not laid along an edge)
     const floorAcross = (x: number, z: number, sx: number, sz: number) => Math.min(floorUnder(x, z, feet + DEATH.roomUp), floorUnder(x + sx * DEATH.side, z + sz * DEATH.side, feet + DEATH.roomUp), floorUnder(x - sx * DEATH.side, z - sz * DEATH.side, feet + DEATH.roomUp));
     // Up to a wall, or to the last place along the line before the floor drops away: an edge it would lie out past. Each
@@ -1312,6 +1325,26 @@ export class Dummy {
     if (best.slide > 0) this.fallSlide = { from: this.group.position.clone(), by: best.slide };
   }
 
+  /** the floor a body down here comes to rest on: the highest top under its square, as a standing body's, never above it */
+  private restFloor(): number {
+    const p = this.group.position;
+    return Math.min(p.y, botGroundAt(p.x, p.z, p.y));
+  }
+
+  /** a frame of a knocked body's fall onto its floor, under the movement's gravity (asked from where the frame began) */
+  private comeDown(dt: number): void {
+    const p = this.group.position;
+    if (this.restedAt?.equals(p)) return;
+    const floor = this.restFloor();
+    if (p.y - floor < 1e-3) {
+      this.downV = 0;
+      this.restedAt = (this.restedAt ?? new THREE.Vector3()).copy(p);
+      return;
+    }
+    this.downV += MOVE.gravity * dt;
+    p.y = Math.max(floor, p.y - this.downV * dt);
+  }
+
   /** knocked by something other than a hit here (the 1v1 opponent going down) */
   fallDown(dropGun = true): void {
     if (this.knocked) return;
@@ -1341,6 +1374,8 @@ export class Dummy {
     this.knocked = false;
     this.fall = 0;
     this.fallSlide = null;
+    this.downV = 0;
+    this.restedAt = null;
     this.group.rotation.x = 0;
     if (this.mq) this.mq.root.rotation.x = 0;
     this.group.visible = true;
@@ -1509,6 +1544,7 @@ export class Dummy {
     // what this figure owes at its distance (figlod.ts): its animation, its shadow, its gun
     this.stepLod();
     if (this.knocked && this.respawns && now >= this.respawnAt) this.reset();
+    if (this.knocked && this.fallsToFloor) this.comeDown(dt);
     this.stepDropped(dt);
     // the mannequin plays its own death clip
     if (this.knocked && this.mq) this.mq.updateDead(dt);
@@ -1544,7 +1580,8 @@ export class Dummy {
       const S = this.fallSlide;
       if (S && this.fallYaw !== null) {
         const k = S.by * Math.min(1, t / 0.82);
-        this.group.position.set(S.from.x - Math.sin(this.fallYaw) * k, S.from.y, S.from.z - Math.cos(this.fallYaw) * k);
+        // (its height its own: a body knocked in the air is coming down as it slides)
+        this.group.position.set(S.from.x - Math.sin(this.fallYaw) * k, this.group.position.y, S.from.z - Math.cos(this.fallYaw) * k);
       }
       this.group.rotation.x = (-Math.PI / 2 + 0.2) * ease;
       // the mannequin's death clip puts it on the floor itself: the hit zones

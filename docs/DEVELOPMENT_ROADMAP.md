@@ -14522,6 +14522,23 @@ notches over the DPI box took 800 to 950. The box lets go as the wheel turns ove
 
 - **Checked:** tsc, verify, rules; e2e panel (a new check, failing with the fix taken out).
 
+## Milestone 1011 — A body knocked in the air comes down
+
+Found looking over Milestone 1009's falls. A soldier knocked in the air lay where it died, in the air, for the rest of the match, on
+every page. That covers falling off a ledge, riding a rope, a pad's throw, and the top of a jump. Nothing moved a body once it was
+down: a bot's walk stopped, and a guest's page stops placing a figure once its player is out. On the arena-rules bench, bots knocked
+1.71 to 1.87 m up stayed there, and a guest's figure of a host knocked in a 2 m jump stayed 2 m up.
+
+- **The fix:** a soldier's figure that is down now falls under the movement's gravity onto the floor under it (dummy.ts
+  `fallsToFloor`). This applies to a bot's figure, another player's and your own; a range figure on its plinth and the killcam's
+  stand-ins do not fall. The floor is the one a standing body has, the highest top anywhere under its square. The way the body
+  falls is chosen from that floor, so it is still never laid through a wall or off an edge. A bot's position follows its body
+  down, so the killcam's recording has it there too.
+- **Also:** a bot knocked on a rope or on a pad's throw came back after its respawn still on the rope, the flight carrying on
+  from where it was. Its respawn now ends the flight (bots.ts reset).
+- **Checked:** tsc, verify, rules. Three new arena-rules checks fail on the old code: the three falls at rest 1.71, 1.78 and
+  1.87 m over their floors, the guest's figure 2.00 m up, the respawned bot on its rope. With the fix they pass.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -7112,6 +7112,7 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   if (!selfFig || selfFigKey !== key) {
     selfFig?.dispose();
     selfFig = new Dummy(0, 0, 0, { armed: weaponId, respawn: false, skin: operatorWearing(op, look), noBase: true });
+    selfFig.fallsToFloor = true;
     selfFig.group.name = "self";
     scene.add(selfFig.group);
     selfFigKey = key;

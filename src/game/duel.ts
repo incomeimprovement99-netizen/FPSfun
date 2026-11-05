@@ -1020,6 +1020,7 @@ export class Duel implements MatchLike {
       const worn = operatorWearing(op, look);
       const skin = !worn.soldier ? { ...worn, soldier: botSoldierCode(r.id) } : worn;
       d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin, noBase: true });
+      d.fallsToFloor = true;
       // Its own health is not the truth, the other player's is; a huge pool
       // means its hit() reports full damage and never knocks it by itself.
       // Blue shields like the player's, so hits read in the shield colour.

@@ -212,6 +212,59 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   check("a bot walking off a 1.71 m ledge falls to the ground below, not there the next frame", most < 0.5 && air >= 5 && landed < 120 && b.pos.y === 0, `most in a frame ${most.toFixed(2)} m, ${air} frames in the air`);
 }
 {
+  // (Milestone 1011) knocked in the air, off that ledge, on a pad's throw or on a rope: the body lay where it died, in the
+  // air, for the rest of the match, and a bot knocked on a rope came back on it
+  const rest: string[] = [];
+  let downOk = true;
+  for (const how of ["ledge", "pad", "rope"]) {
+    RANGE_SOLIDS.length = 0;
+    RANGE_SOLIDS.push({ minX: -5, maxX: 5, minZ: -5, maxZ: 5, top: 1.71, base: 0 });
+    const b: Any = new Bot(0, scene, projectiles, DIFFICULTY.normal, { x: 0, z: 30, yaw: 0 }, 1, "vinson");
+    b.pos.set(3.5, 1.71, 0);
+    if (how === "pad") b.jumpPad({ up: 8, dx: 0, dz: 0, over: 99 });
+    if (how === "rope") b.ride(new THREE.Vector3(3.5, 4, 0), new THREE.Vector3(20, 4, 0), 6);
+    let t = clock + 300;
+    let hit = false;
+    let air = 0;
+    for (let i = 0; i < 180; i++) {
+      b.update((t += 1 / 60), 1 / 60, { target: null, targetId: -1, goal: new THREE.Vector3(12, 0, 0), canShoot: false });
+      if (!hit && (how === "ledge" ? b.falling : i === 20)) {
+        hit = true;
+        air = b.pos.y - b.groundAt(b.pos.x, b.pos.z);
+        b.dummy.hit(t, "body", 9999, 1, 1, b.pos.clone().setY(b.pos.y + 1));
+      }
+    }
+    const under = b.groundAt(b.pos.x, b.pos.z);
+    const fig = b.dummy.group.position.y;
+    rest.push(`${how}: ${air.toFixed(2)} m up, at rest ${(b.pos.y - under).toFixed(2)} over the floor`);
+    if (!hit || b.alive || air < 0.3 || Math.abs(b.pos.y - under) > 0.01 || Math.abs(fig - under) > 0.01) downOk = false;
+    if (how === "rope") {
+      b.respawnAt(b.spawn);
+      b.update((t += 1 / 60), 1 / 60, { target: null, targetId: -1, goal: new THREE.Vector3(0, 0, 30), canShoot: false });
+      check("and a bot knocked on a rope comes back at its spawn, not on the rope", !b.travel && Math.hypot(b.pos.x, b.pos.z - 30) < 0.5, `at ${b.pos.x.toFixed(1)}, ${b.pos.y.toFixed(1)}, ${b.pos.z.toFixed(1)}`);
+    }
+  }
+  RANGE_SOLIDS.length = 0;
+  check("a bot knocked in the air comes down onto the floor under it, off a ledge, on a pad's throw, on a rope", downOk, rest.join("; "));
+  // and another player's body, on your page: the host knocked in a jump 2 m up, as the guest draws them
+  const w = new Wire();
+  const [h, gl] = w.pair();
+  const d: Any = new ArenaMode(scene, projectiles, { players: 2, myId: 0, link: h, guestId: 1, kind: "ffa", bots: 0, difficulty: "normal", map: null } as never);
+  const gd: Any = new ArenaMode(scene, projectiles, { players: 2, myId: 1, link: gl, kind: "ffa", bots: 0, difficulty: "normal", map: null } as never);
+  let hy = 0;
+  const hl = () => local({ x: 40, y: hy, z: 40, stance: hy > 0 ? "air" : "stand" });
+  const gl2 = () => local({ name: "G", x: 60, z: 40 });
+  for (let i = 0; i < 400 && d.phase !== "fight"; i++) run([{ d, l: hl }, { d: gd, l: gl2 }], 1 / 30, w);
+  hy = 2;
+  run([{ d, l: hl }, { d: gd, l: gl2 }], 0.5, w);
+  const fig: Any = gd.remotes.get(0)?.avatar;
+  const before = fig?.group.position.y ?? NaN;
+  d.takeHit(999, 1);
+  run([{ d, l: hl }, { d: gd, l: gl2 }], 1.2, w);
+  const after = fig?.group.position.y ?? NaN;
+  check("another player knocked in a jump lies on the floor on your page, not in the air", d.phase === "fight" && !d.alive && fig?.knocked && before > 1.5 && Math.abs(after) < 0.01, `drawn ${before.toFixed(2)} m up, then ${after.toFixed(2)}, ${fig?.knocked ? "down" : "standing"}`);
+}
+{
   // (Milestone 1000) a new target, or a fight it could not shoot in, starts the reaction and the wide aim again
   RANGE_SOLIDS.length = 0;
   const tier = DIFFICULTY.hard;
