@@ -285,5 +285,25 @@ console.log("\nThe host's word on a guest's take (src/game/brmatch.ts)");
   check("four kills by a guest, counted where the host lands them, make the guest the leader on its own page", mine?.id === 1 && mine.you && mine.kills === 4 && g2.hud().br.leader?.id === 1, JSON.stringify({ heir: mine, g2: g2.hud().br.leader }));
 }
 
+{
+  // (Milestone 1016) a guest's round in a bot, which the host lands: the bot's flinch pushes it away from the guest, read
+  // back out of its own frame, not straight back whichever way the shot came
+  const { host } = start();
+  const b = host.bots.find((x: Any) => x.bot.alive && !x.bot.dropping);
+  const shooter = host.remotes.get(1).avatar.group.position.clone();
+  host.onHitOther(b.bot.remote.id, 5, false, 1, "r97");
+  const fd = b.bot.dummy.flinchDir;
+  const yaw = b.bot.dummy.group.rotation.y;
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  // (the push away, in the world: back out of the figure's frame, where a point toward the shooter becomes its opposite)
+  const toward = { x: -(fd.x * c + fd.y * s), z: -(-fd.x * s + fd.y * c) };
+  const dx = shooter.x - b.bot.pos.x;
+  const dz = shooter.z - b.bot.pos.z;
+  const l = Math.hypot(dx, dz) || 1;
+  const along = toward.x * (dx / l) + toward.z * (dz / l);
+  check("a guest's round in a bot pushes it away from the guest on the host's page, not straight back", along > 0.99, `${along.toFixed(2)} along the line to the guest, the push ${fd.x.toFixed(2)}, ${fd.y.toFixed(2)} in its frame`);
+}
+
 console.log(fails === 0 ? "\nBR HEIR PASS" : `\nBR HEIR FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

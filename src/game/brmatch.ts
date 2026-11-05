@@ -844,7 +844,8 @@ export class BrMatch extends Duel {
       if (o === thrower || o.team === thrower.team || !o.bot.alive || o.bot.dropping) continue;
       const d = hurts(o.bot.pos, false);
       if (d <= 0) continue;
-      o.bot.dummy.hit(now, "body", d, 1, 1, o.bot.pos.clone().setY(o.bot.pos.y + 1.2));
+      // (from the thrower's side: `hurts` keeps where the burst was to itself)
+      o.bot.dummy.hit(now, "body", d, 1, 1, this.hitSide(o.bot.pos, thrower.bot.pos));
       o.bot.remote.health = o.bot.dummy.health;
       o.bot.remote.shield = o.bot.dummy.shield;
       if (o.bot.dummy.knocked) this.botDown(o, owner);
@@ -1388,13 +1389,31 @@ export class BrMatch extends Duel {
     if (b.bot.dummy.knocked) this.botDown(b, this.id, weapon, head);
   }
 
+  /**
+   * Where a hit on a bot lands, for its flinch (Milestone 1016): on its middle's side toward `from`, the shooter or the
+   * burst, a body's half-width out. Laid at the middle, every hit the host ran itself had no side to read and leant the
+   * bot straight back (Milestone 1027 flinches away from the side hit), a guest's shots in its back as well.
+   */
+  private hitSide(body: THREE.Vector3, from: THREE.Vector3 | undefined): THREE.Vector3 {
+    const p = body.clone().setY(body.y + 1.2);
+    if (!from) return p;
+    const dx = from.x - body.x;
+    const dz = from.z - body.z;
+    const l = Math.hypot(dx, dz);
+    if (l > 1e-3) {
+      p.x += (dx / l) * MOVE.radius;
+      p.z += (dz / l) * MOVE.radius;
+    }
+    return p;
+  }
+
   /** the host: a guest's hit on a bot */
   protected override onHitOther(to: number, amount: number, head: boolean, from: number, weapon = ""): boolean {
     const b = this.bots.find((x) => x.bot.remote.id === to);
     if (!b) return false;
     if (this.phase !== "fight" || !b.bot.alive) return true;
     const bot = b.bot;
-    bot.dummy.hit(wallClock(), head ? "head" : "body", amount, 1, 1, bot.pos.clone().setY(bot.pos.y + 1.2));
+    bot.dummy.hit(wallClock(), head ? "head" : "body", amount, 1, 1, this.hitSide(bot.pos, this.remotes.get(from)?.avatar.group.position));
     bot.remote.health = bot.dummy.health;
     bot.remote.shield = bot.dummy.shield;
     if (bot.dummy.knocked) this.botDown(b, from, weapon, head);
@@ -2779,7 +2798,7 @@ export class BrMatch extends Duel {
         for (const s of shots) {
           // (a rocket's shot does nothing: its burst does, botBurst)
           if (s.damage <= 0 || !hitsBody(s.from, s.dir, other.bot.pos, BODY_TOP)) continue;
-          other.bot.dummy.hit(now, "body", s.damage, 1, 1, other.bot.pos.clone().setY(other.bot.pos.y + 1.2));
+          other.bot.dummy.hit(now, "body", s.damage, 1, 1, this.hitSide(other.bot.pos, s.from));
           other.bot.remote.health = other.bot.dummy.health;
           other.bot.remote.shield = other.bot.dummy.shield;
           if (other.bot.dummy.knocked) {
