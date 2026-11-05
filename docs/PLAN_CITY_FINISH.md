@@ -412,6 +412,18 @@ and the 16 to 20 m tier still to do)
   rooms to walk into, vault4's door swung open and its caches, finish4's frames, roads and cars, dist4a's THE STACKS, GLASS
   HEIGHTS and THE WORKS, dist4b's CANYON crossings, district roofs and edge) and the road's tone and grain, measured off the
   pictures. How each version is made, step by step, is docs/PLAN_MAP_RUNBOOK.md.
+- **After the seventeenth reviews (2026-11-05, on version 133: the centre 6.0 and 6.0, the districts 6.2 and 6.2, finish 5 and
+  5.5; THE STACKS 6 and 5.7, GLASS HEIGHTS 6 and 5.9, THE STRIP 7 and 7, THE CANYON 7 and 6.6).** Version 133's two first asks
+  were seen and praised (THE VAULT "the best space shown", the walk-in's door board and lit frame "read well") and the centre
+  held: its asks moved to its other interiors. All four name the ground smeared or blotchy, for the second round running: the
+  cause was in the code, every texture of the city's file drawn with one sample along a slant (Milestone 1063). Then the
+  centre: the sunken court empty (20b), the atrium closed with a rod through its ceiling (29), the tower floors one room
+  recoloured (11 to 13), THE WELL dark (19), MARKET's and NOODLE ROW's streets bare, a middle roof layer; the districts:
+  LANTERN ALLEYS' streets 15 to 20 m wide where its name asks alleys, GLASS HEIGHTS' deck cards and lift, THE STACKS' empty
+  fields, THE TERRACES' bright lawn, the shared white pods at the district mouths. Version 134 takes the ground (1063), four
+  proposals measured as dry runs on version 133 (base5: the court, the atrium and THE WELL, 1064; floors5: the tower floors,
+  1065; alleys5: LANTERN ALLEYS as alleys, 1066; courts5: THE STACKS and GLASS HEIGHTS, 1067) and the map agent's finish list
+  (1068). The ranking of every ask is docs/PLAN_MAP_RUNBOOK.md section 5.
 
 **Last**
 

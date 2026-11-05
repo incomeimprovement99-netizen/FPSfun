@@ -288,7 +288,10 @@ comment above each check). Count with `grep -c "  ok" T/sknNN.log`.
 
 ---
 
-## 2. Step 1: ship version 133 (in progress)
+## 2. Step 1: ship version 133 (done)
+
+**Done 2026-11-05:** version 133 committed (3fe8e59f), merged, pushed and deployed: LIVE CHECK PASS. 385 checks, verify,
+rules and tsc on the merged tree.
 
 **Update 11:50:** the full bakes passed their reruns, but sk-neon after them failed the draws check (max 222 of 220,
 SOP-F 5). Two glow variants were merged into existing materials (the GLASS HEIGHTS cab's glass is the deck's pane
@@ -330,6 +333,9 @@ Done when: LIVE CHECK PASS on the version 133 commit, announced.
 ---
 
 ## 3. Step 2: the seventeenth reviews (centre round 17, districts round 11)
+
+**Done 2026-11-05:** the centre 6.0 and 6.0, the districts 6.2 and 6.2. Recorded in docs/CENTRE_REVIEW.md and
+docs/PLAN_CITY_FINISH.md; the notes are `T/review17-notes.md`.
 
 Ready: the briefs `T/review-brief-r17.txt` and `T/review-districts-brief-r11.txt` (each with a "since round 16"
 paragraph: the vault door swung open, the caches, the furnished court and hall, the six shops and ten food kiosks, the
@@ -424,9 +430,82 @@ From rounds 15 and 16, the map agent's own pictures of 133, and the table above.
 | B13 | **GLASS HEIGHTS' deck panels** read as boards standing alone (look133 d14): set them into the deck's rail line | the map agent's pictures | S | |
 | R1 | **Near shadows stepped, the sun an oval** (d05, 08, 14) | both rounds | hand-off | The renderer's shadow map and the sky's sun disc: message the lobby agent with the pictures' paths. |
 
+### 4.5 The ranking after round 17 (2026-11-05, the method of 4.3 run)
+
+Scores: the centre 6.0 and 6.0 (finish 5 in both, play-style 6, flow 7 and 6.5); the districts 6.2 and 6.2 (finish 5.5 in
+both, flow 6 and 5.9; THE STACKS 6 and 5.7, GLASS HEIGHTS 6 and 5.9, THE STRIP 7 and 7, THE CANYON 7 and 6.6). The centre
+has sat at 6 to 6.5 for six rounds. Version 133's first asks (rooms on the street, THE VAULT's door swung open) are seen and
+praised ("the vault inside is the best space shown", "the door board and lit frame in 22 read well") and did not move it: the
+asks moved on to the centre's other interiors and the street ground.
+
+Impact = the sum over reviewers of (11 minus rank), doubled when it names the weakest sub-score (the centre: finish or
+play-style; the districts: finish, flow or readability). A "broken" finding counts 3 per reviewer. Cost S (config or game
+only, under an hour), M (a rules block, a proposal agent), L (structural).
+
+#### The ask the four share: the ground
+
+| Id | Ask | Pictures | Who, rank | Impact | True in the picture | Cost |
+|---|---|---|---|---|---|---|
+| G1 | the ground smeared, blotchy, low-res: the roads, the district mouths, the WORKS hall floor | 18, 22; d01, d13b, d22, d23 | centre A 2, B 3; districts A 4, B 1; round 16 the same | 68 | yes. Cause found: every texture of the city's file drawn with one sample along a slant (the loader's default). Fixed, Milestone 1063: the bottom third's sharpness up 21 to 51% on 18, d01, d22, d23. Left: the asphalt's main map is a noise whose blotches are about 1 m (18's foreground) | S, done; the blotches M |
+| G2 | decals on the roads: manholes, paint, cracks, puddles | 18, 22 | centre A 2, B 3 | (in G1) | yes | M |
+
+#### The centre
+
+| Id | Ask | Pictures | Who, rank | Impact | Done in 133 | True | Cost |
+|---|---|---|---|---|---|---|---|
+| C1 | the sunken court: lanes with cover, a raised platform or mezzanine, coloured light, a lit landmark; its smeared ceiling, the white floor-wall seam, a lone pole | 20b | A 3, B 4; both broken | 36 | furnished (vault4) but 20b, the court from its east side, is new and empty | yes | M |
+| C2 | the atrium truly open to the sky, a sign or sculpture in it; the rod with a collar through the ceiling | 29 | A 4, B 5; both broken; round 16 both | 32 | no | yes | M |
+| C3 | the tower floors: each its own light colour and ceiling, chest-high furniture clusters every 6 to 8 m, raw slab edges trimmed; a second way up; window entries | 11, 12, 13 | B 1, A 7; round 16 A 6 | 28 | no | yes | M to L |
+| C4 | THE WELL lit in stages, its bottom lit, landings readable; a crate on a beam | 19 | A 5, B 9; both broken; round 16 both | 22 | no | yes | S to M |
+| C5 | MARKET's and NOODLE ROW's streets filled (stalls, crates, awnings, a median), their names seen from the street | 16, 18 | B 2; both broken (MARK cut off) | 18 | shops and halls (street4) | yes | M |
+| C6 | a middle roof layer 15 to 20 m, facades climbable (balconies, ledges, awnings), a pad on every block | 05, 16, 18, 22, 26 | A 6, B 6; round 16 both | 20 | no | yes | L |
+| C7 | street shade lifted (bounce or fill light) | 16, 18, 24 | A 1 | 20 | no | partly (golden hour's long shade) | the owner's look (M658); ask, do not change |
+| C8 | the lookout's cover seen from 10 | 10 | A 9, B 7; both broken; round 16 both | 18 | cover laid in 132, not in this frame | partly | S |
+| C9 | the green butterfly rail and the white crate varied by area | 06, 08, 09, 20, 29; 15, 17, 25 | A 10, B 8 | 8 | no | yes | S |
+| C10 | finish, broken: 16 a black frame with "0101" lights at the left edge and a lit plate through the pavement, the grey hover van tilted; 22 the zip rope through the green flying car; 25 THE VAULT sign framed at the gangway's end (round 16 too); 14 the zip anchor a tube out of the glass; 12 a strip of sky; 13 a diagonal beam at head height; 18 a slab overhead with no support; 26 the pink strip; 27 the lone pink frame | as named | both, broken | 3 each, 6 if both | some | to check each | S each |
+| C11 | THE VAULT's gold as metal, the bars bevelled, a glow on the loot | 30 | A 8 | 6 | gold wall (vault4) | yes | S |
+| C12 | the backdrop past the fence varied | 02, 03, 10 | B 10; districts A 9, B 10 | 4 + 5 | no | yes | M |
+
+#### The districts
+
+| Id | Ask | Pictures | Who, rank | Impact | True | Cost |
+|---|---|---|---|---|---|---|
+| D1 | LANTERN ALLEYS' streets narrowed to 4 to 6 m alleys by infill, lanterns down every alley and out to the ring entry, flat roof decks with cover | d01, d03, aerial NE | A 1, B 2 | 38 | yes ("the only district whose layout contradicts its name") | L |
+| D2 | GLASS HEIGHTS: the deck's frosted squares as framed glass on bases with planters and benches (L shapes); the lift shaft one object (frame bands, tinted glass); the white plinth off the lift's axis; the facade panels' mullions and trims | d13, d14, d15 | A 2, B 3; both broken d13, d14 | 46 | yes | M |
+| D3 | THE STACKS' plaza and court: two or three head-high clusters a field, the lone crate and the thin beige box out, the kiosk's sign clear of its tan slab, pink trims by day | d10, d11 | A 3, B 4; broken d10, d11 | 36 | yes | M |
+| D4 | the ring-road thresholds: each district its own kit for the shared white pods and grey slabs | d01, d22 | A 4, B 8 | 22 | yes | S |
+| D5 | THE TERRACES' top tier: darker varied grass, paths, slimmer pergola posts (about 25 cm, vines); its name larger ("THE TERRACED" at distance) | d04, d05 | A 5, B 5; both broken d04, d05 | 36 | yes | S |
+| D6 | THE CANYON: its cliffs broken (balconies, AC units, setbacks), the upper walkway kinked or booths every 10 to 12 m, its roofs' cover, its outside from the SW aerial | d20, d21, aerial SW | A 6, B 6 and 7 | 16 | yes | M |
+| D7 | THE WORKS: rust varied, the bands weathered, the pads a glowing base and column | d22, d23, d24 | A 7, B 8 | 14 | yes | S to M |
+| D8 | THE TERMINAL: tracks, platforms and a wagon in view of the concourse; the road west of the hall broken | d08, d09 | A 8, B 9 | 10 | yes | M |
+| D9 | each district its own night colour | d99 | B 10; both whole map | 2 + | yes | S to M |
+| D10 | finish, broken: d08 a blank white ticket screen (round 15 and 16 too); d12 a small box with a mask or helmet image; d17 a pink strip across the foreground (rounds 16 too); d18 THE CLUB sign at an angle; d02 the beige sci-fi hatch; d00 a pink orb past the east fence | as named | 3 each | S each |
+
+#### The batch for version 134 (milestones 1063 to 1069)
+
+Fewer, larger items, each to one proposal agent; the map agent does the S items itself. Each proposal measured as a dry run
+on version 133 (T/snap133), with its check failing on version 133.
+
+- **1063, the ground (G1), done by the map agent:** neonmap.json game.anisotropy by the kit, every texture of the city's file
+  filtered along a slant.
+- **1064, base5: the base's three interiors (C1, C2, C4).** The sunken court seen from 20b; the atrium open to the sky; THE
+  WELL readable down its depth.
+- **1065, floors5: the tower's floors (C3).** Identity per floor, cover clusters on the open floors, the finish faults of 11
+  to 13, a second way up where the floor allows it.
+- **1066, alleys5: LANTERN ALLEYS as alleys (D1).**
+- **1067, courts5: THE STACKS and GLASS HEIGHTS (D2, D3).** The two weakest districts.
+- **1068, the map agent's finish list:** C8, C9, C10, C11, D4, D5, D10, each true in its picture, each with its check where a
+  check can see it.
+- Not this batch: C5 and C6 (L, round 18 decides between them and the next), C7 (the owner's look: asked, not changed), C12
+  and D6 to D9 (next batch), G2 and the asphalt's blotches (the map agent, after 1068, if time is left).
+
 ---
 
 ## 5. Step 4: version 134
+
+**In progress 2026-11-05:** the batch is the last list of 4.5. 1063 built (the e2e check written, to run when the owner
+allows e2e); 1068 begun (THE TERRACES' lawn); base5, floors5, alleys5 and courts5 launched as proposal agents on
+`T/snap133` with `T/proposals5/BRIEF.txt`.
 
 Filled in after Step 3. Its shape:
 
