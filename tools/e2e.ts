@@ -4381,6 +4381,9 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
   const placed = await Promise.all([host, guest].map((p) => ev<{ p: number | null; of: number } | null>(p, "(() => { const d = window.__range.duel(); return d ? { p: d.placement, of: d.squadsTotal } : null; })()")));
   // (last of every side: seven in the legacy game's match of five bots, 31 in SpeedKills' thirty)
   check("solo with a friend: the host wins, and the guest placed last of every side", ends.every(Boolean) && placed[0]?.p === 1 && !!placed[1] && placed[1].p === placed[1].of && placed[1].of > 2, JSON.stringify({ ends, placed }));
+  // (Milestone 1017) and on each page's recent matches, in the Stats tab: the host's a win, the guest's its place
+  const hist = await Promise.all([host, guest].map((p) => ev<string>(p, `document.getElementById("historyCard")?.textContent ?? ""`)));
+  check("solo with a friend: the match is on each page's recent matches, the host's won and the guest's at its place", /Battle RoyaleWON/.test(hist[0]) && new RegExp(`Battle Royale#${placed[1]?.p} of ${placed[1]?.of}`).test(hist[1]), JSON.stringify(hist.map((h) => h.slice(0, 90))));
   // one table at the end, both lines on it
   const table = await host.waitForFunction("(window.__range.hud.last?.summary?.table ?? []).length === 2", { polling: 100, timeout: 6000 }).then(() => true, () => false);
   const rows = await ev(host, "window.__range.hud.last?.summary?.table ?? null");

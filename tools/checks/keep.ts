@@ -80,6 +80,30 @@ console.log("Two tabs of the game (src/game/progress.ts, src/game/stats.ts)");
   );
 }
 
+{
+  // (Milestone 1017) the match history: each match on it, newest first, two tabs' both, at most the keep, and a broken
+  // entry dropped rather than the profile with it
+  store.clear();
+  const sa = new Stats();
+  const sb = new Stats();
+  sa.recordMatch("br", { ...match, won: false, placement: 4, players: 30, survived: 312.4, kills: 2, damage: 410.6 });
+  sb.recordMatch("duel", match);
+  const h = (new Stats().profile as unknown as { history?: Array<Record<string, unknown>> }).history ?? [];
+  check("the history keeps each match, newest first, a second tab's as well", h.length === 2 && h[0].kind === "duel" && h[1].kind === "br" && h[1].place === 4 && h[1].of === 30 && h[1].survived === 312 && h[1].damage === 411, JSON.stringify(h));
+  const sc = new Stats();
+  for (let i = 0; i < 30; i++) sc.recordMatch("ffa", match);
+  const raw = JSON.parse(localStorage.getItem("range.profile.v1") ?? "{}");
+  (raw.history ??= []).splice(1, 0, { at: 5, kind: null }, "junk");
+  localStorage.setItem("range.profile.v1", JSON.stringify(raw));
+  const kept = new Stats().profile as unknown as { history?: unknown[]; matches: Record<string, { played: number }> };
+  check("at most the keep, and a broken entry dropped, never the record with it", (kept.history?.length ?? 0) === 20 && kept.matches.ffa?.played === 30, JSON.stringify({ lines: kept.history?.length, ffa: kept.matches.ffa?.played }));
+  // and signing in: the account's history and this browser's are one, newest first, a match on both once
+  const { mergeProfiles } = await import("../../src/net/mergeprofile");
+  const copy = (lines: Array<{ at: string; kind: string }>) => ({ "range.profile.v1": JSON.stringify({ name: "A", matches: {}, history: lines, courses: {}, tech: {}, techMiss: {}, since: "2026-01-01" }) });
+  const both = JSON.parse(mergeProfiles(copy([{ at: "2026-11-04T10:00:00Z", kind: "br" }, { at: "2026-11-03T10:00:00Z", kind: "duel" }]), copy([{ at: "2026-11-04T12:00:00Z", kind: "ffa" }, { at: "2026-11-03T10:00:00Z", kind: "duel" }]))["range.profile.v1"]).history ?? [];
+  check("an account's history and this browser's join, newest first, a match on both once", both.length === 3 && both[0].kind === "ffa" && both[1].kind === "br" && both[2].kind === "duel", JSON.stringify(both));
+}
+
 console.log("\nThe challenges (src/game/progress.ts)");
 {
   store.clear();

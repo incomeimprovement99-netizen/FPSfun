@@ -54,11 +54,11 @@ Do not fit, left out:
 2. **M1012, the fall lies flat as it lands (gap 3, live 2026-11-04):** the death clip and the hit zones' topple slowed, while the body is
    still in the air, so they are flat as it touches down, never at full speed into a plank in the air.
 3. **M1013, a player put somewhere else is drawn there (live 2026-11-04):** found on the way, a fault from Milestone 1028.
-4. **M1014, your damage and the net on the HUD (gap 1, built 2026-11-04):** your damage dealt under your kills. Under the FPS, the ping to
+4. **M1014, your damage and the net on the HUD (gap 1, live 2026-11-04):** your damage dealt under your kills. Under the FPS, the ping to
    the host (or a host's worst guest) and the state packets lost, with a warning mark when either is bad.
-5. **M1015, the kill leader (gap 2, built 2026-11-04):** the host counts every kill and names a leader once someone has the most, past a
+5. **M1015, the kill leader (gap 2, live 2026-11-04):** the host counts every kill and names a leader once someone has the most, past a
    floor of kills. It tells every page, says it in the feed and the announcer, marks the leader's plate, and says when
    they go down.
-6. **M1016, bots' hits from their side (gap 4).**
-7. **M1017, the match history (gap 5):** the last 20 matches in the Stats tab.
+6. **M1016, bots' hits from their side (gap 4, built 2026-11-04).**
+7. **M1017, the match history (gap 5, built 2026-11-04):** the last 20 matches in the Stats tab.
 8. **Sound visualisation (gap 6),** after these, with pictures first.

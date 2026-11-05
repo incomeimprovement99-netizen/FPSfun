@@ -6,7 +6,7 @@ import { loadMannequin } from "../game/mannequin";
 import { botSquads, saveTeamId, savedTeamId, teamFor } from "../game/brmatch";
 import { OPERATORS } from "../game/operators";
 import { HEIRLOOMS } from "../game/heirlooms";
-import { Stats, type MatchKind, type MatchStats } from "../game/stats";
+import { Stats, type MatchKind, type MatchLine, type MatchStats } from "../game/stats";
 import { courseKey } from "../game/course";
 import { BASIC_COURSE } from "../game/courses/basic";
 import { BOARD_REFUSED, BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
@@ -331,6 +331,7 @@ export class Menu {
       : "";
     body.innerHTML = [
       levelCard,
+      this.historyCard(),
       `<div class="statcard wide" id="onlineCard" hidden></div>`,
       matchCard("1v1 with friends", ["duel"]),
       matchCard("1v1v1 with friends", ["triple"]),
@@ -345,6 +346,23 @@ export class Menu {
       techCard,
     ].join("");
     void this.renderOnline();
+  }
+
+  /** the last matches, newest first (Milestone 1017): when, what, how it went, kills, damage, how long you lasted */
+  private historyCard(): string {
+    const h = this.stats.profile.history;
+    if (!h.length) return `<div class="statcard wide" id="historyCard"><h4>Recent matches</h4><div class="empty">Every match you finish goes here, newest first.</div></div>`;
+    const what = (k: string): string => (k === "duel" ? "1v1" : k === "triple" ? "1v1v1" : k === "br" ? "Battle Royale" : k === "tdm" ? "Team Deathmatch" : k === "control" ? "Control" : k === "ffa" ? "Free-for-all" : k.startsWith("bots:") ? `Arena Bots, ${k.slice(5)}` : k);
+    const how = (m: MatchLine): string => (m.place !== undefined ? (m.place === 1 ? "WON" : `#${m.place}${m.of ? ` of ${m.of}` : ""}`) : m.won ? "WON" : m.draw ? "DRAW" : "LOST");
+    const lasted = (t: number): string => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+    const rows = h
+      .map((m) => {
+        const when = new Date(m.at);
+        const day = Number.isNaN(when.getTime()) ? "" : when.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+        return `<tr><td>${esc(day)}</td><td>${esc(what(m.kind))}</td><td>${esc(how(m))}</td><td>${m.kills} K · ${Math.round(m.damage)} damage${m.survived ? ` · ${lasted(m.survived)}` : ""}</td></tr>`;
+      })
+      .join("");
+    return `<div class="statcard wide" id="historyCard"><h4>Recent matches</h4><table>${rows}</table></div>`;
   }
 
   /** this session, per gun: shots, hits, headshots, damage, accuracy (the live overlay's numbers, split) */

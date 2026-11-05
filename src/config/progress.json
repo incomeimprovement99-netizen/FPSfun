@@ -99,5 +99,7 @@
       "goal": 10,
       "xp": 4000
     }
-  ]
+  ],
+  "_history": "The Stats tab's recent matches (Milestone 1017, docs/PLAN_MATCH_AAA_GAPS.md gap 5), as Valorant's and Warzone's match histories list them: the last `keep`, newest first, each with when, what, how it went, kills, damage and how long you lasted. Kept with the record, so it goes with the account and two copies join (mergeprofile.ts).",
+  "history": { "keep": 20 }
 }

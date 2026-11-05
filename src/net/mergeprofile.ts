@@ -6,6 +6,8 @@
 // each count, the best time with its splits and ghost. Everything else (settings, keys, loadouts) is one choice or
 // another, and goes to `theirs`, the copy already on the account.
 
+import progressCfg from "../config/progress.json";
+
 type Copy = Record<string, string>;
 type Obj = Record<string, unknown>;
 
@@ -66,6 +68,21 @@ function mergeCounts(mine: unknown, theirs: unknown): Obj {
   return out;
 }
 
+/** the matches each copy played, newest first, each once by when it ended and what it was (Milestone 1017) */
+function mergeHistory(mine: unknown, theirs: unknown): Obj[] {
+  const seen = new Set<string>();
+  return [...(Array.isArray(mine) ? mine : []), ...(Array.isArray(theirs) ? theirs : [])]
+    .filter((e: unknown): e is Obj => !!e && typeof e === "object" && typeof (e as Obj).at === "string")
+    .filter((e) => {
+      const id = `${String(e.at)} ${String(e.kind)}`;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .slice(0, progressCfg.history.keep);
+}
+
 function mergeStats(mine: Obj, theirs: Obj): Obj {
   const matches: Obj = {};
   const a = bag(mine.matches);
@@ -76,7 +93,7 @@ function mergeStats(mine: Obj, theirs: Obj): Obj {
   const cb = bag(theirs.courses);
   for (const k of new Set([...Object.keys(ca), ...Object.keys(cb)])) courses[k] = ca[k] && cb[k] ? mergeCourse(bag(ca[k]), bag(cb[k])) : (ca[k] ?? cb[k]);
   const dates = [mine.since, theirs.since].filter((d): d is string => typeof d === "string").sort();
-  return { ...theirs, matches, courses, tech: mergeCounts(mine.tech, theirs.tech), techMiss: mergeCounts(mine.techMiss, theirs.techMiss), since: dates[0] ?? theirs.since };
+  return { ...theirs, matches, history: mergeHistory(mine.history, theirs.history), courses, tech: mergeCounts(mine.tech, theirs.tech), techMiss: mergeCounts(mine.techMiss, theirs.techMiss), since: dates[0] ?? theirs.since };
 }
 
 /** the one copy of `mine` (this browser's) and `theirs` (the account's) */

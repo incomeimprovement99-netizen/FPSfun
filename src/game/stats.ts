@@ -5,6 +5,7 @@
 //
 // Everything here is per browser. Another device starts fresh: cross-device
 // saves need accounts, which need a server (docs/NEXT_STEPS.md).
+import progressCfg from "../config/progress.json";
 
 export interface MatchStats {
   played: number;
@@ -43,9 +44,39 @@ export function asDifficulty(x: unknown): BotDifficulty {
 }
 export type MatchKind = "duel" | "triple" | `bots:${BotDifficulty}` | "br" | "tdm" | "control" | "ffa";
 
+/** one match as the history keeps it (Milestone 1017): when it ended, what it was, how it went */
+export interface MatchLine {
+  /** ISO time */
+  at: string;
+  kind: MatchKind;
+  won: boolean;
+  draw?: boolean;
+  /** a battle royale's place, out of how many */
+  place?: number;
+  of?: number;
+  kills: number;
+  damage: number;
+  /** a battle royale: seconds lasted */
+  survived?: number;
+}
+
+/** the matches the history keeps, newest first (progress.json history) */
+export const HISTORY_KEEP = progressCfg.history.keep;
+
+/** a stored line, or null when it is not one: a bad entry is dropped, never the profile with it */
+export function validLine(e: unknown): MatchLine | null {
+  if (!e || typeof e !== "object") return null;
+  const o = e as Record<string, unknown>;
+  if (typeof o.at !== "string" || typeof o.kind !== "string" || o.kind.length > 24) return null;
+  const n = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined);
+  return { at: o.at, kind: o.kind as MatchKind, won: o.won === true, draw: o.draw === true || undefined, place: n(o.place), of: n(o.of), kills: Math.floor(n(o.kills) ?? 0), damage: n(o.damage) ?? 0, survived: n(o.survived) };
+}
+
 export interface Profile {
   name: string;
   matches: Partial<Record<MatchKind, MatchStats>>;
+  /** the last matches, newest first (Milestone 1017) */
+  history: MatchLine[];
   courses: Record<string, CourseStats>;
   /** tech landed, by feed name */
   tech: Record<string, number>;
@@ -146,7 +177,7 @@ export class Stats {
   }
 
   private load(): Profile {
-    const fresh: Profile = { name: randomName(), matches: {}, courses: {}, tech: {}, techMiss: {}, since: new Date().toISOString() };
+    const fresh: Profile = { name: randomName(), matches: {}, history: [], courses: {}, tech: {}, techMiss: {}, since: new Date().toISOString() };
     try {
       const raw = localStorage.getItem(KEY);
       if (!raw) {
@@ -157,6 +188,7 @@ export class Stats {
       const out: Profile = {
         name: (typeof p.name === "string" && cleanName(p.name)) || fresh.name,
         matches: {},
+        history: Array.isArray(p.history) ? p.history.map(validLine).filter((x): x is MatchLine => x !== null).slice(0, HISTORY_KEEP) : [],
         courses: {},
         tech: {},
         techMiss: {},
@@ -260,6 +292,9 @@ export class Stats {
     m.damage += s.damage;
     m.shots += s.shots;
     m.hits += s.hits;
+    // and the match itself, on the history (Milestone 1017)
+    const line: MatchLine = { at: new Date().toISOString(), kind, won: s.won, draw: s.draw || undefined, place: s.placement, of: s.players, kills: s.kills, damage: Math.round(s.damage), survived: s.survived === undefined ? undefined : Math.round(s.survived) };
+    this.profile.history = [line, ...this.profile.history].slice(0, HISTORY_KEEP);
     this.persist();
   }
 

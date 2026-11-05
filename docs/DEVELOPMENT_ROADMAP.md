@@ -14600,6 +14600,34 @@ middle of a match a story.
   every page and names nobody; a guest's four kills, counted where the host lands them, make the guest the leader on its own
   page. e2e brsolo (two browsers), speedkills, squad.
 
+## Milestone 1016 — Bots' hits from their side
+
+From the match's AAA plan ([PLAN_MATCH_AAA_GAPS.md](PLAN_MATCH_AAA_GAPS.md), gap 4), and the character agent's note on
+Milestone 1027. Milestone 1027 flinches a figure away from the side a hit came from, reading it off the hit's point. The battle
+royale laid every hit the host ran itself at the bot's middle, so those had no side, and the bot leant straight back. That
+covered a guest's rounds in a bot, a bot's rounds in another, and a bot's frag or rocket in a third.
+
+- **The fix:** each is laid on the bot's side toward whoever hit it, a body's half-width out from its middle
+  (brmatch.ts hitSide). For a burst that is the thrower's side, since the burst's own spot is not kept. The decay's damage
+  has no side, and still leans straight back.
+- **Checked:** tsc, verify, rules. A new br-heir check: a guest's round in a bot, landed by the host, pushes the bot away
+  from the guest. It fails on the old code (straight back, -0.91 along the line) and passes on the new (1.00). e2e brsolo
+  and squad.
+
+## Milestone 1017 — Recent matches
+
+From the match's AAA plan, gap 5. Valorant and Warzone list every recent match. Ours kept totals, bests and boards: a match
+ended and was gone.
+
+- **The history:** the Stats tab's first card after the level is the last 20 matches, newest first (progress.json history).
+  Each row has when it ended, what it was, how it went (WON, LOST, DRAW, or a battle royale's place out of how many),
+  kills, damage and how long you lasted.
+- **Kept with the record:** it is in the profile, so it goes with the account. When a sign-in joins two copies, both
+  histories are kept, newest first, with a match that is on both kept once (mergeprofile.ts). A broken entry is dropped and
+  never takes the profile with it, and a second tab's matches are kept as well.
+- **Checked:** tsc, verify, rules. New keep.ts checks fail on the old code: no history, no keep, no join. e2e brsolo: the
+  match on both pages' recent matches, the host's won and the guest's at its place.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
