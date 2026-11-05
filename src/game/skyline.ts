@@ -55,6 +55,8 @@ let roadMat: THREE.MeshBasicMaterial | null = null;
 let groundMat: THREE.MeshStandardMaterial | null = null;
 type Roads = { from: number; to: number; every: number; w: number; dash?: { len: number; every: number }; colour: string; glow: { day: number; night: number } };
 const ROADS = (S as unknown as { roads?: Roads }).roads;
+type Ring = { from: number; to: number; colour: string; paint: string; w: number; lines: number[][]; dash: { len: number; every: number } };
+const RING = (S as unknown as { ring?: Ring }).ring;
 
 /** the towers' windows lit for the hour: bright by night, a glint by day; and how far the haze takes the far ones */
 export function skylineHour(day: boolean): void {
@@ -209,6 +211,53 @@ export function buildSkyline(root: THREE.Object3D): void {
   }
   root.add(ground);
   SKYLINE.ground = G;
+  // the ring road past the fence (Milestone 1062; the districts' tenth reviews: "a grey moat ... past the fence, a stage in a void",
+  // "the edge part of the world: a raised highway or barrier wall"): an asphalt band all round from `ring.from` to
+  // `ring.to` metres out, in the out-of-bounds margin and short of the low blocks, its lane lines `lines` [metres in from
+  // its inner edge, dashed 0 or 1] painted on it, so the city ends on a road and not on a flat grey field. Drawn only, a
+  // hair over the ground (and pulled forward in the depth test, as at the map's distances the two would fight)
+  if (RING) {
+    const band = new THREE.MeshStandardMaterial({ color: new THREE.Color(RING.colour), roughness: 0.95, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+    const paint = new THREE.MeshStandardMaterial({ color: new THREE.Color(RING.paint), roughness: 0.8, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    band.userData.decay = true;
+    paint.userData.decay = true;
+    const ring = new THREE.Group();
+    ring.name = "skylineRing";
+    const [a, b] = [RING.from, RING.to];
+    for (const [x0, x1, z0, z1] of [
+      [-b, b, -b, -a],
+      [-b, b, a, b],
+      [-b, -a, -a, a],
+      [a, b, -a, a],
+    ]) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2), band);
+      m.position.set((x0 + x1) / 2, -0.01, (z0 + z1) / 2);
+      m.receiveShadow = true;
+      m.userData.dynamic = true;
+      ring.add(m);
+    }
+    // (each line a square of half side `a + off`, its four sides, dashed or whole)
+    const lines: number[][] = [];
+    for (const [off, dashed] of RING.lines) {
+      const r = a + off;
+      const spans: number[][] = [];
+      if (dashed) for (let s = -r + (RING.dash.every - RING.dash.len) / 2; s + RING.dash.len <= r + 1e-6; s += RING.dash.every) spans.push([s, s + RING.dash.len]);
+      else spans.push([-r, r]);
+      for (const [p, q] of spans)
+        for (const c of [-r, r]) {
+          lines.push([p, q, c - RING.w / 2, c + RING.w / 2]);
+          lines.push([c - RING.w / 2, c + RING.w / 2, p, q]);
+        }
+    }
+    const marks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.02, 1), paint, lines.length);
+    const m4 = new THREE.Matrix4();
+    lines.forEach(([x0, x1, z0, z1], i) => marks.setMatrixAt(i, m4.makeScale(x1 - x0, 1, z1 - z0).setPosition((x0 + x1) / 2, -0.005, (z0 + z1) / 2)));
+    marks.name = "skylineRingLines";
+    marks.frustumCulled = false;
+    marks.userData.dynamic = true;
+    ring.add(marks);
+    root.add(ring);
+  }
   // the city's lit roads past the fence (Milestone 813; the districts' fifth review: "put something visible in the dark
   // band (a lit elevated road or a canal)", "at night ... the moat is a black void"): a grid of lit lines on the ground
   // every `every` metres from `from` out to `to`, between the low blocks, none inside the map's square

@@ -94,7 +94,7 @@
   "lit": 0.32,
   "glow": {
    "day": 0.1,
-   "night": 0.6
+   "night": 0.3
   },
   "haze": {
    "day": 0.6,
@@ -144,6 +144,41 @@
   "_roads": "The city's lit roads past the fence (Milestone 813; the districts' fifth review: 'put something visible in the dark band (a lit elevated road or a canal)', at night 'the moat is a black void'): a grid of lit lines `w` wide on the ground every `every` metres from `from` (past the fence) out to `to`, between the low blocks, in a street lamp's amber at `glow` by night and not drawn by day. Each line a row of lamps, `dash` metres long every `every` (drawn whole, the grid read from the air as a lit floor's lines, not as streets).",
   "_glow878": "Milestone 878 (the districts' sixth review: 'halve its window light at night', 'the playable square is darker than the filler city round it'): the windows' night glow 0.6 (1.15).",
   "groundDay": "#4a4d54",
-  "_groundDay884": "Milestone 884 (the districts' seventh review: 'the black ground past the fence a pale road by day'): `groundDay`, the ground past the fence by day; by night `groundColour`, where the map's own lamps should be the light in view."
+  "_groundDay884": "Milestone 884 (the districts' seventh review: 'the black ground past the fence a pale road by day'): `groundDay`, the ground past the fence by day; by night `groundColour`, where the map's own lamps should be the light in view.",
+  "_glow1062": "Milestone 1062 (the districts' tenth reviews: 'at night the filler city brighter than the districts', 'dim the filler city at night'): the windows' night glow 0.3 (0.6, Milestone 878; 1.15 before). Measured off night-d99 (by a proposal agent): the districts, 100 to 152 m out, mean linear luminance 0.053 and their brightest hundredth over 0.392; the city past the fence, 190 to 400 m out, 0.037 and 0.438, so its windows outshone the map's lights though it was darker on the whole. With the windows' light halved (its pixels over its own 30th percentile scaled in linear light) its brightest hundredth is 0.225, 0.57 of the districts', its mean 0.45 of theirs; the lit roads (`roads`) stay at 0.9, the one thing the reviews said helped at night.",
+  "ring": {
+   "from": 166,
+   "to": 186,
+   "colour": "#403b35",
+   "paint": "#c9c4b4",
+   "w": 0.3,
+   "lines": [
+    [
+     0.6,
+     0
+    ],
+    [
+     5,
+     1
+    ],
+    [
+     10,
+     1
+    ],
+    [
+     15,
+     1
+    ],
+    [
+     19.4,
+     0
+    ]
+   ],
+   "dash": {
+    "len": 3,
+    "every": 9
+   }
+  },
+  "_ring": "Milestone 1062 (the districts' tenth reviews: 'a grey moat and neat rows of untextured boxes past the fence, a stage in a void', 'the edge part of the world: a raised highway or barrier wall'): a ring road round the map past the fence (src/game/skyline.ts), `from` to `to` metres from the middle: past the map's own ground (cut.half + `from`, 160 m) by 6 m, inside the out-of-bounds margin (190 m), where a body that walks out stands on it, and short of the low blocks (`low.from`, 194). Its asphalt `colour` measured: by day the overhead picture (d00-above) shows the moat's ground (`groundDay` #4a4d54) at sRGB 83,84,96 and the map's own ring road at 72,65,61; the light on the moat taken channel by channel in linear light (1.26, 1.20, 1.32), the colour that shows as the map's road is #403b35. `lines` its lane lines [metres in from its inner edge, dashed 0 or 1], `w` wide in `paint`, the dashes `dash.len` every `dash.every`: four lanes between whole edge lines, so from the drop the city ends on a road. The night's lit roads (`roads`) cross it where they did."
  }
 }

@@ -3,7 +3,8 @@
 // from across the block. So a lit strip runs round its rim on the street, in its block's colour, by day and by night.
 //
 // (And since Milestone 774 `frames`: a lit frame at the foot of each climb, two posts and a lintel across its way up, so
-// the centre's tenth review's "make every climb visible from the street" has a mark at each fire escape and stair.)
+// the centre's tenth review's "make every climb visible from the street" has a mark at each fire escape and stair; since
+// Milestone 1058 a plate across its foot, and each frame's own height under what stands over it.)
 //
 // Each outline is four thin boxes round a rectangle, or a cap `h` high on each box of a list the layout wrote (`on`, a
 // key of cfg.well: THE WELL's rail, read off the collision, since its rim is a curved rail and not the hole's edge), one
@@ -13,7 +14,7 @@ import neonCfg from "../config/neonmap.json";
 import { padColour } from "./padrings";
 import { decayLight } from "./world";
 
-type Outline = { name: string; rect?: number[]; on?: string; posts?: boolean; lines?: number[][]; side?: number; step?: number; frames?: number[][]; span?: number; y: number; out: number; w: number; h: number; colour: string; glow: number };
+type Outline = { name: string; rect?: number[]; on?: string; posts?: boolean; lines?: number[][]; side?: number; step?: number; frames?: number[][]; span?: number; foot?: number[]; y: number; out: number; w: number; h: number; colour: string; glow: number };
 const O = (neonCfg as unknown as { game: { outlines?: Outline[] } }).game.outlines ?? [];
 
 /** the strips' boxes, map-local [x0, x1, z0, z1, y0, y1] each, four to an outline (the checks read them) */
@@ -36,12 +37,23 @@ export function outlineBoxes(only?: (name: string) => boolean): Array<number[] &
     if (q.frames) {
       // (a frame's posts `span` apart across its way up, its yaw to the nearest quarter: the strips are boxes square to
       // the map, and every climb it marks stands square to its street)
-      for (const [x, z, yaw, y] of q.frames) {
+      for (const [x, z, yaw, y, top, span] of q.frames) {
         const across = Math.round(yaw / 90) % 2 === 0;
-        const [hs, hw] = [(q.span ?? 2) / 2, q.w / 2];
+        // (a frame's own height and width, its fifth and sixth, Milestone 1058: at `h` the lintel lay on the High City fire
+        // escapes' first landing and inside the Sky Ring's and the base's decks, hidden from the street, and the centre's
+        // sixteenth reviews saw "two loose pink sticks". Each lintel just under what is over its line, measured off the
+        // collision, and the fire escapes' posts against their flight's rails)
+        const H = top ?? q.h;
+        const [hs, hw] = [(span ?? q.span ?? 2) / 2, q.w / 2];
         const post = (d: number) => (across ? [x + d - hw, x + d + hw, z - hw, z + hw] : [x - hw, x + hw, z + d - hw, z + d + hw]);
-        out.push([...post(-hs), y, y + q.h], [...post(hs), y, y + q.h]);
-        out.push(across ? [x - hs - hw, x + hs + hw, z - hw, z + hw, y + q.h - q.w, y + q.h] : [x - hw, x + hw, z - hs - hw, z + hs + hw, y + q.h - q.w, y + q.h]);
+        out.push([...post(-hs), y, y + H], [...post(hs), y, y + H]);
+        out.push(across ? [x - hs - hw, x + hs + hw, z - hw, z + hw, y + H - q.w, y + H] : [x - hw, x + hw, z - hs - hw, z + hs + hw, y + H - q.w, y + H]);
+        // (and a plate across its foot between its posts, `foot` [depth, height]: a frame round its stair, where two posts in the
+        // street read as sticks)
+        if (q.foot) {
+          const [fd, fh] = [q.foot[0] / 2, q.foot[1]];
+          out.push(across ? [x - hs - hw, x + hs + hw, z - fd, z + fd, y, y + fh] : [x - fd, x + fd, z - hs - hw, z + hs + hw, y, y + fh]);
+        }
       }
       continue;
     }
@@ -94,7 +106,7 @@ export function buildOutlines(root: THREE.Object3D): THREE.InstancedMesh | null 
     const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
     return n + (L < 1e-6 ? 0 : 2 * Math.max(1, Math.round(L / (q.step ?? 0.25))));
   }, 0);
-  const outlineOf = O.flatMap((q) => Array<Outline>(q.frames ? q.frames.length * 3 : q.lines ? lineBoxes(q) : q.on ? (((well[q.on] as unknown[] | undefined) ?? []).length) : q.rect ? 4 : 0).fill(q));
+  const outlineOf = O.flatMap((q) => Array<Outline>(q.frames ? q.frames.length * (q.foot ? 4 : 3) : q.lines ? lineBoxes(q) : q.on ? (((well[q.on] as unknown[] | undefined) ?? []).length) : q.rect ? 4 : 0).fill(q));
   const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
   // (gone with its sector's decay, Milestone 810: until then past the decay's shader, and lit over a gone sector's ground)
   decayLight(mat);

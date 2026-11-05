@@ -19605,3 +19605,75 @@ a frame at most, its gun 2 degrees. Further off it animates at 30 and then 15 a 
   stand three seconds and move off, and reads the other's figure of them a frame at a time: on the old code it jumps 9.9 cm
   and falls to 0.4 the frame after (a fall of 9.5), on the new it never falls more than 0.6 cm. The duel and p2p sections
   pass, 84 checks.
+
+## Milestones 1058 to 1062 — rooms on the street, THE VAULT's door swung open, the roads' ground, THE CANYON's crossings, each district its roof
+
+From the sixteenth fresh reviews of the centre and the tenth of the districts (2026-11-02, on version 132: the centre 6.0 and
+6.0, finish 5 in both; the districts 6.1 and 6.1, THE STACKS 5.5 in one). Both centre reviewers asked first for rooms to walk
+into at street level and for THE VAULT's door as a gold door swung open with its loot shown; both district reviewers for the
+ground and roofs to tell the districts apart from the drop and for THE STACKS' and GLASS HEIGHTS' courts. Five proposal agents
+measured them as dry runs on version 132's collision, each with a check that fails on version 132; the map agent applied each
+alone and baked them together.
+
+- **1058, the frames, the roads' ground, the parked cars** (the centre's reviews: picture 16 "a yellow rectangle with a black
+  pole by the camera, a debug box"; 04, 05, 22 and 24 "a red and white car at point blank"; the districts': "the ring road's
+  ground smeared, noisy, low-res", d01, d13b, d22). Picture 16's frame was measured, not guessed: nothing of the map is dropped
+  there, the review's eye stood inside the east block's collision, so the spot moved 3 m north of the block's bay with the
+  same heading. Every climb's lit frame had its lintel buried in whatever stood over it (9 of 12: 3 m frames under 2.85 and
+  2.70 m slabs); each lintel now sits 0.02 m under the lowest thing over its line, measured off the collision, with a lit
+  plate across each foot. The roads wear the pack's asphalt as dry asphalt (smoothness 0.30, where at 0.85 every road was a
+  mirror of the sky). Matt, the first pictures showed the road as pale sand in ripples over half of every street-level frame:
+  the asphalt itself is the material's detail map, real aggregate at ten times the main map's repeat, and Milestone 988's
+  2.5 m repeat had it come round every 0.25 m, its light and dark patches tiling into ripples. At 5 m it comes round every
+  0.5 m, its stones 2.5 to 6 mm, and its tone, the noise times the detail as the game draws it, is taken from 0.34 (lighter
+  than the pavers beside it) to 0.255, darker than the pavers and no darker than the darkest ground that read by day; a first
+  tint off the main map alone made it 0.115, as dark as THE STRIP's old black glass. The ring road has kerbs along both edges (676) and a dash every 12 m (52), and every dash is its own
+  picture as a pale glow, white bar on black. GLASS HEIGHTS' hex tiles are a satin plastic (0.46, from 1.0, the glitter). No
+  parked car stands across a walk-in's door out to its street's middle (two on version 132), and the review spots 04, 05 and
+  24 stand behind their kerbs.
+- **1059, THE STACKS, GLASS HEIGHTS' deck, THE WORKS' hall** (the districts' reviews: "a huge hex plaza", "the kiosk an
+  unreadable beige cluster", d10, d11; "frosted balustrades with lit edges", "a lift cabin", d14, d15; "a second level", d22).
+  THE STACKS' car park loses its front row (12 of 24 cars); a pod deck (two pods back to back, roofed at 2.45 m, a straight
+  stair up its east end) and two islands of cover (cooling units, a planter, vending machines) stand in the court; the kiosk's
+  pods wear lit windows and pink trim with CAPSULE BAR at eye level; pink bands on the hotel's legs. A position may carry its
+  own flights now: the tower's straight flight, drawn only on typed treads, its last tread level with the top. GLASS HEIGHTS'
+  deck walls are frosted plates in lit cyan frames, its shaft one clear glass with a lit post up each corner and its car a lit
+  cab. THE WORKS: JUMP UP over each atrium pad, eight steel trusses under the ring, a row of engines and crates down each
+  aisle, the yard's low panels in the halls' own glowing rust.
+- **1060, THE VAULT's door swung open** (both centre reviews: "a gold face swung 90 to 110 degrees open on a visible hinge, the
+  strongroom seen through it; no square black back plate, white arcs or 0", picture 30; "no loot shown"). Milestone 1043's
+  housing is gone: a wall in the vault's own gold runs wall to wall and floor to slab, and the doorway is the round hole cap,
+  3.25 m across, on its edge in it, its grille left out (a new ninth field, `without`, on a door part), its rim bright gold, two
+  racks of bars standing in it. The leaf is the pack's lift cap, 2.7 m across and 0.47 m thick, swung 90 degrees on the
+  doorway's east side on a black pin with three gold knuckles, a 1.2 m spoke wheel on the face the stair looks at. No numbered
+  plate. A new block, `rules.dress.caches`, lays loot and furnishing last on typed boxes: lit gold chests in THE VAULT's halls,
+  at THE WELL's bottom and on the station's concourse; plant, crate stacks and lamp posts in the court; the closed basement
+  room as a plant room; the base hall a service counter, stocked shelf, plant and two lit ceiling panels with their night
+  pools. Its check holds that no set cuts a floor a body stood on before within 6 m of it.
+- **1061, rooms to walk into from the street** (both centre reviews, first: "3 or 4 walk-in ground rooms, windows on the
+  street and an inside stair to the roof", "a two-storey pavilion a quadrant to enter and climb", 02, 03, 16, 18, 22). A new
+  block, `rules.low.shops`: a 7.5 m shop with a window front and wide gate, side windows and an inside stair to its roof (3 m,
+  two low panels with lit strips on it), and an open market hall on three pillars with a crate wall at its back; MARKET's
+  under the pack's awnings, NOODLE ROW's under paper lanterns. Six of them, every stair lane walked: on version 132 the only
+  room you could walk into stopped at its first floor. Their collision is typed, since in the bake's half-metre columns a
+  0.5 m panel stood up to 1 m thick and a gate's opening came out anywhere from 1.9 to 2.9 m. Ten food kiosks join the street's
+  cover sets (a new cap per set, `most`, since uncapped the fill laid 27), kept off the curved roads' carriageway and out of
+  the names' and the glass lift's views. One street node on the west ring road is kept, the fill's known gap, which had put
+  the decay's longest sprint at 33.4 s; it is 28.0 s again.
+- **1062, THE CANYON's crossings, each district its roof, the map's edge** (the districts' reviews: "THE CANYON's sightlines:
+  a bridge", "each district its own roof and ground colour from the drop: red tile in LANTERN ALLEYS, green roof gardens on THE
+  TERRACES, yellow hazard bands on THE WORKS' roofs", d00-above; "the edge a stage in a void", "an orange-tan strip inside the
+  fence unfinished"). Six crossings at walkway height span THE CANYON's arms, each with the pack's advert block on its rails
+  worn with the pack's own posters, and the seven roof stands each their own square ad: of the targets down each arm seen
+  from its eyes, 39% from 46% and 32% from 39%, the farthest still 77 m, so the lanes are cut by about a sixth and not ended.
+  LANTERN ALLEYS' 16 houses and shops wear terracotta roofs, THE TERRACES' tiers moss green, THE WORKS' hall roofs a 2.5 m
+  band of yellow panels round rust; the nearest pair of the five districts from the drop goes from 1.8 apart in Lab to 6.2.
+  THE CANYON's outer sides on the map's edge are its own fronts, drawn only, and an asphalt ring road with its lane lines runs
+  from 166 to 186 m past the fence; the city past the fence glows 0.3 at night, from 0.6.
+- **Checks that learned the new work:** each item its checks, each failing on version 132 and passing on the map that came of
+  it; the strongroom's ways now go round the swung leaf, and the door's sight lines go to the opening's upper half, the racks
+  standing in its lower part. The draws check (Milestone 657) caught the first max bake drawing the centre in 222
+  primitives against its 220: four of the new glows were variants of the pack's light and glass materials, which a batch
+  cannot hold. The GLASS HEIGHTS cab now wears the deck's own lit pane and THE STACKS kiosk's concrete strip the pack's
+  own light, 220.
+- **Checked:** the map's checks, 385, all passing on version 133, the roads check's two new halves failing with their faults put back (the asphalt's tone 0.344 with the old white tint, its repeat every 0.25 m at the old 2.5 m). verify, rules and tsc. Map files version 133: lo 209.3 MB, hi 293.9 MB, max 611.7 MB.

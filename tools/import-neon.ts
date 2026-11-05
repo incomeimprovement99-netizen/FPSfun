@@ -1381,7 +1381,7 @@ if (mode === "bake") {
   // THE TERRACES' tiers and ramps (cfg.terraces, neon-layout.ts rules.districts.terraces): the pack's terrain kit is
   // faces with nothing behind them, so the layout writes each tier as a box solid to its top and each ramp as steps;
   // and THE STACKS' plugs (cfg.stacks), filling shut rooms the bots' street grid fell into
-  const typed = [cfg.terraces, cfg.stacks, cfg.strip, cfg.stairs, cfg.canyon, cfg.works].flatMap((d) => ((d as { solids?: number[][] } | undefined)?.solids ?? []).map((q) => [...q]));
+  const typed = [cfg.terraces, cfg.stacks, cfg.strip, cfg.stairs, cfg.canyon, cfg.works, cfg.shops].flatMap((d) => ((d as { solids?: number[][] } | undefined)?.solids ?? []).map((q) => [...q]));
   const solids = [...cutBack(carve(coarse)), ...cutBack(carve(fine)), ...exactBoxes, ...windowBoxes, ...typed];
   if (carved) console.log(`the windows cut out of ${carved} collision boxes`);
   if (trimmed) console.log(`${trimmed} collision boxes of the rest cut back out of the fire escapes' rooms`);
@@ -1416,7 +1416,8 @@ if (mode === "bake") {
     for (let k = 0; k < pos.length / 3; k++) [uv[k * 2], uv[k * 2 + 1]] = [pos[k * 3] / (cfg.rules.ground.roadEvery ?? 10), pos[k * 3 + 2] / (cfg.rules.ground.roadEvery ?? 10)];
     const nrm = new Float32Array(pos.length);
     for (let k = 0; k < pos.length / 3; k++) nrm[k * 3 + 1] = 1;
-    const matGuid = pack.matFor(cfg.rules.ground.road);
+    // (a derived one too, Milestone 1058: the asphalt worn matt, "Asphalt00*#ffffff%k", as the ring road's tiles wear it)
+    const matGuid = derivedMat(cfg.rules.ground.road) ?? pack.matFor(cfg.rules.ground.road);
     if (!matGuid) throw new Error(`no material ${cfg.rules.ground.road}`);
     const model = { meshes: [{ name: "streets", prims: [{ pos: new Float32Array(pos), nrm, uv, idx: new Uint32Array(idx), material: cfg.rules.ground.road }] }], nodes: [], roots: [] } as unknown as Draw["model"];
     const d: Draw = { model, mesh: 0, pre: null, mats: [matGuid], modelGuid: "", on: true, go: null };

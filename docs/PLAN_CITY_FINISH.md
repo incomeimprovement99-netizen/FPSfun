@@ -63,6 +63,10 @@ reviews' full text is in docs/CENTRE_REVIEW.md (the centre, round 7, and the dis
    These are the checks every milestone already carries.
 5. **The decay re-timed** for the districts' sizes.
 
+**Then 8.** The owner, 2026-11-05: "if we do get to a 7 eventually, we want to bump up the standards to an 8 I feel like
+the map is so important to get correct." When 1 and 2 are met at 7, the bar for both rises to 8, every district 7 or
+better, and the loop goes on (docs/PLAN_MAP_RUNBOOK.md, section 6.1). The frame and the final reviews come after 8.
+
 ## The order, and why
 
 The owner, 2026-10-18: "good to keep in mind fps but we can't focus on it ... we have multiple agents running multiple
@@ -404,7 +408,10 @@ and the 16 to 20 m tier still to do)
   corner blocks' fronts, pavilions on the boulevards, blockers cutting the lanes) and THE VAULT's door as a gold door swung
   open with loot shown. Then: the ring road's ground (smeared, a bright specular smear in every approach), THE STACKS' ground,
   GLASS HEIGHTS' deck boards and lift, THE CANYON's long lanes, THE WORKS' hall and its floor rings, the court and the base
-  hall furnished, the lit frames' missing lintels, the cut pillars by NOODLE ROW, the edge.
+  hall furnished, the lit frames' missing lintels, the cut pillars by NOODLE ROW, the edge. Version 133 takes those: five proposals measured as dry runs on version 132 (street4's
+  rooms to walk into, vault4's door swung open and its caches, finish4's frames, roads and cars, dist4a's THE STACKS, GLASS
+  HEIGHTS and THE WORKS, dist4b's CANYON crossings, district roofs and edge) and the road's tone and grain, measured off the
+  pictures. How each version is made, step by step, is docs/PLAN_MAP_RUNBOOK.md.
 
 **Last**
 
