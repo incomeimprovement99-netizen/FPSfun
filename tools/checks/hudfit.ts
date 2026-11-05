@@ -299,7 +299,11 @@ console.log("\nThe maps and marks (src/game/hud.ts, src/main.ts, src/game/brmatc
     const widest = Math.max(...said.map((o) => (o.x ?? 0) + o.text!.length * (o.f ?? 13) * 0.52));
     check("a hack's blurb on the carry card stays inside the card", said.length === 2 && widest <= boxRight, `${said.length} blurbs, the widest to ${widest.toFixed(0)} of ${boxRight.toFixed(0)}`);
   }
-  const { ammoWarning } = await import("../../src/game/hud");
+  const { ammoWarning, netLine } = await import("../../src/game/hud");
+  // (Milestone 1014) the net line under the FPS: nothing alone, the ping and the loss in a match with another page, yellow
+  // and then red as either gets bad
+  const nl = [netLine(null), netLine({ ping: null, loss: null }), netLine({ ping: 23.4, loss: 0 }), netLine({ ping: 150, loss: 0 }), netLine({ ping: 30, loss: 0.1 }), netLine({ ping: 40, loss: null })];
+  check("the net line: nothing alone, the ping and the loss in a match, yellow then red as they get bad", nl[0] === null && nl[1] === null && nl[2]?.text === "PING 23 ms   LOSS 0%" && nl[2].level === "ok" && nl[3]?.level === "warn" && nl[4]?.level === "bad" && nl[5]?.text === "PING 40 ms   LOSS -", JSON.stringify(nl));
   check("no ammo words on a gun that has heat", ammoWarning(0, 24, true) === null && /ammoWarning\(s\.clip, s\.clipSize, s\.reloading \|\| !!s\.heat\)/.test(h));
 }
 

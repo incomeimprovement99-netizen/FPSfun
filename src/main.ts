@@ -52,7 +52,7 @@ import brCfg from "./config/br.json";
 import { Target } from "./game/targets";
 import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
-import { Hud, type HudState } from "./game/hud";
+import { Hud, netLine, type HudState } from "./game/hud";
 import { damageText } from "./game/damagetext";
 import { FramePhases } from "./game/framephase";
 import { DpiCalibrator, snapDpi } from "./game/dpi-calibrate";
@@ -8578,6 +8578,7 @@ function step(): void {
     hipFov: hipH,
     fps,
     frameMs,
+    net: duel instanceof Duel ? { ping: duel.ping, loss: duel.netLoss } : null,
     yaw: hudYaw,
     px: hudAt.x,
     pz: hudAt.z,
@@ -8863,6 +8864,8 @@ const GALLERY = { x: 0, z: -8 };
   hangout: () => hangout,
   /** a bot tier's walking speed in this game (bots.ts tierSpeed) */
   botSpeedOf: tierSpeed,
+  /** the HUD's net line as it would be drawn now (Milestone 1014; a ?norender page never draws it) */
+  netLine: () => netLine(duel instanceof Duel ? { ping: duel.ping, loss: duel.netLoss } : null),
   hud,
   input,
   profile,

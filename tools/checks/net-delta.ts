@@ -316,6 +316,20 @@ check("an ack goes a few times a second, and history outlasts the round trip it 
   const got = inn.decode(viaNulled({ ...change, d: { ...change.d, ad: undefined } }));
   check("a field that arrived as null is read as unchanged, not as a new value", got?.ad === 7, `ad ${String(got?.ad)}`);
 }
+{
+  // (Milestone 1014) the HUD's loss: the numbers a stream skipped between two it applied, once each. Parts 3 and 4 never
+  // come, 2 comes again late, and 5 and 6 are laid over the keyframe it was told of
+  const out = new StateOut(0, 5);
+  const inn = new StateIn();
+  const parts: DeltaPart[] = [];
+  for (let i = 0; i < 6; i++) {
+    const p = out.encode(sample(2, i), i / 30) as DeltaPart;
+    parts.push(p);
+    if (i === 0) out.ack(p.q);
+  }
+  for (const i of [0, 1, 4, 1, 5]) inn.decode(parts[i]);
+  check("a stream's lost parts are the numbers it skipped, counted once, not the late repeat", inn.lost === 2 && inn.stale === 1, `lost ${inn.lost}, stale ${inn.stale}, parts ${inn.parts}`);
+}
 
 // ------------------------------------------------------- loss, reorder, recovery
 

@@ -14565,6 +14565,21 @@ state came, which takes up to the 2 s keyframe for a player standing there. Draw
   0.01 m, and a DASH onto a ledge and a respawn 30 m off are drawn where they are. Milestone 1028's own check still passes.
   e2e duel and p2p.
 
+## Milestone 1014 — Your damage and the net, on the HUD
+
+From the match's AAA plan ([PLAN_MATCH_AAA_GAPS.md](PLAN_MATCH_AAA_GAPS.md), gap 1). Apex's top right carries the damage you
+have dealt and a performance line of FPS, ping, loss and choke: the owner's own clip, `pk clutch win`, shows 2,163 damage at
+ping 23 ms. Ours showed alive, squads and kills, and the FPS (the owner's ask). The ping was measured every second, but shown
+only on the 1v1's round line and the lobby's roster, and nothing counted lost packets.
+
+- **Your damage:** under your kills in the battle royale, as the match counts it (brmatch.ts BrHud damage).
+- **The net:** under the FPS, in a match with another page: the ping to the host (a host's own is its worst guest's) and
+  the share of the state packets lost over the last 5 s (net.json loss). It turns yellow at 120 ms or 2% lost and red at 200
+  ms or 8% (hud.json net). A lost packet is a number a delta stream skipped between two it applied, counted once; a late
+  repeat is not one (state.ts StateIn.lost). On the full packets, which carry no numbers, the loss shows as a dash.
+- **Checked:** tsc, verify, rules. New verify checks fail on the old code: a stream's lost parts (no count) and the net line
+  (no line). e2e brsolo: the damage on the host's HUD, and the guest's net line.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -253,6 +253,8 @@ export interface BrHud {
   alive: number;
   total: number;
   kills: number;
+  /** the damage you have dealt this match (the HUD's line under your kills) */
+  damage: number;
   /** while dropping: the POI you are dropping onto, and the map is shown */
   dropping: boolean;
   poi: string;
@@ -2982,6 +2984,7 @@ export class BrMatch extends Duel {
       alive: this.aliveCount,
       total: this.botCount + this.players,
       kills: this.kills,
+      damage: this.damage,
       dropping: this.phase === "countdown",
       poi: this.shipLine ? "" : this.poi.name,
       hot: this.hotZone(),

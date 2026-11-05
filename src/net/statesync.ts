@@ -247,6 +247,18 @@ export class StateSync {
     }
   }
 
+  /** every incoming stream's parts and the ones it never saw, summed (Duel.netLoss reads it over time) */
+  get received(): { parts: number; lost: number } {
+    let parts = 0;
+    let lost = 0;
+    for (const p of this.peers.values())
+      for (const s of p.in.values()) {
+        parts += s.parts;
+        lost += s.lost;
+      }
+    return { parts, lost };
+  }
+
   private peer(id: number): PeerStreams {
     let p = this.peers.get(id);
     if (!p) {

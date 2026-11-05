@@ -435,6 +435,8 @@ export class StateIn {
   /** parts seen, the ones that came too late, and the ones that could not be used */
   parts = 0;
   stale = 0;
+  /** parts never seen: the numbers a stream skipped between two it applied (the HUD's loss, Milestone 1014) */
+  lost = 0;
   broken = 0;
 
   /** the state this part leaves the player in, or null when it cannot be used */
@@ -486,6 +488,8 @@ export class StateIn {
       return null;
     }
     this.applied.set(r.seq, q);
+    // (counted where a part is applied: one that could not be used is asked for again, and its gap would count twice)
+    if (!fresh && this.newest >= 0 && r.seq > this.newest + 1) this.lost += r.seq - this.newest - 1;
     this.newest = r.seq;
     this.want = false;
     while (this.applied.size > APPLIED_HISTORY) {

@@ -94,5 +94,10 @@
     "spacing": 1.6,
     "perRow": 4,
     "rowStep": 1.8
+  },
+  "_loss": "The HUD's loss beside the ping (Milestone 1014, Apex's performance line): the state packets never seen, as a share of those that should have come, over the last `window` seconds (counted once a second). Fewer than `least` parts in that time is too few to say anything (a still friend sends nothing), and the HUD says nothing.",
+  "loss": {
+    "window": 5,
+    "least": 20
   }
 }

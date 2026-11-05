@@ -45,6 +45,19 @@ const BREAK_MARK = hudCfg.shieldFx.marker;
 /** which hit mark holds over which */
 const MARK_RANK = { hit: 0, break: 1, knock: 2, kill: 2 };
 
+/**
+ * The net line under the FPS (Milestone 1014), or null with nothing to say (a match on this page alone): the ping and the
+ * packets lost, and how bad it is by hud.json net
+ */
+export function netLine(net: { ping: number | null; loss: number | null } | null | undefined): { text: string; level: "ok" | "warn" | "bad" } | null {
+  if (!net || (net.ping === null && net.loss === null)) return null;
+  const N = hudCfg.net;
+  const ping = net.ping ?? 0;
+  const loss = net.loss ?? 0;
+  const level = ping >= N.pingBad || loss >= N.lossBad ? "bad" : ping >= N.pingWarn || loss >= N.lossWarn ? "warn" : "ok";
+  return { text: `PING ${net.ping === null ? "-" : `${Math.round(net.ping)} ms`}   LOSS ${net.loss === null ? "-" : `${Math.round(net.loss * 100)}%`}`, level };
+}
+
 /** the warning under the crosshair for a magazine: RELOAD when empty, LOW AMMO from the warn share down, or nothing */
 export function ammoWarning(clip: number, clipSize: number, reloading: boolean): "RELOAD" | "LOW AMMO" | null {
   if (clipSize < LOW_AMMO.minClip || reloading) return null;
@@ -181,6 +194,8 @@ export interface HudState {
   cm360: number;
   hipFov: number;
   fps: number;
+  /** the ping to the host (a host's: its worst guest's) and the packets lost lately, in a match with another page (Milestone 1014) */
+  net?: { ping: number | null; loss: number | null } | null;
   /** CPU time of the last frame, ms */
   frameMs: number;
   stance: string;
@@ -3148,6 +3163,8 @@ export class Hud {
     }
     // in duos and trios the count that decides a placement is squads, so it sits under the alive count
     if (br.team > 1 && br.placement === null) this.text(`${br.squads} SQUAD${br.squads === 1 ? "" : "S"}`, cx - 120 * u, 132 * u, 700, 12 * u, DIM, "center");
+    // and your damage under your kills, as Apex's top right carries it (Milestone 1014)
+    if (br.placement === null) this.text(`${Math.round(br.damage).toLocaleString("en-US")} DAMAGE`, cx + 122 * u, 132 * u, 700, 12 * u, DIM, "center");
     // outside: an orange vignette and the damage it costs
     if (br.ring.outside && !br.dropping && !br.placement && !s.edge) {
       const g = c.createRadialGradient(cx, this.h / 2, this.h * 0.35, cx, this.h / 2, this.h * 0.9);
@@ -3557,6 +3574,8 @@ export class Hud {
     this.text(String(f), x - 50 * u, y, 700, 64 * u, color, "right");
     this.text("FPS", x, y - 8 * u, 700, 22 * u, DIM, "right");
     this.text(`${s.frameMs.toFixed(1)} ms frame`, x, y + 24 * u, 600, 15 * u, DIM, "right");
+    const n = netLine(s.net);
+    if (n) this.text(n.text, x, y + 42 * u, 600, 15 * u, n.level === "bad" ? RED : n.level === "warn" ? "#ffd23c" : DIM, "right");
   }
 
   // ------------------------------------------------------------ bottom-left

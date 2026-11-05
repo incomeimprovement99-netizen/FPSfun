@@ -381,6 +381,8 @@ export class Duel implements MatchLike {
   protected lastClock: number;
   private sendNext = 0;
   private pingNext = 0;
+  /** the delta streams' counts, a second apart (netLoss) */
+  private lossLog: Array<{ parts: number; lost: number }> = [];
   ping: number | null = null;
   /** when each player last fired (the host's bots are given it: a shooter gives itself away) */
   protected readonly shotAt = new Map<number, number>();
@@ -601,6 +603,20 @@ export class Duel implements MatchLike {
   /** the figures this page runs itself and its remotes do not hold (the host's bots): the modes and the battle royale say */
   protected ownFigures(): Seen[] {
     return [];
+  }
+
+  /**
+   * The share of the state packets lost over the last few seconds (net.json loss), or null with too few to tell: the HUD's
+   * net line beside the ping, as Apex's performance line carries both (Milestone 1014). Only the delta streams are
+   * numbered; on full packets, null.
+   */
+  get netLoss(): number | null {
+    const a = this.lossLog[0];
+    const b = this.lossLog[this.lossLog.length - 1];
+    if (!a || !b) return null;
+    const lost = b.lost - a.lost;
+    const seen = b.parts - a.parts + lost;
+    return seen < netCfg.loss.least ? null : lost / seen;
   }
 
   /** the damage this player has dealt this match (the ultimate's meter reads it) */
@@ -2051,6 +2067,8 @@ export class Duel implements MatchLike {
     }
     if (now >= this.pingNext) {
       this.pingNext = now + 1;
+      this.lossLog.push(this.sync.received);
+      if (this.lossLog.length > netCfg.loss.window + 1) this.lossLog.shift();
       if (this.role === "host") for (const l of this.links.values()) l.send({ t: "ping", at: performance.now() });
       else this.hostLink?.send({ t: "ping", at: performance.now() });
     }
