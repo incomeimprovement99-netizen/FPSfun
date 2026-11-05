@@ -126,5 +126,7 @@
     "on": true,
     "maxMag": 4,
     "ammoStacks": 1
-  }
+  },
+  "_killLeader": "Apex's kill leader (Milestone 1015, docs/PLAN_MATCH_AAA_GAPS.md gap 2): whoever up has the most kills is named to the whole match, on every HUD and by the announcer, once someone has `least`; a tie keeps the one who got there first, and their fall is said too. The host names them; every page counts the kills it sees. Ours: three, so the first kill or two of a hot drop does not crown anyone.",
+  "killLeader": { "least": 3 }
 }

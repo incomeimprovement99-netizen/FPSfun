@@ -260,5 +260,30 @@ console.log("\nThe host's word on a guest's take (src/game/brmatch.ts)");
   check("a guest whose drop is seen only after the end still gets its result on the way back in", held && back && g2.brOver && g2.placement === 1, JSON.stringify({ held, back, over: g2.brOver }));
 }
 
+{
+  // (Milestone 1015) the kill leader: the host takes out three bots and is named on every page; a bot takes the host out, and
+  // every page says the leader fell and names nobody (one kill is not enough); the heir's four kills, counted by the host,
+  // make the heir the leader, said on the heir's own page as itself
+  const { host, heir, g2, wire, ls } = start();
+  const said: string[] = [];
+  heir.onFeed = (t: string) => said.push(t);
+  const bots = host.bots.filter((b: Any) => b.bot.alive);
+  for (let i = 0; i < 3; i++) host.botDown(bots[i], 0);
+  run(ls, 0.6, wire);
+  const named = heir.hud().br.leader;
+  const ok1 = host.hud().br.leader?.you === true && named?.id === 0 && named.kills === 3 && !named.you && g2.hud().br.leader?.id === 0 && said.some((t) => /IS THE KILL LEADER: 3 KILLS/.test(t));
+  check("three kills make the host the kill leader, named on every page", ok1, JSON.stringify({ host: host.hud().br.leader, heir: named, said: said.slice(-2) }));
+  const killer = bots[3].bot.remote.id;
+  host.incomingScale = 1;
+  host.takeHit(999, killer);
+  run(ls, 0.6, wire);
+  const fell = [host, heir, g2].map((d: Any) => ({ leader: d.hud().br.leader, downs: d.hud().br.leaderDowns }));
+  check("the leader taken out is said on every page, and one kill names nobody next", fell.every((f) => f.leader === null && f.downs === 1) && said.some((t) => /THE KILL LEADER .* IS DOWN/.test(t)), JSON.stringify(fell));
+  for (let i = 4; i < 8; i++) host.botDown(bots[i], 1);
+  run(ls, 0.6, wire);
+  const mine = heir.hud().br.leader;
+  check("four kills by a guest, counted where the host lands them, make the guest the leader on its own page", mine?.id === 1 && mine.you && mine.kills === 4 && g2.hud().br.leader?.id === 1, JSON.stringify({ heir: mine, g2: g2.hud().br.leader }));
+}
+
 console.log(fails === 0 ? "\nBR HEIR PASS" : `\nBR HEIR FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

@@ -33,6 +33,8 @@ console.log("The announcer");
   check("a capture's end says the zone: held by your side, or taken by another", same(cues(base, w({ placement: 1, zone: true })), ["wonZone"]) && same(cues(base, w({ placement: 3, zone: true })), ["lostZone"]));
   check("the end says the win or the loss, once", same(cues(base, w({ placement: 1 })), ["won"]) && same(cues(base, w({ placement: 4 })), ["lost"]) && same(cues(w({ placement: 4 }), w({ placement: 4 })), []));
   check("in the sector decay no ring is said: its waves closing are not the ring closing, and stepping into the decay says the decay", same(cues(w({ decay: true }), w({ decay: true, closing: true })), []) && same(cues(w({ decay: true, ringPhase: 5 }), w({ decay: true, ringPhase: 5, closing: true })), []) && same(cues(w({ decay: true }), w({ decay: true, outside: true })), ["decayOutside"]));
+  // (Milestone 1015) the kill leader: someone new named, you named, their fall, each once
+  check("a new kill leader is said, you as the kill leader in your own words, their fall before the next is named, and nothing twice", same(cues(base, w({ leaderId: 104 })), ["killLeader"]) && same(cues(w({ leaderId: 104 }), w({ leaderId: 0, leaderYou: true })), ["youKillLeader"]) && same(cues(w({ leaderId: 104 }), w({ leaderId: null, leaderDowns: 1 })), ["killLeaderDown"]) && same(cues(w({ leaderId: null, leaderDowns: 1 }), w({ leaderId: 7, leaderDowns: 1 })), ["killLeader"]) && same(cues(w({ leaderId: 7 }), w({ leaderId: 7 })), []));
   check("two things at once are both said, in order", same(cues(base, w({ closing: true, squads: 3 })), ["ringClosing", "squads3"]));
   // the config: every line said by a voice there is, with words to say, and short enough to be a callout
   const lines = Object.entries(CFG.lines);

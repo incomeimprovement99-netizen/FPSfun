@@ -8507,7 +8507,7 @@ function step(): void {
     if (b) {
       // ("drop" said once the ship is shown: under the loading screen it was said to nobody, and its cooldown kept it from
       // being said when the ship flew; and a capture's end said as one, Milestone 926)
-      const w: Watch = { dropping: dropping && !show, ringPhase: b.ring.phase, ringPhases: b.ring.phases, closing: b.ring.closing, outside: b.ring.outside, squads: b.squads, team: b.team, placement: b.placement, decay: duel instanceof BrMatch && !!duel.decay, zone: duel instanceof BrMatch && duel.zoneEnded };
+      const w: Watch = { dropping: dropping && !show, ringPhase: b.ring.phase, ringPhases: b.ring.phases, closing: b.ring.closing, outside: b.ring.outside, squads: b.squads, team: b.team, placement: b.placement, decay: duel instanceof BrMatch && !!duel.decay, zone: duel instanceof BrMatch && duel.zoneEnded, leaderId: b.leader?.id ?? null, leaderYou: !!b.leader?.you, leaderDowns: b.leaderDowns };
       for (const line of cues(watchWas, w)) announcer.say(line, realNow());
       watchWas = w;
     } else watchWas = null;

@@ -1384,6 +1384,7 @@ export class Duel implements MatchLike {
           if (this.mode === "duel") this.checkLastStanding(now);
         }
         this.onKnockSeen?.(from, m.by);
+        this.noteKill(from, m.by);
         if (from < Duel.BOT_ID) {
           this.noteDeath(from);
           // their own count, where they sent it (an older build does not)
@@ -1745,6 +1746,7 @@ export class Duel implements MatchLike {
     this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined, tm: senderStamp(), bn: this.boxDeaths.get(this.id)?.n, w, hd: this.lastHitHead ? 1 : undefined });
     if (this.role === "host" && this.mode === "duel") this.checkLastStanding(wallClock());
     this.onSomeoneDown(this.id, from, this.lastHitMelee);
+    this.noteKill(this.id, from);
   }
 
   /** where this player is in a battle royale's lives, for the squad (squadview.ts LIFE_WIRE); nothing while up, and nothing outside one */
@@ -1756,6 +1758,9 @@ export class Duel implements MatchLike {
   protected canBeRespawned(): boolean {
     return !this.alive;
   }
+
+  /** someone was taken out by `by`, seen once on every page: the host's relay of each down, your own, a bot's (the battle royale counts them) */
+  protected noteKill(_victim: number, _by: number): void {}
 
   /** a squad member's death: the restore lockout grows (reset after long enough alive) */
   protected noteDeath(id: number): void {

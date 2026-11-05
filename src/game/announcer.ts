@@ -33,6 +33,10 @@ export interface Watch {
   zone?: boolean;
   /** SpeedKills' sector decay: there is no ring to speak of, its waves are said where the decay is run (main.ts stepDecay) */
   decay?: boolean;
+  /** the kill leader (Milestone 1015): who, whether it is you, and how many have gone down */
+  leaderId?: number | null;
+  leaderYou?: boolean;
+  leaderDowns?: number;
 }
 
 /**
@@ -51,6 +55,9 @@ export function cues(prev: Watch | null, next: Watch): Line[] {
     if (next.squads === 3) out.push("squads3");
     else if (next.squads === 2) out.push("squads2");
   }
+  // the kill leader's fall, then whoever is named next (Milestone 1015)
+  if ((next.leaderDowns ?? 0) > (prev.leaderDowns ?? 0)) out.push("killLeaderDown");
+  if (next.leaderId !== undefined && next.leaderId !== null && next.leaderId !== prev.leaderId) out.push(next.leaderYou ? "youKillLeader" : "killLeader");
   // (a capture's end: "the last squad standing" with four squads up, and "eliminated" to a squad alive, Milestone 926)
   if (next.placement !== null && prev.placement === null) out.push(next.zone ? (next.placement === 1 ? "wonZone" : "lostZone") : next.placement === 1 ? "won" : "lost");
   return out;

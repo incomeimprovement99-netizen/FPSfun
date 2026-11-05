@@ -4346,6 +4346,18 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
     check("out of a battle royale: a click moves you along the list of who is left", !!next && !!spec && next.name !== spec.name, JSON.stringify({ was: spec?.name, now: next?.name }));
     await ev(guest, "(() => { window.__range.input.locked = false; })()");
   }
+  // (Milestones 1014 and 1015) the host takes three bots out, the guest already out (its place is said below): its damage under its kills, the net line under the guest's FPS,
+  // and the host named the kill leader on both pages, in the announcer's words on its own
+  {
+    const dealt = await ev<number>(host, `(() => { const d = window.__range.duel(); let n = 0; for (let i = 0; i < 3; i++) { const a = d.avatars.find((x) => { const r = d.remoteOf(x); return r && r.id >= 100 && r.alive; }); if (!a) break; const r = d.remoteOf(a); a.hit(0, "body", 900, 1, 1, a.group.position); d.localHit(r, 900, false, "r97", 8); n++; } return n; })()`);
+    await sleep(2500);
+    const hs = await ev<{ damage: number; dealt: number; kills: number; leader: { id: number; kills: number; you: boolean } | null; said: string[] }>(host, `(() => { const d = window.__range.duel(); const b = d.hud().br; return { damage: b.damage, dealt: d.damageDealt, kills: b.kills, leader: b.leader, said: window.__range.spoken() }; })()`);
+    const gs = await ev<{ leader: { id: number; name: string; kills: number; you: boolean } | null; net: { text: string; level: string } | null }>(guest, `(() => ({ leader: window.__range.duel().hud().br.leader, net: window.__range.netLine() }))()`);
+    check("brsolo: the damage you have dealt is on your HUD, as the match counts it", dealt === 3 && hs.damage > 0 && hs.damage === hs.dealt, JSON.stringify({ dealt, damage: hs.damage }));
+    // (its kills: these three and the guest it took out above)
+    check("brsolo: three kills more make the host the kill leader, said to it in its own words and named on the guest's HUD", hs.leader?.you === true && hs.leader.kills === hs.kills && hs.kills >= 3 && hs.said.includes("youKillLeader") && gs.leader?.id === hs.leader.id && !gs.leader.you && gs.leader.kills === hs.kills, JSON.stringify({ host: hs.leader, kills: hs.kills, guest: gs.leader, said: hs.said.slice(-3) }));
+    check("brsolo: the guest's FPS has the ping to the host and the packets lost under it", !!gs.net && /^PING \d+ ms   LOSS (\d+%|-)$/.test(gs.net.text), JSON.stringify(gs.net));
+  }
   // A capture's result, a side at a time (Milestone 727): the guest, out early, is told the place it went out in, whether
   // a bot squad or the host's side holds the zone; every side was told the same place. The host's own end and what it
   // sends are held back here, and the match put back as it was, so it plays on to the end below

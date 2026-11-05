@@ -3165,6 +3165,16 @@ export class Hud {
     if (br.team > 1 && br.placement === null) this.text(`${br.squads} SQUAD${br.squads === 1 ? "" : "S"}`, cx - 120 * u, 132 * u, 700, 12 * u, DIM, "center");
     // and your damage under your kills, as Apex's top right carries it (Milestone 1014)
     if (br.placement === null) this.text(`${Math.round(br.damage).toLocaleString("en-US")} DAMAGE`, cx + 122 * u, 132 * u, 700, 12 * u, DIM, "center");
+    // the kill leader under them, a crown by the name, gold when it is you (Milestone 1015)
+    if (br.leader && br.placement === null) {
+      const L = br.leader;
+      const line = L.you ? `YOU ARE THE KILL LEADER  ${L.kills}` : `KILL LEADER  ${L.name}  ${L.kills}`;
+      const col = L.you ? "#ffd23c" : WHITE;
+      this.ctx.font = this.font(700, 13 * u);
+      const w = this.ctx.measureText(line).width;
+      drawIcon(c, "crown", cx - w / 2 - 12 * u, 148 * u, 16 * u, "#ffd23c");
+      this.text(line, cx + 4 * u, 153 * u, 700, 13 * u, col, "center");
+    }
     // outside: an orange vignette and the damage it costs
     if (br.ring.outside && !br.dropping && !br.placement && !s.edge) {
       const g = c.createRadialGradient(cx, this.h / 2, this.h * 0.35, cx, this.h / 2, this.h * 0.9);

@@ -131,7 +131,7 @@ export type NetMsg =
    * are alive. `sq` is how many squads are still in it. (Storm Surge's `sg`
    * and `sv` went with it, Milestone 524.)
    */
-  | { t: "ring"; ph: number; st: number; left: number; cur: [number, number, number]; next: [number, number, number]; alive: number; sq?: number; dr?: number[]; db?: number[]; cp?: [number, number, number] }
+  | { t: "ring"; ph: number; st: number; left: number; cur: [number, number, number]; next: [number, number, number]; alive: number; sq?: number; dr?: number[]; db?: number[]; cp?: [number, number, number]; kl?: [number, number] }
   /** a door (doors.ts): a friend asking the host, or the host saying (the ring packet's `dr` lists the open ones for anyone who missed it) */
   | { t: "door"; i: number; open: boolean; k?: number; b?: number }
   /** the battle royale is over for the squad */

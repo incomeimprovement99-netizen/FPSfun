@@ -14580,6 +14580,26 @@ only on the 1v1's round line and the lobby's roster, and nothing counted lost pa
 - **Checked:** tsc, verify, rules. New verify checks fail on the old code: a stream's lost parts (no count) and the net line
   (no line). e2e brsolo: the damage on the host's HUD, and the guest's net line.
 
+## Milestone 1015 — The kill leader
+
+From the match's AAA plan ([PLAN_MATCH_AAA_GAPS.md](PLAN_MATCH_AAA_GAPS.md), gap 2). Apex names a kill leader to the whole
+lobby and says when they go down. Ours counted kills only for you, on your own page; the arena modes' board had a leader, and
+the battle royale nothing. Kills are in the game's name, and bots fill most of a lobby, so a hunt for one name gives the
+middle of a match a story.
+
+- **Who:** whoever up has the most kills, once anyone has br.json `killLeader.least` (3); a tie keeps the one who got there
+  first, and someone has to pass them to take it. A bot can be the leader as well as a player.
+- **Counted on every page:** each kill is seen once on each page: the host's relay of every down, your own, the host's
+  bots' (brmatch.ts noteKill). So an heir taking the match over has the count. The host names the leader and says so in its
+  ring packet twice a second, which a friend who rejoins also gets (`kl`).
+- **Said:** the HUD names the leader under the alive and kill counts, a crown by the name, in gold when it is you. The feed
+  says who is now the leader and when they go down, with your own words if it is you or you took them out. The announcer
+  says "We have a new kill leader", "You are the kill leader" and "The kill leader is down".
+- **Checked:** tsc, verify, rules. New checks fail on the old code: the announcer's lines (announcer.ts), and on the real
+  battle royale across three pages (br-heir.ts): three kills name the host on every page; a bot taking the host out is said on
+  every page and names nobody; a guest's four kills, counted where the host lands them, make the guest the leader on its own
+  page. e2e brsolo (two browsers), speedkills, squad.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

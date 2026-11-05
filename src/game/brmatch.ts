@@ -253,6 +253,10 @@ export interface BrHud {
   alive: number;
   total: number;
   kills: number;
+  /** the kill leader (Milestone 1015): who, their kills, and whether it is you; null until someone has the most, past br.json killLeader.least */
+  leader: { id: number; name: string; kills: number; you: boolean } | null;
+  /** how many kill leaders have gone down this match (the announcer says each) */
+  leaderDowns: number;
   /** the damage you have dealt this match (the HUD's line under your kills) */
   damage: number;
   /** while dropping: the POI you are dropping onto, and the map is shown */
@@ -579,6 +583,15 @@ export class BrMatch extends Duel {
   squadsTotal: number;
   /** a guest: the squads still up, as the host's ring packet last said (a guest runs no bots to count) */
   private squadsSeen: number;
+  /**
+   * The kill leader (Milestone 1015), Apex's: whoever has the most kills, once someone has br.json killLeader.least. Every
+   * page counts every kill it sees (each is seen once on each: noteKill), so an heir has the count; the host names the
+   * leader and says so in its ring packet.
+   */
+  private readonly killsOf = new Map<number, number>();
+  private leader: number | null = null;
+  private leaderKills = 0;
+  private leaderDowns = 0;
   /** the match seed: the loot, the ring, the ship and the hour are all drawn from it */
   readonly seed: number;
   /** the dropship's line, from the seed and the squad's place (null: the drop goes straight onto the place, which the tests ask for) */
@@ -1504,6 +1517,7 @@ export class BrMatch extends Duel {
     // (stamped as a player's is: a state from just before it, late on the unordered channel, stood the bot back up, Milestone 935)
     this.broadcast({ t: "down", from: r.id, by, w: weapon || undefined, hd: head ? 1 : undefined, wp: wiped ? 1 : undefined, tm: senderStamp() });
     this.onKnockSeen?.(r.id, by);
+    this.noteKill(r.id, by);
     const left = this.aliveCount;
     if (wiped) {
       this.onNotice?.(`SQUAD WIPED  ·  ${this.squadsAlive} SQUADS LEFT`);
@@ -1539,6 +1553,54 @@ export class BrMatch extends Duel {
 
 
   /** out (shot down, or the Gulag lost): the Gulag decided here, before the squad's end is judged */
+  /** a kill, on every page (Milestone 1015): the count, the kill leader's fall, and the host's new leader */
+  protected override noteKill(victim: number, by: number): void {
+    // (the decay's, the edge's and a body's own are nobody's kills)
+    if (by < 0 || by === victim || this.phase !== "fight") return;
+    this.killsOf.set(by, (this.killsOf.get(by) ?? 0) + 1);
+    if (victim === this.leader) {
+      this.leaderDowns++;
+      const name = this.nameFor(victim);
+      this.onFeed?.(by === this.id ? `YOU TOOK OUT THE KILL LEADER, ${name}` : victim === this.id ? "YOU WERE THE KILL LEADER" : `THE KILL LEADER ${name} IS DOWN`, by === this.id, by !== this.id);
+      // (gone here at once: a guest waits for the host's next ring packet to say who it is now)
+      this.leader = null;
+      this.leaderKills = 0;
+    }
+    if (this.role === "host") this.pickLeader();
+    else if (by === this.leader) this.leaderKills = Math.max(this.leaderKills, this.killsOf.get(by) ?? 0);
+  }
+
+  /** up in the match now: you, a friend, or a bot (the host's) */
+  private upNow(id: number): boolean {
+    if (id === this.id) return this.alive && !this.gulag;
+    const r = this.remotes.get(id);
+    if (r) return r.alive;
+    return this.bots.some((b) => b.bot.remote.id === id && b.bot.alive);
+  }
+
+  /** the host: the leader is whoever up has the most kills, once anyone has `least`; a tie keeps the one who got there first */
+  private pickLeader(): void {
+    const keep = this.leader !== null && this.upNow(this.leader) ? this.leader : null;
+    let best = keep;
+    let most = keep === null ? brCfg.killLeader.least - 1 : (this.killsOf.get(keep) ?? 0);
+    for (const [id, n] of this.killsOf) {
+      if (n > most && this.upNow(id)) {
+        best = id;
+        most = n;
+      }
+    }
+    this.setLeader(best, best === null ? 0 : most);
+  }
+
+  /** the leader as it now is, said in the feed when it is someone new */
+  private setLeader(id: number | null, kills: number): void {
+    const was = this.leader;
+    this.leader = id;
+    this.leaderKills = kills;
+    if (id === null || id === was) return;
+    this.onFeed?.(id === this.id ? `YOU ARE THE KILL LEADER: ${kills} KILLS` : `${this.nameFor(id)} IS THE KILL LEADER: ${kills} KILLS`, id === this.id, id !== this.id);
+  }
+
   protected override eliminate(from: number, how: "knocked" | "finished"): void {
     if (!this.alive) return;
     // A death in the Gulag is the end of a trip the match has already counted:
@@ -2357,6 +2419,9 @@ export class BrMatch extends Duel {
       };
       this.aliveSeen = m.alive;
       if (typeof m.sq === "number" && Number.isFinite(m.sq)) this.squadsSeen = Math.max(0, Math.floor(m.sq));
+      // the kill leader, as the host has it (none said, none)
+      const kl = Array.isArray(m.kl) && m.kl.length === 2 && m.kl.every((x) => typeof x === "number" && Number.isInteger(x)) ? m.kl : null;
+      this.setLeader(kl ? kl[0] : null, kl ? Math.max(0, kl[1]) : 0);
       // the doors as the host has them (this is how a friend who missed a door, or came back, is put right),
       // but not one this page asked about in the last second: the host's answer is on its way
       if (Array.isArray(m.db)) for (const n of m.db) if (typeof n === "number") this.map.doors.breakDoor(n);
@@ -2609,6 +2674,8 @@ export class BrMatch extends Duel {
     this.updateCapture(dt, local);
     if (now >= this.ringSendNext) {
       this.ringSendNext = now + 0.5;
+      // (one gone from the match gives the crown up here too)
+      this.pickLeader();
       this.broadcast({
         t: "ring",
         ph: ring.phase,
@@ -2622,6 +2689,7 @@ export class BrMatch extends Duel {
         db: this.map.doors.brokenList(),
         // SpeedKills: the capture zone (open, who holds it alone, their seconds)
         cp: this.decay ? [this.capture.open ? 1 : 0, this.capture.holder, Math.round(this.capture.held * 10) / 10] : undefined,
+        kl: this.leader === null ? undefined : [this.leader, this.leaderKills],
       });
     }
 
@@ -2988,6 +3056,8 @@ export class BrMatch extends Duel {
       dropping: this.phase === "countdown",
       poi: this.shipLine ? "" : this.poi.name,
       hot: this.hotZone(),
+      leader: this.leader === null ? null : { id: this.leader, name: this.nameFor(this.leader), kills: this.leaderKills, you: this.leader === this.id },
+      leaderDowns: this.leaderDowns,
       ring: {
         phase: Math.min(v.phase + 1, RING_PHASES.length),
         phases: RING_PHASES.length,
