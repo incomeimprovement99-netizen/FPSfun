@@ -432,7 +432,14 @@ and the 16 to 20 m tier still to do)
   23 m ceilings too loud (1070), terraces and ledges on the tower's outside, the station empty, the lookout bare; the
   districts: GLASS HEIGHTS' grey panels not glass, blank faces (THE STACKS' kiosk panels, THE CANYON's advert squares, the
   ticket screen), the district mouths' white pods and concrete cubes, the empty courts, the backdrop past the fence. Version
-  135 takes 1069 and 1070; the next batch is ranked from these.
+  135 takes 1069 and 1070; the next batch is ranked from these. Versions 136 to 138 took the blank faces (1071), THE CANYON's
+  cloths (1073) and the district mouths in their own kits (1074).
+- **After the nineteenth reviews (2026-11-06, on version 138: the centre 6.0 and 6.0, the districts 6.2 and 6.2).** The roads'
+  blotches are gone from every review. The asks: the near shadows (the lobby agent's), the plaza and the carriageways as
+  mid-range fighting ground, the tower's playable storeys lit and its dummy ones dark, terraces on its faces, the strongroom a
+  room behind its door, the city past the fence, GLASS HEIGHTS at street level (its band's white walls read as greybox),
+  THE CANYON's facades, THE STACKS' court and roof. Structural work, the proposal agents' size: the owner's call on the
+  budget.
 
 **Last**
 
