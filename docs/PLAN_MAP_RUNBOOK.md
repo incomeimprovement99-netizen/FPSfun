@@ -499,6 +499,33 @@ on version 133 (T/snap133), with its check failing on version 133.
 - Not this batch: C5 and C6 (L, round 18 decides between them and the next), C7 (the owner's look: asked, not changed), C12
   and D6 to D9 (next batch), G2 and the asphalt's blotches (the map agent, after 1068, if time is left).
 
+### 4.6 After round 18 (2026-11-05, on version 134; the method of 4.3 again)
+
+The centre 6.0 and 6.0, the districts 6.2 and 6.2: version 134's items were seen and named (the court's pillars and LOWER
+COURT, THE LOBBY, the alleys: LANTERN ALLEYS 6.0 to 6.6 in both) and the scores held, as every round since 13. The asks:
+
+| Id | Ask | Pictures | Who | Cost | Taken |
+|---|---|---|---|---|---|
+| G1b | the road's blotches ("brown mud", "blue carpet", "a cloud texture") | 18, 22, d01, d13b, d22 | all four, three first | S | 1069 (version 135): the asphalt's cloud-noise main map pulled to its mean in the shader |
+| R2 | the near shadows' steps and blue fringe, the sun an oval | 08, 14, 19, 25, d05, d14, d09 | centre A first, both districts | renderer | handed to the lobby agent (message, 2026-11-05) |
+| C13 | THE VAULT's doorway a depth: a tunnel 1.5 to 2 m, the bars behind the threshold, the door on its hinge | 30 | both centre, ranks 3 | M | next |
+| C14 | the atrium's skylight a full rectangle, the black dome lit or out, a sign in the void | 29 | both centre, 8 and 2 | M | next |
+| C15 | the tower's outside: terraces and ledges 14 to 35 m on the plaza faces, a gold balcony at THE VAULT | 02, 14, 27 | centre A 2, both gaps | L | next batch's proposal |
+| C16 | calm ceilings at 26 and 23 m, the 17 m green to accents | 11, 12, 13 | both centre | S | 1070 (ceilings); the green open |
+| C17 | THE WELL's name cut by its rope | 19, 19b | both centre | S | 1070 |
+| C18 | the station dressed: a train car, kiosks, a platform edge | 21 | both centre, 7 and 9 | M | next |
+| C19 | the lookout's cover seen, the street's open stretches cut (NOODLE ROW, MARKET) | 10, 16, 18 | both centre | M | next |
+| D11 | GLASS HEIGHTS' grey lower panels as glass (mullions, tint, reflection), the court's white slabs out | d13, d13b, d15 | both districts, ranks 2 and 4 | M | next |
+| D12 | blank faces given content: THE STACKS' kiosk panels, THE CANYON's advert squares, the ticket screen | d11, d20, d08 | both districts | S | next (the map board's back: two back to back) |
+| D13 | the district mouths: the shared white pods and concrete cubes for each district's own kit | d01, d22 | both districts | S to M | next |
+| D14 | the empty courts: GLASS HEIGHTS' round the lift, THE STACKS', THE TERRACES' apron | d11, d13, d15, d04 | both districts | M | next |
+| D15 | the backdrop past the fence: the first rows the pack's facades, the rest fogged | aerials, d09, d21, d24 | both districts | M | next |
+| D16 | the pyramid's lit edge a sawtooth up close | d17 | both districts, rounds 16 to 18 | S | next (look first) |
+
+The next batch (after the week's reset, 2026-11-06): C13 and C14 by the map agent; C15 to one proposal agent; D11, D12, D13
+and D16 by the map agent; D14 and D15 to one proposal agent each if the budget allows. Fewer agents than version 134: each of
+its four cost about 700 thousand tokens.
+
 ---
 
 ## 5. Step 4: version 134

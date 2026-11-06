@@ -5857,6 +5857,31 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       [roadTone, tileTone].every((t) => t >= leastG && t < paveTone) && grain >= 0.4,
     `road ${road.toFixed(3)}, its tiles ${tile.toFixed(3)}, GLASS HEIGHTS' hex ${hex.toFixed(3)}; tone road ${roadTone.toFixed(3)}, tiles ${tileTone.toFixed(3)}, pavers ${paveTone.toFixed(3)}, least ${leastG}; the asphalt round every ${grain.toFixed(2)} m; the ring road ${ringDash} dashes, ${ringKerbs.length} kerbs (${inSolid} in something standing); ${unpainted} of ${dashes.length} dashes unpainted`,
   );
+  // (Milestone 1069: each main map the game pulls to its mean, game.flatten, its mean measured again off the map itself, its
+  // linear values', so the pull leaves the material's tone where the roads' tone above reads it; and some of its contrast
+  // kept, as the noise is there to break the detail's repeat)
+  const FL = (cfg.game as unknown as { flatten?: Record<string, { keep: number; mean: number }> }).flatten ?? {};
+  const flatSaid: string[] = [];
+  let flatOk = Object.keys(FL).length > 0;
+  for (const [name, f] of Object.entries(FL)) {
+    const mf = matFile.get(name);
+    const ms = mf ? readFileSync(mf, "utf8") : "";
+    const mm = ms.match(/- _(?:MainTex|BaseMap|BaseColorMap):\s*\n\s*m_Texture: \{fileID: \d+, guid: ([0-9a-f]+)/);
+    let lin = NaN;
+    if (mm && texFile.has(mm[1])) {
+      const { default: sharp } = await import("sharp");
+      const { data, info } = await sharp(texFile.get(mm[1])!).resize(256, 256).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      let t = 0;
+      for (let k = 0; k < data.length; k += info.channels) {
+        const v = data[k] / 255;
+        t += v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      }
+      lin = t / (data.length / info.channels);
+    }
+    flatOk &&= Math.abs(lin - f.mean) <= 0.01 && f.keep >= 0.2 && f.keep <= 0.6;
+    flatSaid.push(`${name} mean ${f.mean} against its map's ${lin.toFixed(3)}, keep ${f.keep}`);
+  }
+  check("the asphalt's cloud noise pulled to its own mean: each flattened main map's mean its map's own, measured, a fifth to three fifths of its contrast kept", flatOk, flatSaid.join("; ") || "none");
 }
 
 // no parked car across a walk-in's door (Milestone 1058; the centre's sixteenth review: "the camera in parked cars' bonnets",
@@ -6990,6 +7015,20 @@ const outlines5 = ((cfg.game as unknown as { outlines?: Outline5[] }).outlines ?
     // (the moss's own albedo under a white tint, 0.692 red and 0.226 green linear, off Milestone 1062's measure of it at #60ff50)
     rails8.length > 300 && printed8 === 0 && g8 <= 0.5 && 0.226 * g8 <= 2 * 0.692 * r8,
     `${rails8.length} rails, ${printed8} in the clover print; the lawn ${lawn8}, its tint's green ${g8.toFixed(3)}, red ${r8.toFixed(3)}`
+  );
+}
+
+// the eighteenth reviews' finish (Milestone 1070): THE WELL's name on the shaft's wall clear of the rope up the shaft, seen
+// from the rim along the rope's line ("the cable runs through the W, so the sign reads THE VELL", 19, 19b): the rope's x
+// outside the board's span by a body's width at least
+{
+  const B9 = (cfg.game as unknown as { boards: Array<{ text: string; at: number[]; yaw: number; w: number }> }).boards.filter((b) => b.text === "THE WELL" && b.at[1] < 0);
+  const rope9 = (cfg as unknown as { well: { ropes: Array<{ rope: number[][] }> } }).well.ropes[0]?.rope[0];
+  const clear9 = B9.map((b) => (Math.abs(Math.sin((b.yaw * Math.PI) / 180)) < 0.5 ? Math.abs(rope9[0] - b.at[0]) - b.w / 2 : Math.abs(rope9[2] - b.at[2]) - b.w / 2));
+  check(
+    "the eighteenth reviews' finish: THE WELL's name on its shaft's wall clear of the rope up the shaft, seen along the rope's line from the rim",
+    B9.length >= 1 && !!rope9 && clear9.every((c) => c >= 0.4),
+    `${B9.length} names in the shaft, the rope at x ${rope9?.[0]}; clear by ${clear9.map((c) => c.toFixed(2)).join(", ")} m`
   );
 }
 

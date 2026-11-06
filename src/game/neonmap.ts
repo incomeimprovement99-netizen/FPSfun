@@ -41,7 +41,7 @@ interface Spine {
 }
 
 /** what the map drew, for the page's hook and the checks */
-export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; batches: { batches: number; materials: number; layers: number }; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean; anisotropy: { asked: number; textures: number } } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, batches: { batches: 0, materials: 0, layers: 0 }, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false, anisotropy: { asked: 0, textures: 0 } };
+export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; batches: { batches: number; materials: number; layers: number }; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean; anisotropy: { asked: number; textures: number }; flattened: number } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, batches: { batches: 0, materials: 0, layers: 0 }, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false, anisotropy: { asked: 0, textures: 0 }, flattened: 0 };
 
 /**
  * The city's collision boxes (src/config/neon/neonmap.solids.json, measured off the pieces at the bake): a file of their
@@ -802,6 +802,47 @@ function sharpen(scene: THREE.Object3D, renderer: THREE.WebGLRenderer, n: number
   return { asked, textures: seen.size };
 }
 
+/**
+ * A material's main map pulled toward its own mean, `keep` of its contrast left (neonmap.json game.flatten, by the pack
+ * material's name, its derived wears too): the asphalt's main map is a cloud noise, there to break its detail's repeat,
+ * whose blotches about a metre across read in every street picture as "mud" and "carpet" (Milestone 1069). The mean is the
+ * map's own, measured, so the road's tone holds. How many materials it changed
+ */
+function flattenMains(scene: THREE.Object3D, F: Record<string, { keep: number; mean: number }>): number {
+  const done = new Set<THREE.Material>();
+  scene.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    for (const m of (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as THREE.MeshStandardMaterial[]) {
+      if (done.has(m) || !m.map) continue;
+      const key = Object.keys(F).find((k) => m.name === `neon/${k}` || m.name.startsWith(`neon/${k}__`));
+      if (!key) continue;
+      done.add(m);
+      const u = { uFlatKeep: { value: F[key].keep }, uFlatMean: { value: F[key].mean } };
+      const prev = m.onBeforeCompile;
+      m.onBeforeCompile = (shader, r) => {
+        prev?.call(m, shader, r);
+        Object.assign(shader.uniforms, u);
+        // (the main map's own chunk, sampled and pulled to its mean; a detail map's patch multiplies in after it)
+        shader.fragmentShader = shader.fragmentShader
+          .replace("#include <common>", "#include <common>\nuniform float uFlatKeep;\nuniform float uFlatMean;")
+          .replace(
+            "#include <map_fragment>",
+            `#ifdef USE_MAP
+  vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+  sampledDiffuseColor.rgb = mix(vec3(uFlatMean), sampledDiffuseColor.rgb, uFlatKeep);
+  diffuseColor *= sampledDiffuseColor;
+#endif`,
+          );
+      };
+      const prevKey = m.customProgramCacheKey.bind(m);
+      m.customProgramCacheKey = () => `${prevKey()}|flatmain`;
+      m.needsUpdate = true;
+    }
+  });
+  return done.size;
+}
+
 /** the city's file at a size: the one dressNeonMap reads (?neontag=: a bake of another grouping, tools/import-neon.ts NEON_TAG) */
 function cityUrl(size: "lo" | "hi" | "max"): string {
   const tag = (new URLSearchParams(location.search).get("neontag") ?? "").replace(/[^a-z0-9-]/gi, "");
@@ -969,6 +1010,7 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
     NEON_MAP.triangles += (mesh.geometry.getIndex()?.count ?? mesh.geometry.getAttribute("position").count) / 3;
   });
   NEON_MAP.anisotropy = sharpen(gltf.scene, renderer, G.anisotropy[size]);
+  NEON_MAP.flattened = flattenMains(gltf.scene, G.flatten);
   gltf.scene.name = "neon:map";
   root.add(gltf.scene);
   PART.root = root;

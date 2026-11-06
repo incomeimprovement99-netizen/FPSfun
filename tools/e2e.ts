@@ -5687,6 +5687,15 @@ async function speedkillsTest(browser: Browser): Promise<void> {
         return { want, textures: seen.size, under: [...seen].filter((t) => t.anisotropy < want).length }; })()`,
     );
     check("speedkills: every texture of the city's file filtered along a slant, at its kit's samples (Milestone 1063)", slant.textures > 50 && slant.under === 0, JSON.stringify(slant));
+    // and the asphalt's cloud noise pulled to its mean in the shader the GPU runs (Milestone 1069), its keep the config's
+    const flat = await ev<{ asphalt: number; pulled: number; keep: number[] }>(
+      page,
+      `(() => { const R = window.__range; let root = null; R.scene.traverse((o) => { if (o.name === "neon:map") root = o; }); const r = R.renderer; const ms = new Set();
+        if (root) root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) if (/^neon\\/Asphalt00/.test(m.name)) ms.add(m); });
+        const u = [...ms].map((m) => r.properties.get(m).uniforms).filter((x) => x && x.uFlatKeep);
+        return { asphalt: ms.size, pulled: u.length, keep: u.map((x) => x.uFlatKeep.value) }; })()`,
+    );
+    check("speedkills: the asphalt's cloud noise pulled to its own mean in the shader the GPU runs (Milestone 1069)", flat.asphalt >= 1 && flat.pulled === flat.asphalt && flat.keep.every((k) => k === neonSectorsCfg.game.flatten.Asphalt00.keep), JSON.stringify(flat));
     // a REVEAL draws the bot through walls, its rim and its shape filled red, over anything in front (Milestone 690, the
     // owner: "the reveal also just makes them red, it should highlight them through walls")
     await ev(page, "(() => { const R = window.__range; R.duel().reveal(R.player.pos, null, 1000, 360, 3); })()");

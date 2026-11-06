@@ -19753,3 +19753,27 @@ applied the four one at a time and baked them together.
   off what the GPU is handed): written, its fault shown by a probe on version 133's code (all 560 at one sample), to run when
   e2e runs.
 - **Checked:** the map's checks, 394, all passing on version 134 at every size (the centre's draws 220 of 220 at max), each new check failing on version 133 or with its fault put back. verify, rules and tsc. Map files version 134: lo 215.7 MB, hi 299.6 MB, max 615.9 MB.
+
+## Milestones 1069 and 1070 — the asphalt's cloud noise flattened, calm ceilings, THE WELL's name off its rope
+
+From the eighteenth fresh reviews of the centre and the twelfth of the districts (2026-11-05, on version 134: the centre 6.0
+and 6.0, the districts 6.2 and 6.2, LANTERN ALLEYS up to 6.6 in both). All four reviews named the road's ground again,
+three of them first.
+
+- **1069, the asphalt's cloud noise pulled to its mean** (all four: "brown mud with blue stains", "blue carpet", "a blotchy
+  cloud texture", "looks like carpet", 18, 22, d01, d13b, d22). Milestone 1063's filtering sharpened the pavers and left the
+  road's blotches, about a metre across. Found by changing the game's own asphalt in the page and shooting 22 and 18 again:
+  its normals off, the blotches stayed; it matt, they stayed; its main map off, they went, the main map being the pack's
+  cloud noise (Noise00) that breaks the detail's repeat; with it off the detail's 0.5 m repeat showed as a grid and the road
+  lightened to 0.33. A new `game.flatten` pulls a pack material's main map toward its own mean, `keep` of its contrast left,
+  in the shader (src/game/neonmap.ts): Asphalt00 at 0.35 (0.15 showed the grid), its mean 0.553, its map's linear values'
+  own, so the road's tone stays 0.255. No bake: the game draws it.
+- **1070, the finish list** (both centre reviews): the 26 m floor's ceiling plaster and the 23 m floor's concrete tiles,
+  for Milestone 1065's greeble and speckle ("replace the greeble ceilings with calm panels, so enemies stand out against the
+  room", 11, 12), each still its own and both materials the map already draws; THE WELL's name on its shaft's wall 3.7 m
+  west, off the rope's line from the north rim ("the cable runs through the W, so the sign reads THE VELL", 19, 19b).
+- **Checks that learned the new work:** the map check measures each flattened map's mean again off its texture (put back at
+  0.765, the gamma mean, it failed) and holds THE WELL's name 0.4 m clear of the rope's line (put back on it, clear by -3.2
+  m, it failed); the e2e run reads the pull off the shader the GPU runs (a probe on version 134's code found 0 of the 2
+  asphalt materials pulled, on the new code 2 at 0.35), to run when e2e runs.
+- **Checked:** the map's checks, 396, all passing on version 135 at every size (the centre's draws 220 of 220 at max), the two new ones failing with their faults put back. verify, rules and tsc. Map files version 135: lo 215.7 MB, hi 299.6 MB, max 615.9 MB.

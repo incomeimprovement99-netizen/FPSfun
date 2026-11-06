@@ -424,6 +424,15 @@ and the 16 to 20 m tier still to do)
   proposals measured as dry runs on version 133 (base5: the court, the atrium and THE WELL, 1064; floors5: the tower floors,
   1065; alleys5: LANTERN ALLEYS as alleys, 1066; courts5: THE STACKS and GLASS HEIGHTS, 1067) and the map agent's finish list
   (1068). The ranking of every ask is docs/PLAN_MAP_RUNBOOK.md section 5.
+- **After the eighteenth reviews (2026-11-05, on version 134: the centre 6.0 and 6.0, the districts 6.2 and 6.2, finish 5 to
+  5.7; LANTERN ALLEYS 6.6 in both from 6.0, THE STACKS 5.9 in both).** The base's interiors and the alleys were seen and
+  named; the scores held. All four name the road's ground again: its cloud-noise main map, found by changing the material in
+  the page, pulled to its mean (1069). Then the centre: the near shadows (the renderer's, the lobby agent's), THE VAULT's
+  doorway without depth, the atrium's T-shaped skylight under a black dome, THE WELL's name cut by its rope (1070), the 26 and
+  23 m ceilings too loud (1070), terraces and ledges on the tower's outside, the station empty, the lookout bare; the
+  districts: GLASS HEIGHTS' grey panels not glass, blank faces (THE STACKS' kiosk panels, THE CANYON's advert squares, the
+  ticket screen), the district mouths' white pods and concrete cubes, the empty courts, the backdrop past the fence. Version
+  135 takes 1069 and 1070; the next batch is ranked from these.
 
 **Last**
 
