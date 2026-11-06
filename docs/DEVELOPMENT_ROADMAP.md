@@ -19777,3 +19777,20 @@ three of them first.
   m, it failed); the e2e run reads the pull off the shader the GPU runs (a probe on version 134's code found 0 of the 2
   asphalt materials pulled, on the new code 2 at 0.35), to run when e2e runs.
 - **Checked:** the map's checks, 396, all passing on version 135 at every size (the centre's draws 220 of 220 at max), the two new ones failing with their faults put back. verify, rules and tsc. Map files version 135: lo 215.7 MB, hi 299.6 MB, max 615.9 MB.
+
+## Milestone 1071 — the blank faces: THE TERMINAL's map boards back to back, THE STACKS kiosk's windows a lit ad
+
+From the districts' twelfth fresh reviews (2026-11-05, on version 134), both reviewers, and the rounds before.
+
+- **1071, the blank faces** (d08, every round from 15 to 18: "the lightbox at the right is blank white", "one ticket machine
+  shows a blank white screen"; d11, both: "the kiosk pods and a planter have flat blank pink faces that look like missing
+  textures", "flat pink rectangles"). The "lightbox" is the pack's metro map board (MetroAd_Map00), printed on one face and
+  lit blank white on the other: in d08 the face turned to the walkway, the board's own +z, is the blank one, and a look along
+  a hall sees the boards turned across it edge on, one face each. Each now has a second board turned about behind it
+  (`concourse.mapBack`), blank face on blank face, its pivot twice the board's +z extent (0.07 m) along the first's +z, so a
+  map shows either way. THE STACKS kiosk's pod windows wear the pack's lit ad (Ads10, as THE TERMINAL's hall glass and the ad
+  stands do) for Milestone 1059's flat pink glow; the pink trims stay. Ads10 is drawn already and the pink pane was the
+  kiosk's alone, so the centre draws one primitive fewer.
+- **Checks that learned the new work:** every map board back to back with a second turned about (on version 135's
+  placements, 12 of 12 alone, it failed); THE STACKS' check holds the kiosk's windows lit by a glow or by the pack's lit ads.
+- **Checked:** the map's checks, 397, all passing on version 136 at every size (the centre's draws 219 of 220 at max), the new one failing on version 135's placements; verify passed on its third run, the battle royale heir's package check (Milestone 1006) failing twice right after the bakes and passing on every run since, twelve alone. verify, rules and tsc. Map files version 136: lo 215.8 MB, hi 299.8 MB, max 616.0 MB.

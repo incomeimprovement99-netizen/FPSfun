@@ -4828,7 +4828,7 @@ function onNode(o: OBox): boolean {
 // 6 and z from its pivot less 1 to its pivot plus 20.5. A taxi rank of the pack's urban cars on the forecourt, the
 // district's name over the arcade on the north face. Colliding as their own faces, as the centre's hall does
 {
-  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number; mat?: string }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][]; front?: { piece: string; x: number; z: number; yaw: number; plates: number[] } }; concourse?: { machines: string[]; bench: string; map?: string; spots: Array<[number, number, string, number]> }; roof?: { pieces: string[]; y: number; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
+  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number; mat?: string }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][]; front?: { piece: string; x: number; z: number; yaw: number; plates: number[] } }; concourse?: { machines: string[]; bench: string; map?: string; mapBack?: boolean; spots: Array<[number, number, string, number]> }; roof?: { pieces: string[]; y: number; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
   if (TM) {
     const H = TM.hall;
     const hr = piece(H.piece).row;
@@ -4919,6 +4919,18 @@ function onNode(o: OBox): boolean {
         STREET_GRAPH?.add(o);
         add(TM.chunk, "c", [piece(name).key, +(cx + dx).toFixed(3), +(-row.min![1]).toFixed(3), +(hz0 + dz).toFixed(3), yaw, "o"] as Place);
         cover++;
+        // (a map board's other face is lit blank white, Milestone 1071: a second board turned about stands against it, blank face
+        // on blank face, its pivot twice the board's +z extent along the first's +z, so a look along the hall sees a map either way)
+        if (kind === "map" && CC!.mapBack) {
+          const [bx, bz] = rotY(yaw, 0, 2 * row.max![2]);
+          const yaw2 = yaw + 180;
+          const [mx2, mz2] = rotY(yaw2, (row.min![0] + row.max![0]) / 2, (row.min![2] + row.max![2]) / 2);
+          const o2: OBox = { c: [cx + dx + bx + mx2, hz0 + dz + bz + mz2], u: rotY(yaw2, 1, 0), v: rotY(yaw2, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.size![1] };
+          if (!onNode(o2)) {
+            STREET_GRAPH?.add(o2);
+            add(TM.chunk, "c", [piece(name).key, +(cx + dx + bx).toFixed(3), +(-row.min![1]).toFixed(3), +(hz0 + dz + bz).toFixed(3), yaw2, "o"] as Place);
+          }
+        }
       }
     }
     // the roofs' cover (`roof`): the pack's AC boxes along the side vaults' ridges at `y`, flat a metre across there

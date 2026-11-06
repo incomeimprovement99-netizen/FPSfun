@@ -5966,7 +5966,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const fell4 = lanes4.map((r) => ({ r, w: walk4(r) })).filter(({ r, w }) => w.k < r.length || Math.abs(w.y - r[r.length - 1][2]) > 0.15);
   const kiosk4 = PO4.find((p) => p.id === "stacks-kiosk");
   const pods4 = (kiosk4?.parts ?? []).filter((p) => String(p[0]).startsWith("RoomSemiCapsule"));
-  const lit4 = pods4.length > 0 && pods4.every((p) => /~#|\^#/.test(remap4(p[7]).get("Cristal04") ?? "") && /\^#ff4fd8/i.test(remap4(p[7]).get("MetalBare01_lgt 1") ?? ""));
+  // (lit by a glow, or since Milestone 1071 by the pack's lit ads: the flat pink glow read as a blank face)
+  const lit4 = pods4.length > 0 && pods4.every((p) => /~#|\^#|^Ads\d/.test(remap4(p[7]).get("Cristal04") ?? "") && /\^#ff4fd8/i.test(remap4(p[7]).get("MetalBare01_lgt 1") ?? ""));
   const kl4 = LP4.find((l) => l.id === "stacks-kiosk");
   const sign4 = !!kl4 && G4.boards.some((b) => b.text.trim().length > 0 && b.at[0] > kl4.box[0] - 1 && b.at[0] < kl4.box[1] + 1 && b.at[2] > kl4.box[2] - 1 && b.at[2] < kl4.box[3] + 1 && b.at[1] > 0.5 && b.at[1] < 3);
   const baseNames = G4.outlines.filter((o) => o.name.startsWith("the stacks tower base"));
@@ -7029,6 +7030,33 @@ const outlines5 = ((cfg.game as unknown as { outlines?: Outline5[] }).outlines ?
     "the eighteenth reviews' finish: THE WELL's name on its shaft's wall clear of the rope up the shaft, seen along the rope's line from the rim",
     B9.length >= 1 && !!rope9 && clear9.every((c) => c >= 0.4),
     `${B9.length} names in the shaft, the rope at x ${rope9?.[0]}; clear by ${clear9.map((c) => c.toFixed(2)).join(", ")} m`
+  );
+}
+
+// the eighteenth reviews' blank faces (Milestone 1071): every map board in THE TERMINAL's halls with a second board turned
+// about behind it, so its lit blank face shows nowhere ("a blank white lightbox", rounds 15 to 18); THE STACKS kiosk's windows
+// are held lit by THE STACKS' check
+{
+  const T10 = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-terminal"]?.place ?? [];
+  const MP10 = (cfg.rules.districts as unknown as { terminal: { concourse: { map: string } } }).terminal.concourse.map;
+  const boards10 = T10.filter((q) => String(q[0]).endsWith(`/${MP10}`));
+  const PAID10 = process.env.PAID_DIR ?? "C:/Users/jwilb/Downloads/speedkills-paid";
+  const cat10 = existsSync(join(PAID10, "neon", "catalogue.json")) ? (JSON.parse(readFileSync(join(PAID10, "neon", "catalogue.json"), "utf8")) as Array<{ path: string; max: number[] | null }>) : [];
+  const maxZ10 = cat10.find((r) => r.path.endsWith(`/${MP10}`))?.max?.[2] ?? NaN;
+  const single10 = boards10.filter((q) => {
+    const a = (Number(q[4]) * Math.PI) / 180;
+    const want = [Number(q[1]) + Math.sin(a) * 2 * maxZ10, Number(q[3]) + Math.cos(a) * 2 * maxZ10];
+    const back = boards10.find((r) => Math.abs(Math.hypot(Number(r[1]) - want[0], Number(r[3]) - want[1])) < 0.02 && Math.abs((((Number(r[4]) - Number(q[4])) % 360) + 360) % 360 - 180) < 0.5);
+    const front = boards10.find((r) => {
+      const b = (Number(r[4]) * Math.PI) / 180;
+      return Math.hypot(Number(r[1]) + Math.sin(b) * 2 * maxZ10 - Number(q[1]), Number(r[3]) + Math.cos(b) * 2 * maxZ10 - Number(q[3])) < 0.02 && r !== q;
+    });
+    return !back && !front;
+  });
+  check(
+    "the eighteenth reviews' blank faces: every map board in THE TERMINAL's halls back to back with a second turned about, its lit blank face nowhere",
+    boards10.length >= 4 && Number.isFinite(maxZ10) && single10.length === 0,
+    `${boards10.length} map boards, ${single10.length} alone (the board's +z extent ${maxZ10} m)`
   );
 }
 
