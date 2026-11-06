@@ -23,8 +23,8 @@ import { buildSkyline } from "./skyline";
 import { buildPadRings } from "./padrings";
 import { buildLightPools } from "./lightpools";
 import { buildOutlines } from "./outlines";
-import { applyBatches } from "./neonbatch";
-import { applyDetailMaps, applyUnityLooks } from "./detailmaps";
+import { BATCH_OF, applyBatches } from "./neonbatch";
+import { DETAIL_OF, applyDetailMaps, applyUnityLooks } from "./detailmaps";
 import { MOVE } from "./movement";
 import { padOff, padOnto } from "./padsolve";
 import { emissive } from "./geo";
@@ -41,7 +41,7 @@ interface Spine {
 }
 
 /** what the map drew, for the page's hook and the checks */
-export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; batches: { batches: number; materials: number; layers: number }; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, batches: { batches: 0, materials: 0, layers: 0 }, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false };
+export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; batches: { batches: number; materials: number; layers: number }; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean; anisotropy: { asked: number; textures: number } } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, batches: { batches: 0, materials: 0, layers: 0 }, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false, anisotropy: { asked: 0, textures: 0 } };
 
 /**
  * The city's collision boxes (src/config/neon/neonmap.solids.json, measured off the pieces at the bake): a file of their
@@ -98,7 +98,9 @@ function lazy<T>(make: () => T): () => T {
 // placements, `under` the fitting), and a grid every `every` metres over the court's and the station's floors, `height`
 // up. The pool is fixed: a light added to or taken from the scene recompiles every lit shader. A tower floor's own lamps
 // light at `tower` (its storeys are low and its lamps close: at the base's strength they drew white)
-const FILL: { spots: THREE.Vector3[]; power: number[]; lights: THREE.PointLight[] } = { spots: [], power: [], lights: [] };
+// (and each spot's colour, Milestone 1065: a tower floor's lamps in that floor's own `light`, rules.tower.floors.at, the
+// centre's seventeenth reviews: "the floors look like one room recoloured")
+const FILL: { spots: THREE.Vector3[]; power: number[]; colour: THREE.Color[]; lights: THREE.PointLight[] } = { spots: [], power: [], colour: [], lights: [] };
 // (the pool's size by the graphics preset, `byPreset`, or `count`: each light is in every lit shader, per pixel, on every
 // preset, a cost on laptops (the lobby's frame-time pass, 2026-10-03); a preset change reloads the page, so it is sized once)
 const fillCount = (F: { count: number; byPreset?: Record<string, number> }) => F.byPreset?.[loadQuality().preset] ?? F.count;
@@ -107,6 +109,10 @@ export function neonFillSpots(): THREE.Vector3[] {
   return FILL.spots;
 }
 /** how many lights the fill's pool holds on this preset (the checks: fewer on the cheaper presets) */
+/** each fill spot's colour as the pool lights it, the spots' order (the checks: a tower floor lit in its own) */
+export function neonFillColours(): THREE.Color[] {
+  return FILL.colour;
+}
 export function neonFillPool(): number {
   return FILL.lights.length;
 }
@@ -121,6 +127,7 @@ export function updateNeonFill(eye: THREE.Vector3): void {
     if (q) {
       l.position.copy(FILL.spots[q.i]);
       l.intensity = FILL.power[q.i];
+      if (FILL.colour[q.i]) l.color.copy(FILL.colour[q.i]);
     } else l.intensity = 0;
   });
 }
@@ -625,6 +632,17 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       const sq = neonCfg.tower.square as number[];
       const lowest = Math.min(...Object.keys(neonCfg.rules.tower.floors.at).map(Number));
       FILL.power = FILL.spots.map((q) => (q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest ? F.tower : F.intensity));
+      // (a tower floor's lamp in its floor's `light`, the floor the highest of floors.at under it; any other spot, and a
+      // floor that names none, the fill's own colour: one pool, so a light takes its spot's colour each frame)
+      const FA = neonCfg.rules.tower.floors.at as unknown as Record<string, { light?: string }>;
+      const floorsDown = Object.keys(FA).map(Number).sort((a, b) => b - a);
+      const fillOwn = new THREE.Color(F.colour);
+      FILL.colour = FILL.spots.map((q) => {
+        if (!(q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest)) return fillOwn;
+        const h = floorsDown.find((v) => v < q.y);
+        const hex = h === undefined ? undefined : FA[String(h)]?.light;
+        return hex ? new THREE.Color(hex) : fillOwn;
+      });
     };
     for (const l of FILL.lights) l.removeFromParent();
     FILL.lights.length = 0;
@@ -754,6 +772,34 @@ let cityFailed = false;
 /** the city's file could not be had from the site this visit, after every try: the page says so, and asks again */
 export function cityLoadFailed(): boolean {
   return cityFailed;
+}
+
+/**
+ * Every texture the city's file draws filtered along a slant, `n` samples (neonmap.json game.anisotropy, by the kit),
+ * capped by the device. The loader leaves each at one sample, so a street seen at a low angle read a mip level as coarse
+ * as its steepest axis asked and smeared: the reviews' "smeared, low-res" ground (Milestone 1063). Its materials' own
+ * maps, its detail maps' and its batches' arrays; a texture with no mips (the batches' tables) has nothing to filter.
+ * What it asked and how many textures took it
+ */
+function sharpen(scene: THREE.Object3D, renderer: THREE.WebGLRenderer, n: number): { asked: number; textures: number } {
+  const asked = Math.max(1, Math.min(n, renderer.capabilities.getMaxAnisotropy()));
+  const seen = new Set<THREE.Texture>();
+  const add = (v: unknown) => {
+    const t = v as THREE.Texture | null;
+    // (three filters along a slant only these two minifications; any other it skips)
+    if (t?.isTexture && (t.minFilter === THREE.LinearMipmapLinearFilter || t.minFilter === THREE.NearestMipmapLinearFilter)) seen.add(t);
+  };
+  scene.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      for (const v of Object.values(m)) add(v);
+      for (const u of [DETAIL_OF.get(m), BATCH_OF.get(m)]) for (const { value } of Object.values(u ?? {})) add(value);
+    }
+  });
+  // (before any of them is first drawn: the filter is set as a texture goes up to the GPU, so none is sent twice)
+  for (const t of seen) t.anisotropy = asked;
+  return { asked, textures: seen.size };
 }
 
 /** the city's file at a size: the one dressNeonMap reads (?neontag=: a bake of another grouping, tools/import-neon.ts NEON_TAG) */
@@ -922,6 +968,7 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
     }
     NEON_MAP.triangles += (mesh.geometry.getIndex()?.count ?? mesh.geometry.getAttribute("position").count) / 3;
   });
+  NEON_MAP.anisotropy = sharpen(gltf.scene, renderer, G.anisotropy[size]);
   gltf.scene.name = "neon:map";
   root.add(gltf.scene);
   PART.root = root;

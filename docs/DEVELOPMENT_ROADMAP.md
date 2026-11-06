@@ -19677,3 +19677,79 @@ alone and baked them together.
   cannot hold. The GLASS HEIGHTS cab now wears the deck's own lit pane and THE STACKS kiosk's concrete strip the pack's
   own light, 220.
 - **Checked:** the map's checks, 385, all passing on version 133, the roads check's two new halves failing with their faults put back (the asphalt's tone 0.344 with the old white tint, its repeat every 0.25 m at the old 2.5 m). verify, rules and tsc. Map files version 133: lo 209.3 MB, hi 293.9 MB, max 611.7 MB.
+
+## Milestones 1063 to 1068 — the ground filtered, the base's interiors, the tower's floors, LANTERN ALLEYS as alleys, THE STACKS and GLASS HEIGHTS, the finish list
+
+From the seventeenth fresh reviews of the centre and the eleventh of the districts (2026-11-05, on version 133: the centre 6.0
+and 6.0, finish 5 in both; the districts 6.2 and 6.2, THE STACKS 6 and 5.7, GLASS HEIGHTS 6 and 5.9). Version 133's first asks
+were seen and praised and the centre held; its asks moved to its other interiors and the street ground. Every ask of the last
+two rounds was ranked (docs/PLAN_MAP_RUNBOOK.md 4.5): four proposal agents measured the larger items as dry runs on version
+133's collision, each with checks that fail on version 133; the map agent found the ground's cause and did the finish list,
+applied the four one at a time and baked them together.
+
+- **1063, the city's textures filtered along a slant** (all four reviewers, and the four of round 16: "the ground at the
+  district mouths smeared brown or blue noise", d01, d13b, d22, d23; "blotchy low-res asphalt", 18, 22). Every texture of the
+  city's file was drawn with the loader's default of one sample, so a surface seen at a slant read a mip level as coarse as
+  its steepest axis asked. Each texture the file draws, its own maps, its detail maps and its batches' arrays, now takes
+  `game.anisotropy` samples by the kit the preset draws (lo 4 for Competitive, hi 8, max 16), within the device's cap. Read
+  off a page, 559 of the file's 560 filtered textures took it (the 560th is the sky's reflection, a render target) where all
+  560 had one; from the review spots, the lower third's sharpness (the Laplacian's root mean square) rose 21 to 51% (18, d01,
+  d22, d23). The asphalt's own blotches, about a metre across, remain: its main map's broad contrast is
+  4% at most (measured), so they come of its light, not its colour, and are the next item.
+- **1064, base5: the sunken court, the atrium, THE WELL** (both centre reviews: "rebuild the sunken court: pillars, a raised
+  platform or mezzanine, three cover clusters and one lit landmark piece", "a pale seam where the floor meets the right wall",
+  "a lone pole", 20b; "open the atrium to the sky for real", "a rod with a collar", 29; "a lit floor at the bottom", "you
+  cannot tell how deep the shaft is", 19). The seam was a 3 cm slit: the court's walls stood 3 cm over its tiles and now stand
+  on them (`court.wallSink`). The pole was Milestone 1060's lamp post, 5.68 m through a 3.0 m ceiling: both out. Nine pillars
+  in two rows floor to ceiling, lit cyan in outline frames; a 0.5 m platform on the north wall with two lit gold chests, an
+  amber edge and LOWER COURT over it; a cover cluster in the middle lane; nine magenta and cyan ceiling panels, each with its
+  pool. The atrium's roof was closed over most of its void and the tower's 13.5 m balcony over the rest: a 2.4 by 5.4 m
+  skylight is cut, railed, where no perch or furniture moves; the stall lanterns that hung 0.7 m under nothing hang from the
+  ceiling; THE LOBBY lit on the void's west edge. THE WELL's bottom tiles glow violet with a yellow landing square, its name
+  under the rim.
+- **1065, floors5: the tower's floors each their own** (centre B, first: "give each floor its own lighting colour and
+  ceiling, add chest-high furniture clusters every 6 to 8 m, and trim the raw slab edges", 11 to 13). Measured first off the
+  bake's own triangles: 13's "bare concrete beam at head height" is the 20 m hole's rim 1.5 m from the eye; 12's "strip of
+  sky" the 26 m storey's window seen up through the hole; 11's stretched plinth a patterned wall mapped along a 10 m band.
+  Each floor from 14 to 35 m a ceiling from materials the map already draws, its lamps' colour and the fill lights tinted by
+  floor (`light`, read by the game); the holes' rims black with a lit line on the floor and one under the slab; the stairs'
+  rails remapped (`stair.mat`); black skirting. Sixteen chest-high sets on the 17, 23 and 26 m floors: on the open floor 95% of
+  the floor within 4.4 m of chest-high cover, from 14.4 m; the rooms had none. A second way up was measured and left: no
+  flight and hole fit without moving the floors' cover, which moves THE VAULT's.
+- **1066, alleys5: LANTERN ALLEYS as alleys** (both district reviews, first and second: "fill the gaps between shophouses so
+  the streets narrow to alleys 4 to 6 m wide", "the only district whose layout contradicts its name", d01, d03, the NE
+  aerial). Two rows of shophouses along the fence, their fronts 5 m in, make the two back lanes alleys of about 6.35 m; two
+  infill houses narrow the cross alleys from 11.8 and 13.5 m to about 5.5 m; 35 brick walls close the other gaps between
+  houses, the three the bots walk through kept open; 38 lantern lines over both fence lanes, an X over each cross alley and a
+  mast either side of each cross alley's mouth on the ring road; the court's stalls in timber and red for the beige hatch.
+  The decay's longest sprint stays 28.0 s; drops and the street graph hold. Flat roof decks were left: they would cover the
+  terracotta roofs the reviews keep.
+- **1067, courts5: GLASS HEIGHTS and THE STACKS** (both district reviews: "rebuild the cover panels as real tinted frosted
+  glass with bevelled frames, in L shapes with benches or planters attached", "floating blank cards", d14; "the lift shaft
+  horizontal frame bands", d15; "a tall white plinth stands dead centre", d13; "break up the hex fields with head-high
+  clusters", "a thin beige box", d10; "the kiosk's CAP... sign hidden behind a tan slab", d11; "a small box with a helmet-like
+  icon", d12). GLASS HEIGHTS' deck walls are sets: ten screens in white planter troughs with nine benches, five planters and
+  an L, white frames on a tinted patterned pane; the lift's shaft banded white at every tier; tall cover kept off seven sight
+  lines from the ring road to the lift; the name 8 m wide, opaque and framed; the court's metro benches street benches. THE
+  STACKS: no louvred box in the fill; a pink-lit raised planter at the avenue's mouth; a car barricade, ticket-machine rows and
+  a capsule stall in the court; CAPSULE BAR on the kiosk's outer wall too; eight pink trims under the tower's capsules; the
+  hotel roof's helmet box replaced. One material in, two out.
+- **1068, the finish list** (the reviews' "broken" items, each true in its picture): THE TERRACES' tops from #60ff50 to
+  #4fb43c, the moss's albedo from 0.081, 0.226, 0.059 to 0.054, 0.103, 0.033 linear, its brightness halved and its green over
+  its red from 2.8 to 1.9 ("a flat, very bright green lawn", d05); the base's and the Sky Ring's rails out of the pack's clover-printed
+  glass into its clear glass, a material the map already draws (a first bake tinted the base's amber and the clovers stayed
+  green: a tint multiplies the print), where one green-patterned glass ran over three levels ("makes those levels look
+  alike", 06, 08, 09, 20, 29). Read and left, each untrue in the map: 22's car on the rope is 14 m nearer than the rope, in
+  line from that spot; 16's "0101 frame" a street bench cut by the frame's edge; d04's "THE TERRACED" its letters 10 px high.
+- **Checks that learned the new work:** each item its checks, each failing on version 133 and passing on the map that came of
+  it: base5 three (the court's walls on its tiles, its pillars, platform, panels and nothing through its ceiling; the atrium's
+  skylight open to the sky with its lanterns hung; THE WELL's lit bottom, landing and name), floors5 two (each floor its own
+  ceiling and light, its rims dark and lit; the chest-high cover's reach on the three floors), alleys5 one (the alleys' widths,
+  the walls, the lanterns and the open bot gaps), courts5 two (GLASS HEIGHTS' sets, banded shaft, framed name and clear sight
+  lines; THE STACKS' fields, kiosk sign and trims), the finish list one (the rails out of the clover print, the lawn a lawn's
+  green: put back, 288 rails and a green of 1.000 failed it). Changed with them: Milestone 1060's court clause (six lit panels
+  for two lamps), 1059's THE STACKS clause, GLASS HEIGHTS' name 8 m for 10, the houses' band allowing LANTERN ALLEYS' fence
+  rows 8 m past the fence. Milestone 1063's check is in the e2e run (every texture of the city's file at its kit's samples, read
+  off what the GPU is handed): written, its fault shown by a probe on version 133's code (all 560 at one sample), to run when
+  e2e runs.
+- **Checked:** the map's checks, 394, all passing on version 134 at every size (the centre's draws 220 of 220 at max), each new check failing on version 133 or with its fault put back. verify, rules and tsc. Map files version 134: lo 215.7 MB, hi 299.6 MB, max 615.9 MB.

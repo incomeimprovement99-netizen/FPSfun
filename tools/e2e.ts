@@ -5674,6 +5674,19 @@ async function speedkillsTest(browser: Browser): Promise<void> {
       y.map === "yard" && y.me && y.bot && y.drawn && y.part.shown === "a-yard" && y.part.nodes.join() === "a-yard" && !y.part.extras && y.batches?.batches >= 1 && y.batches.layers > y.batches.batches * 4,
       JSON.stringify(y),
     );
+    // every texture of the city's file filtered along a slant, its kit's samples or the device's cap (Milestone 1063: the
+    // loader's one sample smeared every street a few metres out, the reviews' "smeared, low-res" ground). Read off what the
+    // GPU is handed, the materials' own maps and their shaders' uniforms (the batches' arrays, the detail maps), not off the
+    // code that sets it; the sky's reflection is a render target, not the city's
+    const slant = await ev<{ want: number; textures: number; under: number }>(
+      page,
+      `(() => { const R = window.__range; let root = null; R.scene.traverse((o) => { if (o.name === "neon:map") root = o; }); const r = R.renderer;
+        const want = Math.min(${neonSectorsCfg.game.anisotropy.lo}, r.capabilities.getMaxAnisotropy()); const seen = new Set();
+        const add = (v) => { if (v && v.isTexture && !v.isRenderTargetTexture && !v.isCubeTexture && (v.minFilter === 1008 || v.minFilter === 1005)) seen.add(v); };
+        if (root) root.traverse((o) => { if (!o.isMesh) return; for (const m of [].concat(o.material)) { for (const v of Object.values(m)) add(v); const u = r.properties.get(m).uniforms; if (u) for (const k in u) add(u[k] && u[k].value); } });
+        return { want, textures: seen.size, under: [...seen].filter((t) => t.anisotropy < want).length }; })()`,
+    );
+    check("speedkills: every texture of the city's file filtered along a slant, at its kit's samples (Milestone 1063)", slant.textures > 50 && slant.under === 0, JSON.stringify(slant));
     // a REVEAL draws the bot through walls, its rim and its shape filled red, over anything in front (Milestone 690, the
     // owner: "the reveal also just makes them red, it should highlight them through walls")
     await ev(page, "(() => { const R = window.__range; R.duel().reveal(R.player.pos, null, 1000, 360, 3); })()");

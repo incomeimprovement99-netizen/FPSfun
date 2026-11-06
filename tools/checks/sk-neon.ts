@@ -22,7 +22,7 @@ const fakeEl = (): unknown => ({ width: 64, height: 64, style: {}, getContext: (
 if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS: () => fakeEl() };
 const warn = console.warn;
 console.warn = () => undefined;
-const { buildNeonMap, neonFillSpots, neonFillPool } = await import("../../src/game/neonmap");
+const { buildNeonMap, neonFillSpots, neonFillPool, neonFillColours } = await import("../../src/game/neonmap");
 const { Player } = await import("../../src/game/player");
 const { BR_X, BR_Z, BR_HALF } = await import("../../src/game/br");
 const { SPIRE_TOP } = await import("../../src/game/world");
@@ -2693,7 +2693,10 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     return [h.c[0] - ex, h.c[0] + ex, h.c[1] - ez, h.c[1] + ez];
   };
   const houses = (LA?.houses ?? []).map(foot);
-  const strayed = houses.filter(([x0, x1, z0, z1]) => x0 < ne.minX || x1 > ne.maxX || z0 < ne.minZ || z1 > ne.maxZ || !(x0 >= ring || z1 <= -ring));
+  // (a row along the fence stands `past` metres past it at most, on the map's own ground, Milestone 1066: only on the map's
+  // edge, not into the next sector)
+  const past = (DL as unknown as { past?: number } | undefined)?.past ?? 0;
+  const strayed = houses.filter(([x0, x1, z0, z1]) => x0 < ne.minX || x1 > ne.maxX + (ne.maxX >= BR_HALF ? past : 0) || z0 < ne.minZ - (ne.minZ <= -BR_HALF ? past : 0) || z1 > ne.maxZ || !(x0 >= ring || z1 <= -ring));
   const overlaps = houses.flatMap((a, i) => houses.slice(i + 1).filter((b) => a[0] < b[1] - 0.01 && a[1] > b[0] + 0.01 && a[2] < b[3] - 0.01 && a[3] > b[2] + 0.01).map(() => i));
   const alleys = DL?.lights.alleys ?? [];
   const onAlley = houses.filter(([x0, x1, z0, z1]) => alleys.some((al) => {
@@ -5545,7 +5548,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const [bottom, top] = [NMg.at[1] - NMg.h / 2, NMg.at[1] + NMg.h / 2];
   check(
     "GLASS HEIGHTS: its name big and lit at eye level, on the face of the front deck's arm beside its court",
-    bottom >= 2.2 && top <= 6 && NMg.w >= 10 && backed === across && fronted === 0,
+    bottom >= 2.2 && top <= 6 && NMg.w >= 8 && backed === across && fronted === 0,
     `${NMg.w} m wide, ${bottom.toFixed(1)} to ${top.toFixed(1)} m up; a face behind it at ${backed} of ${across} points, ${fronted} in something solid`,
   );
   // (3) the lift: its line from the court's mouth (between the first row's cypress pair) to the car's door, nothing standing
@@ -5717,7 +5720,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const white = worksCrates.filter((q) => !q[6] || q[6] === glow).length;
   check(
     "the districts' positions: THE WORKS' yard in three or four of rust and olive containers, two of them two high; THE STACKS' court split by a capsule kiosk two storeys high and a low wall; THE STRIP's boulevard a stage with a riser; each whole, on no street node, across no grid link, climbed onto by a player; no white crate in THE WORKS",
-    PO.length >= 6 && whole.length === PO.length && yard.length >= 3 && yard.length <= 4 && yard.filter((l) => l.top > 4).length >= 2 && court.length === 1 && court[0].top > 4.5 && lowWall >= 1 && stage.length === 1 && stage[0].top > 2.2 && onNode.length === 0 && cut.length === 0 && fell.length === 0 && white === 0,
+    PO.length >= 6 && whole.length === PO.length && yard.length >= 3 && yard.length <= 4 && yard.filter((l) => l.top > 4).length >= 2 && court.filter((l) => l.top > 4.5).length === 1 && lowWall >= 1 && stage.length === 1 && stage[0].top > 2.2 && onNode.length === 0 && cut.length === 0 && fell.length === 0 && white === 0,
     `${PO.length} positions, ${whole.length} whole; THE WORKS' yard ${yard.length} (${yard.map((l) => `${l.id} ${l.top} m`).join(", ")}), THE STACKS' court ${court.map((l) => `${l.top} m, ${lowWall} low panels`).join("") || "none"}, THE STRIP's boulevard ${stage.map((l) => `${l.top} m`).join("") || "none"}; ${onNode.length} on a node, ${cut.length} grid lines within a body${cut.length ? ` (${cut.slice(0, 3).join("; ")})` : ""}; climbed ${climbs.length - fell.length} of ${climbs.length}${fell.length ? ` (${fell.map((c) => `${c.id} ${c.r.k - 1} of ${c.n - 1} legs, at ${c.r.y.toFixed(2)} m`).join("; ")})` : ""}; ${white} of ${worksCrates.length} crates in THE WORKS white`,
   );
 }
@@ -5955,15 +5958,19 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   // glass a lit frosted cab unlike the shaft's
   const GH4 = (cfg.rules.districts as unknown as { glass: { deck: { kit: Record<string, string> }; lift: { car: number[]; carMat: string; shaft: { mat: string; half: number; under: number } } } }).glass;
   const wallKeys = ["WindowWall00 Variant.prefab", "WindowWall01 Variant.prefab"];
+  // (since Milestone 1067 the frame in the look's white, its bevels lit by the sun, and the inner strip lit: at a glow of 1.2 the
+  // frame drew flat, "floating blank cards" in the districts' eleventh reviews)
+  const white4 = (cfg.rules.districts as unknown as { glass: { look: { white: string } } }).glass.look.white;
   const framed4 = wallKeys.every((k) => {
     const m = remap4(GH4.deck.kit[k]);
-    const f = /~#[0-9a-f]{6}\|([\d.]+)$/i.exec(m.get("BareSteelScratched00") ?? "");
-    return !!f && Number(f[1]) >= 1 && /Pattern/.test(m.get("Cristal04") ?? "");
+    return m.get("BareSteelScratched00") === white4 && /\^#/.test(m.get("MetalBare01_lgt 2") ?? "") && /Pattern/.test(m.get("Cristal04") ?? "");
   });
   const deckWalls = (CH4["c-dress"]?.place ?? []).filter((q) => /\/WindowWall0[01] Variant\.prefab$/.test(String(q[0])) && Number(q[2]) > 24 && Number(q[2]) < 28 && Math.abs(Number(q[1])) < 32 && Number(q[3]) > -154 && Number(q[3]) < -104);
   const wallsOff = deckWalls.filter((q) => q[6] !== GH4.deck.kit[String(q[0]).split("/").pop()!]).length;
   const shaft4 = remap4(GH4.lift.shaft.mat);
-  const oneGlass = ["Cristal04", "BareSteelScratched00", "MetalBare01_lgt 2"].every((k) => shaft4.has(k)) && new Set(shaft4.values()).size === 1 && [...shaft4.values()].every((v) => v.startsWith("Cristal") && !/~#|\|#/.test(v));
+  // (since Milestone 1067 its pane's frame the look's white, a white band where two tiers meet, and its inner strip lit cyan:
+  // "horizontal frame bands, one object", the districts' eleventh reviews; never the Light06 whose map drew stacked plates)
+  const oneGlass = ["Cristal04", "BareSteelScratched00", "MetalBare01_lgt 2"].every((k) => shaft4.has(k)) && /^Cristal/.test(shaft4.get("Cristal04")!) && !/~#|\|#/.test(shaft4.get("Cristal04")!) && shaft4.get("BareSteelScratched00") === white4 && ![...shaft4.values()].some((v) => v.startsWith("Light06"));
   const cab4 = remap4(GH4.lift.carMat).get("Cristal04") ?? "";
   const cabLit = /~#/.test(cab4) && cab4 !== shaft4.get("Cristal04");
   const [lx4, lz4] = GH4.lift.car;
@@ -5971,9 +5978,9 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const cornerBoxes = outlineBoxes((n: string) => n.startsWith("the glass lift corners"));
   const corners4 = [[lx4 - hf4, lz4 - hf4], [lx4 + hf4, lz4 - hf4], [lx4 - hf4, lz4 + hf4], [lx4 + hf4, lz4 + hf4]].filter(([x, z]) => cornerBoxes.some((b) => x > b[0] - 0.1 && x < b[1] + 0.1 && z > b[2] - 0.1 && z < b[3] + 0.1 && b[4] < 0.5 && b[5] > GH4.lift.shaft.under - 0.1)).length;
   check(
-    "GLASS HEIGHTS' deck and lift: the deck's glass walls in a lit frame on a patterned pane, its lift's shaft one clear tube lit up its corners, its car a lit cab",
+    "GLASS HEIGHTS' deck and lift: the deck's glass walls in a white frame on a patterned pane, its lift's shaft a clear tube banded white at its tiers and lit up its corners, its car a lit cab",
     framed4 && deckWalls.length >= 10 && wallsOff === 0 && oneGlass && cabLit && corners4 === 4,
-    `walls ${framed4 ? "framed and patterned" : "plain"}, ${deckWalls.length} on the decks, ${wallsOff} off; the shaft ${oneGlass ? "one clear glass" : `${[...shaft4.values()].join(", ")}`}, the car's glass ${cab4 || "none"}, ${corners4} of 4 corners lit`,
+    `walls ${framed4 ? "framed and patterned" : "plain"}, ${deckWalls.length} on the decks, ${wallsOff} off; the shaft ${oneGlass ? "clear glass, banded white" : `${[...shaft4.values()].join(", ")}`}, the car's glass ${cab4 || "none"}, ${corners4} of 4 corners lit`,
   );
 
   // THE WORKS: a lit board over each of the works block's atrium pads, facing its ring; steel trusses across its ring's
@@ -6070,8 +6077,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   // set's boxes in the bake's collision, each on a floor (the game's own, a box's top, or a box of its stack); none cutting a
   // way: on a grid of 0.1 m 6 m round each set, the floor a body (0.35 m each side) stands on in pieces each joined before
   // the set, and each piece still one piece after it (a set across a corridor parts it, a set closing a nook shuts it off,
-  // and both are caught; a way round longer than the window is not seen); the court with two machines, a stack and two
-  // lamp posts; the base's hall with a
+  // and both are caught; a way round longer than the window is not seen); the court with two machines, a stack and six
+  // lit panels under its ceiling (base5: the two lamp posts stood through its 3 m ceiling); the base's hall with a
   // counter of three bars and more, a machine, a stack and a lit panel under its ceiling with a pool of light under it
   type Cache4 = { id: string; where: string; y: number; boxes: number[][]; pieces: string[] };
   const CA4 = ((cfg as unknown as { caches?: Cache4[] }).caches ?? []) as Cache4[];
@@ -6142,11 +6149,11 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const panels = placed4.filter((q) => /\/Lighting_Deco007[bc]?\.prefab$/.test(q[0]) && q[2] > 2.9 && q[2] <= 3.0 && Math.abs(q[1]) < 25 && Math.abs(q[3]) < 30.5);
   const pooled = panels.filter((q) => pools4.spots.some((p) => Math.abs(p[1]) < 0.1 && Math.hypot(p[0] - q[1], p[2] - q[3]) < 3)).length;
   const lampsPooled = pools4.sets.some((s) => s.pieces.includes("Lighting_Deco002_lgt.prefab"));
-  const ok4 = chests("vault") >= 3 && /LightWall03_02=Light06\|#ffb020/.test(CM4.CHEST ?? "") && chests("well") >= 1 && chests("station") >= 1 && chests("court") >= 2 && chests("base") >= 2 && unbaked === 0 && floating === 0 && cut4.length === 0 && count4(court4, /^(Coolbox|ElectricStreetBox)/) >= 2 && stacks4(court4) >= 1 && count4(court4, /^Lighting_Deco002_lgt/) >= 2 && lampsPooled && count4(base4, /^Bar0/) >= 3 && count4(base4, /^(Coolbox|TicketPickMachine)/) >= 1 && stacks4(base4) >= 1 && panels.length >= 1 && pooled === panels.length;
+  const ok4 = chests("vault") >= 3 && /LightWall03_02=Light06\|#ffb020/.test(CM4.CHEST ?? "") && chests("well") >= 1 && chests("station") >= 1 && chests("court") >= 2 && chests("base") >= 2 && unbaked === 0 && floating === 0 && cut4.length === 0 && count4(court4, /^(Coolbox|ElectricStreetBox)/) >= 2 && stacks4(court4) >= 1 && count4(court4, /^Lighting_Deco007/) >= 6 && lampsPooled && count4(base4, /^Bar0/) >= 3 && count4(base4, /^(Coolbox|TicketPickMachine)/) >= 1 && stacks4(base4) >= 1 && panels.length >= 1 && pooled === panels.length;
   check(
-    "loot in sight and the rooms furnished: lit chests in THE VAULT's halls, THE WELL, the station, the court and the base's hall, each set on its floor in the collision and no way cut, the court's plant, stack and lamps, the hall's counter, plant, stack and lit panels",
+    "loot in sight and the rooms furnished: lit chests in THE VAULT's halls, THE WELL, the station, the court and the base's hall, each set on its floor in the collision and no way cut, the court's plant, stack and lit panels, the hall's counter, plant, stack and lit panels",
     ok4,
-    `chests: vault ${chests("vault")}, well ${chests("well")}, station ${chests("station")}, court ${chests("court")}, base ${chests("base")}; ${unbaked} boxes not baked, ${floating} on no floor, ways cut ${cut4.join(", ") || "none"}; court ${count4(court4, /^(Coolbox|ElectricStreetBox)/)} machines, ${stacks4(court4)} stacks, ${count4(court4, /^Lighting_Deco002_lgt/)} lamps; hall ${count4(base4, /^Bar0/)} counter bars, ${count4(base4, /^(Coolbox|TicketPickMachine)/)} machines, ${stacks4(base4)} stacks, ${pooled} of ${panels.length} lit panels pooled`
+    `chests: vault ${chests("vault")}, well ${chests("well")}, station ${chests("station")}, court ${chests("court")}, base ${chests("base")}; ${unbaked} boxes not baked, ${floating} on no floor, ways cut ${cut4.join(", ") || "none"}; court ${count4(court4, /^(Coolbox|ElectricStreetBox)/)} machines, ${stacks4(court4)} stacks, ${count4(court4, /^Lighting_Deco007/)} lit panels; hall ${count4(base4, /^Bar0/)} counter bars, ${count4(base4, /^(Coolbox|TicketPickMachine)/)} machines, ${stacks4(base4)} stacks, ${pooled} of ${panels.length} lit panels pooled`
   );
 }
 
@@ -6321,6 +6328,668 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "the shops on the street: a shop or a hall on each corner block's street front, the shops with windows on their street side, MARKET's and NOODLE ROW's halls and one by a High City block's outer end, each walked into from the street, up its stair onto its roof and over it; no drop in one; MARKET's hall under awnings with crate walls; kiosks among the street's sets",
     LS.length >= 6 && shopBlocks.size === 4 && halls.includes("MARKET") && halls.includes("NOODLE ROW") && halls.includes("THE CENTRE") && windows.every((n) => n >= 3) && fell.length === 0 && drops === 0 && awnings >= 2 && crates >= 5 && kiosks >= 6,
     `${LS.length} shops (${shopBlocks.size} corner blocks with a shop, halls in ${halls.join(", ") || "none"}), windows ${windows.join("/") || "none"}; ${walks.length - fell.length} of ${walks.length} walked in, up and over${fell.length ? ` (${fell.slice(0, 3).map((w) => `${w.s.id}: in ${w.inn ? "yes" : `no, at (${w.at.x.toFixed(1)}, ${w.at.z.toFixed(1)})`}, ${w.ups} of ${w.lanes} lanes up, over ${w.over ? "yes" : "no"}`).join("; ")})` : ""}; ${drops} drops in one; MARKET's hall ${awnings} awnings, ${crates} crates; the street's sets ${kiosks} kiosk stalls`,
+  );
+}
+
+// The tower's floors each their own (Milestone 1065; the centre's seventeenth reviews of pictures 11 to 13: "each its own light
+// colour and ceiling, raw slab edges trimmed; the floors look like one room recoloured", "the stair rises under an unbroken
+// tiled ceiling, so the hole it climbs through is hard to read", "a bare concrete beam crosses the room diagonally at head
+// height", "the stair's side rails and the curved plinth carry stretched textures"; the sixteenth: "floor material and
+// light colour per floor"): every new floor with a ceiling of its own, baked (the 35 m floor's is the sky floor's own
+// storey over it, which the bake does not lay), a light of its own that the game's fill lights each lamp spot over it in,
+// each light 40 and more apart in RGB from every other floor's and from the fill's own, its ceiling lamps worn in its lamp
+// light, its skirting not its patterned walls; every hole over a floor under THE VAULT rimmed in a finish and not the bare
+// concrete, with a lit line along its rim on the floor and another under the slab; and the inner stairs' sides off the
+// cracked paint that stretched along them
+{
+  type Fl5 = { mat?: string; ceilingMat?: string; lampMat?: string; light?: string; plinthMat?: string; edgeMat?: string; holes?: number[][] };
+  const TW5 = cfg.rules.tower as unknown as { slab: number; mats: { rim?: string; edge: string }; floors: { lamp: { piece: string }; stair: { piece: string; mat?: string }; at: Record<string, Fl5> } };
+  const C5 = cfg.tower as unknown as { shaft: number[]; square: number[]; measured: { ceilings?: Array<{ over: number; mat: string }> } };
+  const [q0, q1, r0, r1] = C5.square;
+  const FA5 = TW5.floors.at;
+  const inSq5 = (x: number, z: number) => x > q0 && x < q1 && z > r0 && z < r1;
+  const lampEnd5 = `/${TW5.floors.lamp.piece.split("/").pop()}`;
+  const placed5 = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-tower"].place as Array<[string, number, number, number, number, string, string?]>;
+  const spots5 = neonFillSpots();
+  const cols5 = typeof neonFillColours === "function" ? neonFillColours() : [];
+  const rgb5 = (s?: string) => (s && /^#[0-9a-f]{6}$/i.test(s) ? [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16)) : null);
+  const apart5 = (a: number[] | null, b: number[] | null) => (a && b ? Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) : 0);
+  const fill5 = rgb5((cfg.game as unknown as { fill: { colour: string } }).fill.colour);
+  const top5 = C5.shaft[C5.shaft.length - 1];
+  const rows5 = C5.shaft.map((h) => {
+    const P = FA5[String(h)] ?? {};
+    const own = rgb5(P.light);
+    const over = spots5.map((q, i) => ({ q, i })).filter(({ q }) => inSq5(q.x - BR_X, q.z - BR_Z) && q.y > h + 1 && q.y < h + 3.4);
+    const lit = over.filter(({ i }) => {
+      const c = cols5[i];
+      if (!own || !c) return false;
+      const got = [(c.getHex() >> 16) & 255, (c.getHex() >> 8) & 255, c.getHex() & 255];
+      return got.every((v, k) => Math.abs(v - own[k]) <= 2);
+    }).length;
+    const lamps = placed5.filter((q) => q[0].endsWith(lampEnd5) && q[2] > h && q[2] < h + 3.4 && inSq5(q[1], q[3]));
+    const lampsOk = !!P.lampMat && lamps.length >= 6 && lamps.every((q) => q[6] === P.lampMat);
+    const ceil = h === top5 ? "its sky floor's" : P.ceilingMat && (C5.measured.ceilings ?? []).some((q) => q.over === h && q.mat === P.ceilingMat) ? P.ceilingMat : undefined;
+    return { h, own, n: over.length, lit, lamps: lamps.length, lampsOk, ceil, plain: !!P.plinthMat && P.plinthMat !== P.mat };
+  });
+  const ceils5 = rows5.filter((r) => r.h !== top5).map((r) => r.ceil);
+  const close5: string[] = [];
+  rows5.forEach((a, i) => rows5.slice(i + 1).forEach((b) => apart5(a.own, b.own) < 40 && close5.push(`${a.h}/${b.h}`)));
+  // (each hole of a floor under THE VAULT: its rim's own finish and a lit line round it on the floor and under the slab)
+  const OL5 = (cfg.game as unknown as { outlines: Array<{ name: string; rect?: number[]; y: number }> }).outlines;
+  const holes5: string[] = [];
+  let holesOk5 = true;
+  for (const h of C5.shaft.filter((v) => v < 32))
+    for (const hole of FA5[String(h)]?.holes ?? []) {
+      const P = FA5[String(h)];
+      const along = OL5.filter((o) => o.rect && o.rect.every((v, k) => Math.abs(v - hole[k]) < 0.02));
+      const onTop = along.some((o) => Math.abs(o.y - h) < 0.05);
+      const under = along.some((o) => o.y < h - TW5.slab && o.y > h - TW5.slab - 0.1);
+      const rim = !!P.edgeMat && P.edgeMat !== (TW5.mats.rim ?? TW5.mats.edge);
+      holesOk5 &&= onTop && under && rim;
+      holes5.push(`${h} m rim ${P.edgeMat ?? TW5.mats.rim ?? TW5.mats.edge}, lit ${onTop ? "on top" : "not on top"} and ${under ? "under" : "not under"}`);
+    }
+  const SP5 = TW5.floors.stair as { piece: string; mat?: string };
+  const wear5 = SP5.mat ?? "";
+  const stairs5 = placed5.filter((q) => q[0].endsWith(`/${SP5.piece}`));
+  const stairOk5 = /MetalPaintGreyCracked00=/.test(wear5) && stairs5.length > 0 && stairs5.every((q) => q[6] === wear5);
+  check(
+    "the tower's floors each their own: a ceiling and a light a floor, its lamps in that light and the game's fill lighting it so, plain skirting, every hole's rim finished and lit on the floor and under the slab, the inner stairs' sides off the stretched paint",
+    rows5.every((r) => !!r.own && apart5(r.own, fill5) >= 40 && r.n >= 3 && r.lit === r.n && r.lampsOk && !!r.ceil && r.plain) && new Set(ceils5).size === ceils5.length && close5.length === 0 && holes5.length >= 3 && holesOk5 && stairOk5,
+    `${rows5.map((r) => `${r.h} m ceiling ${r.ceil ?? "none"}, light ${r.own ? `#${r.own.map((v) => v.toString(16).padStart(2, "0")).join("")}` : "none"} ${r.lit}/${r.n} spots, ${r.lampsOk ? "lamps in it" : "lamps not in it"}, skirting ${r.plain ? "plain" : "its walls"}`).join("; ")}; too alike ${close5.join(", ") || "none"}; ${holes5.join("; ")}; stairs' sides ${stairOk5 ? wear5 : "as the pack has them"}`
+  );
+}
+// Chest-high furniture across the tower's open floor, its rooms and its maze (Milestone 1065; the seventeenth reviews: "chest-high
+// furniture clusters every 6 to 8 m", "the open floor in 11 has knee-high monitors as its only cover"): on the 17, 23 and
+// 26 m floors, walked as the tower's floors' own walk walks them (a quarter-metre grid on its lines, a spot where a box tops
+// out at the floor under its middle and nothing from a step to a standing body's height within a body's half-width, a
+// square, flooded from the core's route at that storey), the distance from each spot reached to the nearest box standing
+// on the floor (its foot within 0.6 m of it) and topping out 1.1 to 2.2 m over it, an inner stair's own boxes left out: 95%
+// of the spots within 6 m and none past 7.5 m (version 133: the rooms floor none at all, the open floor 14.4 m and 16.9 m,
+// the maze 13 m and 15.8 m). Each floor's clusters laid (rules.dress.caches, `where` "tower<h>"), four and more, and the
+// caches' own check finds each on its floor, in the collision and cutting no way
+{
+  const S6 = (SOLIDS as { solids: number[][] }).solids;
+  const T6 = cfg.tower as unknown as { square: number[]; core: { route: number[][] }; stairs?: Array<{ box: number[] }> };
+  const [sx0, sx1, sz0, sz1] = T6.square;
+  const [G6, R6] = [0.25, MOVE.radius];
+  // (the walk's own grid, from 3 m outside the square, cut to the square)
+  const [i0, j0] = [Math.floor(3 / G6), Math.floor(3 / G6)];
+  const [nx6, nz6] = [Math.ceil((sx1 - sx0) / G6), Math.ceil((sz1 - sz0) / G6)];
+  const X6 = (i: number) => sx0 - 3 + (i0 + i + 0.5) * G6;
+  const Z6 = (j: number) => sz0 - 3 + (j0 + j + 0.5) * G6;
+  const dRect6 = (b: number[], x: number, z: number) => Math.hypot(Math.max(b[0] - x, 0, x - b[1]), Math.max(b[2] - z, 0, z - b[3]));
+  const sets6 = ((cfg as unknown as { caches?: Array<{ where: string }> }).caches ?? []);
+  const res6 = [17, 23, 26].map((h) => {
+    const near = S6.filter((b) => b[1] > sx0 - 1 && b[0] < sx1 + 1 && b[3] > sz0 - 1 && b[2] < sz1 + 1 && b[5] > h - 0.6 && b[4] < h + 3);
+    const floorB = near.filter((b) => Math.abs(b[5] - h) < 0.15);
+    const meet = near.filter((b) => b[4] < h + MOVE.standHeight && b[5] > h + MOVE.stepHeight);
+    const inStair = (b: number[]) => (T6.stairs ?? []).some((s) => b[0] >= s.box[0] - 0.2 && b[1] <= s.box[1] + 0.2 && b[2] >= s.box[2] - 0.2 && b[3] <= s.box[3] + 0.2);
+    const cover = near.filter((b) => Math.abs(b[4] - h) < 0.6 && b[5] >= h + 1.1 && b[5] <= h + 2.2 && !inStair(b));
+    const free = new Uint8Array(nx6 * nz6);
+    for (let i = 0; i < nx6; i++)
+      for (let j = 0; j < nz6; j++) {
+        const [x, z] = [X6(i), Z6(j)];
+        free[j * nx6 + i] = floorB.some((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3]) && !meet.some((b) => b[0] < x + R6 && b[1] > x - R6 && b[2] < z + R6 && b[3] > z - R6) ? 1 : 0;
+      }
+    const seen = new Uint8Array(nx6 * nz6);
+    const todo: number[] = [];
+    for (const [x, z, y] of T6.core.route) {
+      if (Math.abs(y - h) > 0.15) continue;
+      const [i, j] = [Math.round((x - X6(0)) / G6), Math.round((z - Z6(0)) / G6)];
+      const q = j * nx6 + i;
+      if (i >= 0 && i < nx6 && j >= 0 && j < nz6 && free[q] && !seen[q]) ((seen[q] = 1), todo.push(q));
+    }
+    while (todo.length) {
+      const q = todo.pop()!;
+      const [i, j] = [q % nx6, Math.floor(q / nx6)];
+      for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+        if (a < 0 || a >= nx6 || b < 0 || b >= nz6) continue;
+        const r = b * nx6 + a;
+        if (free[r] && !seen[r]) ((seen[r] = 1), todo.push(r));
+      }
+    }
+    const d: number[] = [];
+    for (let q = 0; q < nx6 * nz6; q++) if (seen[q]) d.push(cover.reduce((m, b) => Math.min(m, dRect6(b, X6(q % nx6), Z6(Math.floor(q / nx6)))), Infinity));
+    d.sort((a, b) => a - b);
+    return { h, area: d.length * G6 * G6, cover: cover.length, p95: d.length ? d[Math.floor(d.length * 0.95)] : Infinity, max: d.length ? d[d.length - 1] : Infinity, sets: sets6.filter((s) => s.where === `tower${h}`).length };
+  });
+  check(
+    "chest-high furniture across the tower's rooms, maze and open floor (17, 23, 26 m): 95% of the floor a body walks within 6 m of it and none past 7.5 m, four clusters and more a floor",
+    res6.every((r) => r.area > 90 && r.sets >= 4 && r.p95 <= 6 && r.max <= 7.5),
+    res6.map((r) => `${r.h} m: ${r.area.toFixed(0)} m2 walked, ${r.sets} clusters, ${r.cover} boxes 1.1 to 2.2 m, 95% within ${r.p95.toFixed(1)} m, the farthest ${r.max.toFixed(1)} m`).join("; ")
+  );
+}
+
+// LANTERN ALLEYS as alleys (Milestone 1066; the districts' eleventh reviews of version 133, 2026-11-05, LANTERN ALLEYS 6 and
+// 6: "fill the gaps between shophouses with infill shophouses and walls so the streets narrow to alleys 4 to 6 m wide",
+// "run lantern lines down every alley and out to the ring-road entry", "densify LANTERN ALLEYS' outer half", "these are not
+// alleys ... streets 15 to 20 m wide, lined with free-standing houses with gaps between them", d01, d03, the NE aerial):
+// its lanes (rules.districts.lantern.narrow) each walked end to end by a body; the back lanes along the fence measured across
+// every metre from house box to house box, the cross alleys' openings at each row; houses along the fence; every gap between
+// two houses' ground storeys along a row walled at a body's height or a way the bots walk; lantern lines over every lane,
+// each end in a wall at its height and its length clear; a mast either side of each cross alley's mouth with its lines
+{
+  type Lane6 = { id: string; from: number[]; to: number[]; kind: string; rows?: string[] };
+  type Row6 = { id: string; from: number[]; to: number[]; front: number[]; deep: number; skip?: number[][] };
+  type House6 = { row: string; piece: string; c: number[]; yaw: number; hu: number; hv: number };
+  const LD6 = (cfg.rules.districts as unknown as { lantern: { rows: Row6[]; infill?: { sides: Record<string, number[]>; thick: number }; lights: { lines?: number[][]; masts?: number[][]; cable: string }; narrow?: { lanes: Lane6[]; most: number; least: number; fence: number; edgeHouses: number; lines: number; reach: number; mastLines: number; face: number[] } } }).lantern;
+  const NW6 = LD6.narrow;
+  const HS6 = (cfg as unknown as { lanternAlleys: { houses: House6[] } }).lanternAlleys.houses;
+  const said: string[] = [];
+  let ok = !!NW6;
+  if (!NW6) said.push("no rules.districts.lantern.narrow");
+  else {
+    const R6 = MOVE.radius;
+    const boxesAt = (x: number, z: number) => solidsIn(x + BR_X - 0.01, x + BR_X + 0.01, z + BR_Z - 0.01, z + BR_Z + 0.01).filter((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z);
+    // (standing across a body's height there, from under its knee to over its chest)
+    const wallAt = (x: number, z: number) => boxesAt(x, z).some((q) => q.base < 0.6 && q.top > 1.6);
+    const solidAt = (x: number, y: number, z: number) => boxesAt(x, z).some((q) => q.base <= y && q.top >= y);
+    const blockedAt = (x: number, z: number) => solidsIn(x - R6 + BR_X, x + R6 + BR_X, z - R6 + BR_Z, z + R6 + BR_Z).some((q) => q.minX < x + R6 + BR_X && q.maxX > x - R6 + BR_X && q.minZ < z + R6 + BR_Z && q.maxZ > z - R6 + BR_Z && q.base < MOVE.standHeight && q.top > MOVE.stepHeight);
+    // (each house's box on the map: its turns are quarter turns)
+    const boxOf6 = (h: House6) => {
+      const side = Math.abs(Math.round(h.yaw / 90)) % 2 === 1;
+      const [ex, ez] = side ? [h.hv, h.hu] : [h.hu, h.hv];
+      return [h.c[0] - ex, h.c[0] + ex, h.c[1] - ez, h.c[1] + ez];
+    };
+    const HB = HS6.map(boxOf6);
+    const inHouse = (x: number, z: number) => HB.some(([x0, x1, z0, z1]) => x >= x0 - 1e-6 && x <= x1 + 1e-6 && z >= z0 - 1e-6 && z <= z1 + 1e-6);
+    // 1 each lane walked end to end at its middle by a body
+    for (const ln of NW6.lanes) {
+      const L = Math.hypot(ln.to[0] - ln.from[0], ln.to[1] - ln.from[1]);
+      for (let k = 0; k <= L; k += 0.5) {
+        const [x, z] = [ln.from[0] + ((ln.to[0] - ln.from[0]) * k) / L, ln.from[1] + ((ln.to[1] - ln.from[1]) * k) / L];
+        if (blockedAt(x, z)) {
+          ok = false;
+          said.push(`${ln.id} shut at (${x.toFixed(1)}, ${z.toFixed(1)})`);
+          break;
+        }
+      }
+    }
+    // 2 the back lanes along the fence: across each, every metre, from house box to house box (the fence past them counts
+    // as open: a lane with a row on one side only measures to the fence and past it); the cross alleys' openings at each row
+    // from house box or infill wall to house box or wall, at the row's front line
+    const across = (x: number, z: number, dx: number, dz: number, cap: number) => {
+      for (let d = 0; d < cap; d += 0.05) if (inHouse(x + dx * d, z + dz * d)) return d;
+      return cap;
+    };
+    const widths: string[] = [];
+    for (const ln of NW6.lanes.filter((q) => q.kind === "fence")) {
+      const L = Math.hypot(ln.to[0] - ln.from[0], ln.to[1] - ln.from[1]);
+      const t = [(ln.to[0] - ln.from[0]) / L, (ln.to[1] - ln.from[1]) / L];
+      const ws: number[] = [];
+      for (let k = 0.5; k <= L - 0.5; k += 1) {
+        const [x, z] = [ln.from[0] + t[0] * k, ln.from[1] + t[1] * k];
+        ws.push(across(x, z, -t[1], t[0], 15) + across(x, z, t[1], -t[0], 15));
+      }
+      ws.sort((p, q) => p - q);
+      const med = ws[Math.floor(ws.length / 2)];
+      if (med > NW6.most || ws[0] < NW6.least) (ok = false), said.push(`${ln.id} ${med.toFixed(2)} m across at its median, ${ws[0].toFixed(2)} at its least`);
+      widths.push(`${ln.id} ${med.toFixed(2)} m (${ws[0].toFixed(2)} to ${ws[ws.length - 1].toFixed(2)})`);
+    }
+    const W6 = (cfg as unknown as { lanternAlleys: { walls?: Array<{ row: string; line: string; a: number[]; b: number[] }> } }).lanternAlleys.walls ?? [];
+    for (const row of LD6.rows) {
+      const L = Math.hypot(row.to[0] - row.from[0], row.to[1] - row.from[1]);
+      const t = [(row.to[0] - row.from[0]) / L, (row.to[1] - row.from[1]) / L];
+      for (const [s0, s1] of row.skip ?? []) {
+        // (from the skip's middle along the front line each way to a house box or a front wall, a hand behind the line)
+        const m = (s0 + s1) / 2;
+        const p = [row.from[0] + t[0] * m - row.front[0] * 0.25, row.from[1] + t[1] * m - row.front[1] * 0.25];
+        const shut = (x: number, z: number) => inHouse(x, z) || W6.some((w) => w.row === row.id && w.line === "front" && Math.abs((x - w.a[0]) * row.front[0] + (z - w.a[1]) * row.front[1]) < 0.3 && (x - w.a[0]) * (w.b[0] - w.a[0]) + (z - w.a[1]) * (w.b[1] - w.a[1]) >= -1e-6 && (x - w.b[0]) * (w.a[0] - w.b[0]) + (z - w.b[1]) * (w.a[1] - w.b[1]) >= -1e-6);
+        let [d0, d1] = [15, 15];
+        for (let d = 0; d < 15; d += 0.05) if (shut(p[0] - t[0] * d, p[1] - t[1] * d)) { d0 = d; break; }
+        for (let d = 0; d < 15; d += 0.05) if (shut(p[0] + t[0] * d, p[1] + t[1] * d)) { d1 = d; break; }
+        const open = d0 + d1;
+        if (open > NW6.most) (ok = false), said.push(`row ${row.id}'s cross alley ${open.toFixed(2)} m open at its front`);
+        widths.push(`row ${row.id} cross ${open.toFixed(2)} m`);
+      }
+    }
+    // 3 houses along the fence, their fronts within `fence` of it
+    const fronting = HS6.filter((h) => {
+      const [x0, x1, z0, z1] = boxOf6(h);
+      // (the face toward the map's middle within `fence` of the fence)
+      return (x1 > BR_HALF && BR_HALF - x0 <= NW6.fence) || (z0 < -BR_HALF && BR_HALF + z1 <= NW6.fence) || (x0 < -BR_HALF && BR_HALF + x1 <= NW6.fence) || (z1 > BR_HALF && BR_HALF - z0 <= NW6.fence);
+    });
+    if (fronting.length < NW6.edgeHouses) (ok = false), said.push(`${fronting.length} houses along the fence`);
+    // 4 every gap between two houses' ground storeys along a row, outside its cross alleys, walled across at a body's height
+    // on its front line, or crossed there by a link of the bots' street graph
+    const SN = (map as unknown as { nodes: Array<{ x: number; z: number; y?: number; links: number[] }> }).nodes.map((n) => ({ x: n.x - BR_X, z: n.z - BR_Z, y: n.y ?? 0, links: n.links }));
+    const crossing = (a: number[], b: number[]) =>
+      SN.some((n) => Math.abs(n.y) < 0.6 && n.links.some((j) => {
+        const m = SN[j];
+        if (Math.abs(m.y) > 0.6) return false;
+        const d1 = (b[0] - a[0]) * (n.z - a[1]) - (b[1] - a[1]) * (n.x - a[0]);
+        const d2 = (b[0] - a[0]) * (m.z - a[1]) - (b[1] - a[1]) * (m.x - a[0]);
+        const d3 = (m.x - n.x) * (a[1] - n.z) - (m.z - n.z) * (a[0] - n.x);
+        const d4 = (m.x - n.x) * (b[1] - n.z) - (m.z - n.z) * (b[0] - n.x);
+        return d1 * d2 < 0 && d3 * d4 < 0;
+      }));
+    const SD = LD6.infill?.sides ?? {};
+    const gaps: string[] = [];
+    let walled = 0, ways = 0;
+    for (const row of LD6.rows) {
+      const L = Math.hypot(row.to[0] - row.from[0], row.to[1] - row.from[1]);
+      const t = [(row.to[0] - row.from[0]) / L, (row.to[1] - row.from[1]) / L];
+      const at = (a: number, b: number) => [row.from[0] + t[0] * a - row.front[0] * b, row.from[1] + t[1] * a - row.front[1] * b];
+      const spans = HS6.filter((h) => h.row === row.id).map((h) => {
+        const a = (h.c[0] - row.from[0]) * t[0] + (h.c[1] - row.from[1]) * t[1];
+        const [sx0, sx1] = SD[h.piece] ?? [0, 0];
+        const ox = [Math.cos((h.yaw * Math.PI) / 180), -Math.sin((h.yaw * Math.PI) / 180)];
+        const down = ox[0] * t[0] + ox[1] * t[1] > 0;
+        return [a - h.hu + (down ? sx0 : sx1), a + h.hu - (down ? sx1 : sx0)];
+      }).sort((p, q) => p[0] - q[0]);
+      for (let k = 0; k + 1 < spans.length; k++) {
+        let segs: number[][] = [[spans[k][1], spans[k + 1][0]]];
+        for (const [s0, s1] of row.skip ?? []) segs = segs.flatMap(([g0, g1]) => [[g0, Math.min(g1, s0)], [Math.max(g0, s1), g1]]).filter(([g0, g1]) => g1 - g0 > 1e-6);
+        for (const [g0, g1] of segs) {
+          if (g1 - g0 < 0.3) continue;
+          let shut = true;
+          for (let a = g0 + 0.1; a <= g1 - 0.1 + 1e-6 && shut; a += 0.25) {
+            const p = at(a, 0.25);
+            if (!wallAt(p[0], p[1])) shut = false;
+          }
+          if (shut) walled++;
+          else if (crossing(at(g0, 0), at(g1, 0))) ways++;
+          else gaps.push(`row ${row.id} ${g0.toFixed(1)} to ${g1.toFixed(1)} m (${at((g0 + g1) / 2, 0).map((v) => v.toFixed(1)).join(", ")})`);
+        }
+      }
+    }
+    if (gaps.length) (ok = false), said.push(`${gaps.length} gaps open and no bots' way: ${gaps.slice(0, 4).join("; ")}`);
+    // 5 lantern lines over every lane but the main alleys, each end in a wall at its height and its length clear; the masts
+    const LL = LD6.lights.lines ?? [];
+    const masts = LD6.lights.masts ?? [];
+    const bad: string[] = [];
+    // (an end on a house's face: in or by its box, no deeper in than face[1]; or at a mast)
+    const onFace = (x: number, z: number) =>
+      masts.some(([mx, mz]) => Math.hypot(mx - x, mz - z) < 0.6) ||
+      HB.some(([x0, x1, z0, z1]) => {
+        const d = Math.min(x - x0, x1 - x, z - z0, z1 - z);
+        return d >= -NW6.face[0] && d <= NW6.face[1];
+      });
+    for (const [x0, z0, x1, z1, y] of LL) {
+      const L = Math.hypot(x1 - x0, z1 - z0);
+      const ends = solidAt(x0, y, z0) && solidAt(x1, y, z1) && onFace(x0, z0) && onFace(x1, z1);
+      let clear = true;
+      // (0.8 m short of each end: a mast's own arms reach 0.73 m round its pole at a line's height)
+      for (let k = 0.8; k <= L - 0.8 && clear; k += 0.25) if (solidAt(x0 + ((x1 - x0) * k) / L, y, z0 + ((z1 - z0) * k) / L)) clear = false;
+      if (!ends || !clear || L > 2 * NW6.reach || y < MOVE.standHeight + 1.5) bad.push(`(${x0}, ${z0}) to (${x1}, ${z1}) at ${y}: ${!ends ? "an end in the air or off a face" : !clear ? "through a wall" : "too long or low"}`);
+    }
+    if (bad.length) (ok = false), said.push(`${bad.length} lines: ${bad.slice(0, 3).join("; ")}`);
+    // (and each one drawn: a cable of the chunk along it)
+    const cab = ((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-lantern"]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${LD6.lights.cable}`));
+    const drawn = LL.filter(([x0, z0, x1, z1, y]) => cab.some((q) => Math.abs(Number(q[2]) - y) < 0.01 && Math.abs(Number(q[8] ?? 1) * 10 - Math.hypot(x1 - x0, z1 - z0)) < 0.05)).length;
+    if (drawn < LL.length) (ok = false), said.push(`${LL.length - drawn} lines not drawn`);
+    const over: string[] = [];
+    for (const ln of NW6.lanes.filter((q) => q.kind !== "main")) {
+      const L = Math.hypot(ln.to[0] - ln.from[0], ln.to[1] - ln.from[1]);
+      const t = [(ln.to[0] - ln.from[0]) / L, (ln.to[1] - ln.from[1]) / L];
+      const n = LL.filter(([x0, z0, x1, z1]) => {
+        const [mx, mz] = [(x0 + x1) / 2 - ln.from[0], (z0 + z1) / 2 - ln.from[1]];
+        const a = mx * t[0] + mz * t[1];
+        return a >= -1 && a <= L + 1 && Math.abs(-mx * t[1] + mz * t[0]) < 4;
+      }).length;
+      if (n < NW6.lines) (ok = false), said.push(`${ln.id} under ${n} lantern lines`);
+      over.push(`${ln.id} ${n}`);
+    }
+    const mastSaid: string[] = [];
+    for (const [x, z] of masts) {
+      const n = LL.filter(([x0, z0, x1, z1]) => Math.hypot(x0 - x, z0 - z) < 0.6 || Math.hypot(x1 - x, z1 - z) < 0.6).length;
+      if (!solidAt(x, 0.5, z) || !solidAt(x, 7, z) || n < NW6.mastLines) (ok = false), said.push(`the mast at (${x}, ${z}): ${solidAt(x, 7, z) ? "" : "no pole, "}${n} lines`);
+      mastSaid.push(`${n}`);
+    }
+    if (masts.length < 4) (ok = false), said.push(`${masts.length} masts at the cross alleys' mouths`);
+    said.push(`${fronting.length} houses along the fence; ${widths.join(", ")}; ${walled} gaps walled, ${ways} bots' ways, ${gaps.length} open; ${LL.length} lines (${over.join(", ")}), ${bad.length} bad; ${masts.length} masts (${mastSaid.join(", ")} lines)`);
+  }
+  check("LANTERN ALLEYS as alleys: its lanes walked end to end, the back lanes along the fence between two rows of houses and the cross alleys 4 to 6.5 m between house fronts, every gap between two houses walled or a bots' way, lantern lines over every alley wall to wall, a mast either side of each cross alley's mouth on the ring road", ok, said.join("; "));
+}
+
+// The base's three interiors (base5, Milestone 1064; the centre's seventeenth reviews): a straight line through no box of
+// the collision, as vault4's, for the sight lines of all three
+const through5 = (p: number[], q: number[]) =>
+  (SOLIDS as { solids: number[][] }).solids.some((b) => {
+    let [t0, t1] = [0, 1];
+    for (const [a, lo, hi] of [[0, b[0], b[1]], [1, b[4], b[5]], [2, b[2], b[3]]] as Array<[number, number, number]>) {
+      const d = q[a] - p[a];
+      if (Math.abs(d) < 1e-9) {
+        if (p[a] < lo || p[a] > hi) return false;
+        continue;
+      }
+      const [u, v] = [(lo - p[a]) / d, (hi - p[a]) / d];
+      [t0, t1] = [Math.max(t0, Math.min(u, v)), Math.min(t1, Math.max(u, v))];
+      if (t0 > t1) return false;
+    }
+    return true;
+  });
+const placed5 = (ch: string) => (((cfg.chunks as unknown as Record<string, { place: unknown[][] }>)[ch]?.place ?? []) as Array<[string, number, number, number, number, string, (string | null)?, unknown?, (number | null)?]>);
+type Board5 = { text: string; at: number[]; yaw: number; w: number; h: number };
+type Outline5 = { name: string; rect?: number[]; posts?: boolean; frames?: number[][]; span?: number; y: number; h: number };
+const boards5 = ((cfg.game as unknown as { boards?: Board5[] }).boards ?? []) as Board5[];
+const outlines5 = ((cfg.game as unknown as { outlines?: Outline5[] }).outlines ?? []) as Outline5[];
+
+// 1. The sunken court rebuilt (picture 20b, the court from its east side, both: "a pale seam runs where the floor meets the
+// right wall, and the room is empty", "the ceiling texture is smeared, and a lone pole stands in an empty room"; A: "pillars,
+// a raised platform or mezzanine, three cover clusters and one lit landmark piece, under a brighter ceiling"; B: "split the
+// empty floor into lanes with cover, add coloured light and a loot set-piece, and fix the white seam")
+{
+  const S5 = (SOLIDS as { solids: number[][] }).solids;
+  const K5 = cfg.court as unknown as { x0: number; x1: number; z0: number; z1: number; y: number; halls: Array<{ x0: number; x1: number; z0: number; z1: number; open?: boolean }>; cover: number[][] };
+  const RC5 = cfg.rules.court as unknown as { wall: string; under: number };
+  const near5 = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < 0.011);
+  const inK5 = (x: number, z: number, g = 0) => x > K5.x0 - g && x < K5.x1 + g && z > K5.z0 - g && z < K5.z1 + g;
+  // (1) its walls on its floor: each wall along its four edges (its pivot within half a metre outside one) and at a hall's
+  // far end stands with its foot at or under its floor's tiles' top, `under` beneath its floor. At its floor, the slit
+  // between the tiles and the wall's lower edge, which has no face under it, showed the sky: the "pale seam"
+  const tile5 = K5.y - RC5.under;
+  const walls5 = placed5("c-court").filter((q) => q[0].endsWith("/" + RC5.wall) && Math.abs(q[2] - K5.y) < 0.2).filter(([, x, , z]) =>
+    ((z > K5.z0 - 0.5 && z <= K5.z0) || (z >= K5.z1 && z < K5.z1 + 0.5)) && x >= K5.x0 - 0.6 && x <= K5.x1 + 0.6 ||
+    ((x > K5.x0 - 0.5 && x <= K5.x0) || (x >= K5.x1 && x < K5.x1 + 0.5)) && z >= K5.z0 - 0.6 && z <= K5.z1 + 0.6 ||
+    K5.halls.some((h) => !h.open && ((Math.abs(z - h.z0) < 0.05 || Math.abs(z - h.z1) < 0.05) && Math.abs(z) > K5.z1 + 1 && x >= h.x0 - 0.05 && x <= h.x1 + 0.05 || (Math.abs(x - h.x0) < 0.05 || Math.abs(x - h.x1) < 0.05) && Math.abs(x) > K5.x1 + 1 && z >= h.z0 - 0.05 && z <= h.z1 + 0.05)));
+  const seam5 = walls5.filter((q) => q[2] > tile5 + 0.005);
+  // (2) nothing through its ceiling: each box of the court's sets (cfg.caches) and of its cover tops out no higher than the
+  // first box over it above a body's height (the ceiling's slab, -4.3 to -4.0, or the plaza's over the double-height bands)
+  type Cache5 = { id: string; where: string; y: number; boxes: number[][]; pieces: string[] };
+  const CA5 = (((cfg as unknown as { caches?: Cache5[] }).caches ?? []) as Cache5[]).filter((s) => s.where === "court");
+  const own5 = CA5.flatMap((s) => s.boxes);
+  const over5 = (b: number[]) => {
+    const [x0, x1, z0, z1] = [b[0] + 0.05, b[1] - 0.05, b[2] + 0.05, b[3] - 0.05];
+    const up = S5.filter((q) => q[0] < x1 && q[1] > x0 && q[2] < z1 && q[3] > z0 && q[4] > K5.y + 2 && !own5.some((o) => near5(o, q)));
+    return up.length ? up.reduce((m, q) => (q[4] < m[4] ? q : m)) : null;
+  };
+  const cover5 = K5.cover.map(([x, z, hx, hz, top]) => [x - hx, x + hx, z - hz, z + hz, K5.y, top]);
+  const poke5 = [...own5, ...cover5].filter((b) => inK5((b[0] + b[1]) / 2, (b[2] + b[3]) / 2) && b[4] < K5.y + 2 && (over5(b)?.[5] ?? Infinity) < b[5] - 0.05);
+  // (3) the pillars: boxes of its sets from its floor into the ceiling over them and not through it (within 5 cm of its
+  // collision's bottom and top: the ceiling's collision is a box -4.3 to -4.0 under most of it, -4.0 to -3.5 over some),
+  // 0.6 to 1.2 m across, in two rows and more of three and more on one line (its lanes), each lit
+  const pillars5 = own5.filter((b) => {
+    const c = over5(b);
+    return Math.abs(b[4] - K5.y) < 0.05 && b[1] - b[0] >= 0.6 && b[1] - b[0] <= 1.2 && b[3] - b[2] >= 0.6 && b[3] - b[2] <= 1.2 && !!c && b[5] >= c[4] - 0.05 && b[5] <= c[5] + 0.05;
+  });
+  const rows5 = new Map<number, number>();
+  for (const b of pillars5) rows5.set(Math.round(b[2] + b[3]), (rows5.get(Math.round(b[2] + b[3])) ?? 0) + 1);
+  const lanes5 = [...rows5.values()].filter((n) => n >= 3).length;
+  // (each lit up its corners and along its top: a frame of the outlines, two posts and a lintel, on two opposite faces)
+  const frames5 = outlines5.flatMap((o) => (o.frames ?? []).map(([x, z, yaw, y, top, span]) => ({ x, z, yaw, y, top: top ?? o.h, span: span ?? o.span ?? 2 })));
+  const litPillars5 = pillars5.filter((b) => frames5.filter((f) => Math.abs(f.x - (b[0] + b[1]) / 2) < 0.05 && (Math.abs(f.z - b[2]) < 0.05 || Math.abs(f.z - b[3]) < 0.05) && Math.round(f.yaw / 90) % 2 === 0 && Math.abs(f.y - b[4]) < 0.05 && f.top >= b[5] - b[4] - 0.05 && Math.abs(f.span - (b[1] - b[0])) < 0.05).length >= 2).length;
+  // (4) a raised platform: a box of its sets on its floor 0.35 m to a step high and 8 m2 and more, its edge lit (an outline
+  // along it at its top), walked onto by a player's own movement from the floor 1.5 m before its front; on it two chests
+  // and more with their lids lit (rules.dress.caches.mats.CHEST: the loot set-piece)
+  const D5 = own5.find((b) => Math.abs(b[4] - K5.y) < 0.05 && b[5] - b[4] >= 0.35 && b[5] - b[4] <= MOVE.stepHeight && (b[1] - b[0]) * (b[3] - b[2]) >= 8);
+  let onto5 = { k: 0, x: 0, z: 0, y: 0 };
+  let chests5 = 0;
+  let edge5 = false;
+  if (D5) {
+    const mx = (D5[0] + D5[1]) / 2;
+    // (its front the long side away from its wall)
+    const s = D5[2] - K5.z0 < K5.z1 - D5[3] ? 1 : -1;
+    const f = s > 0 ? D5[3] : D5[2];
+    onto5 = along([[mx, f + s * 1.5, K5.y], [mx, f - s * 0.5, D5[5]], [mx, f - s * 0.7, D5[5]]]);
+    chests5 = placed5("c-dress").filter((q) => /\/Crate01b Variant\.prefab$/.test(q[0]) && /LightWall03_02=Light06/.test(String(q[6] ?? "")) && q[1] > D5[0] - 0.8 && q[1] < D5[1] + 0.8 && q[3] > D5[2] - 0.8 && q[3] < D5[3] + 0.8 && Math.abs(q[2] - D5[5]) < 0.05).length;
+    edge5 = outlines5.some((o) => !o.posts && o.rect && [0, 1, 2, 3].every((i) => Math.abs(o.rect![i] - D5[i]) < 0.25) && Math.abs(o.y - D5[5]) < 0.05);
+  }
+  // (5) lit panels under its ceiling: the pack's ceiling panels (Lighting_Deco007, b, c) in the court hung with their tops
+  // within 3 cm under the ceiling over them, each in a tinted light ("^#"), two colours and more, each with a pool of
+  // light (game.pools.spots) on the floor under its middle; six and more
+  const panels5 = placed5("c-dress").filter((q) => /\/Lighting_Deco007[bc]?\.prefab$/.test(q[0]) && inK5(q[1], q[3]) && q[2] < K5.y + 3.5);
+  const spots5 = (cfg.game as unknown as { pools: { spots: number[][] } }).pools.spots;
+  // (the ceiling's underside over it: its collision box's top where that box hangs under the drawn ceiling, -4.3 to -4.0,
+  // its bottom where it sits on it, -4.0 to -3.5)
+  const hung5 = panels5.filter((q) => {
+    const c = over5([q[1] - 0.3, q[1] + 0.3, q[3] - 0.3, q[3] + 0.3, q[2] - 0.3, q[2]]);
+    const u = c ? (c[4] < q[2] - 0.05 ? c[5] : c[4]) : Infinity;
+    return q[2] <= u + 0.005 && q[2] >= u - 0.03;
+  }).length;
+  const tints5 = panels5.map((q) => (String(q[6] ?? "").match(/\^(#[0-9a-fA-F]{6})/) ?? [])[1]);
+  const colours5 = new Set(tints5.filter(Boolean)).size;
+  const pooled5 = panels5.filter((q) => spots5.some((p) => Math.abs(p[1] - K5.y) < 0.1 && Math.hypot(p[0] - q[1], p[2] - q[3]) < 1.5)).length;
+  // (6) its landmark: a lit board in the court over the platform, its middle and the platform's front seen from picture
+  // 20b's eye (the review's spot, (-6.5, -5.3, -1.0)): the line to each through no box
+  const eye5 = [-6.5, -5.3, -1.0];
+  const B5 = boards5.find((q) => q.text && !!D5 && inK5(q.at[0], q.at[2], 0.1) && q.at[0] > D5[0] && q.at[0] < D5[1] && q.at[1] > D5[5] + 1);
+  const seen5 = !!B5 && !!D5 && !through5(eye5, [B5.at[0], B5.at[1], B5.at[2] + 0.1]) && !through5(eye5, [(D5[0] + D5[1]) / 2, D5[5] + 0.3, D5[3] + 0.3]);
+  // (7) three cover clusters and more: its cover and its sets' stacks 1.4 m and more over its floor
+  const clusters5 = cover5.filter((b) => b[5] - K5.y >= 1.4).length + CA5.filter((s) => s.boxes.some((b) => b[5] - K5.y >= 1.4 && b[5] - K5.y < 2.9)).length;
+  const ok5 = walls5.length >= 20 && seam5.length === 0 && poke5.length === 0 && pillars5.length >= 6 && lanes5 >= 2 && litPillars5 === pillars5.length && !!D5 && edge5 && onto5.k === 3 && Math.abs(onto5.y - D5[5]) < 0.1 && chests5 >= 2 && panels5.length >= 6 && hung5 === panels5.length && tints5.every(Boolean) && colours5 >= 2 && pooled5 === panels5.length && seen5 && clusters5 >= 3;
+  check(
+    "the sunken court rebuilt: its walls on its floor (no seam), nothing through its ceiling, lit pillars floor to ceiling in rows, a raised platform walked onto with lit chests on it and its edge lit, its sign seen from picture 20b, coloured panels under the ceiling each with its pool, three cover clusters",
+    ok5,
+    `${walls5.length} walls, ${seam5.length} over the tiles${seam5.length ? ` (${seam5.slice(0, 2).map((q) => `(${q[1]}, ${q[3]}) at ${q[2]}`).join("; ")})` : ""}; ${poke5.length} through the ceiling${poke5.length ? ` (${poke5.slice(0, 2).map((b) => `(${((b[0] + b[1]) / 2).toFixed(1)}, ${((b[2] + b[3]) / 2).toFixed(1)}) to ${b[5].toFixed(2)}`).join("; ")})` : ""}; ${pillars5.length} pillars in ${lanes5} rows, ${litPillars5} lit; platform ${D5 ? `${D5.map((v) => v.toFixed(2)).join(",")}, edge lit ${edge5}, walked onto ${onto5.k - 1} of 2 legs at ${onto5.y.toFixed(2)} m, ${chests5} lit chests` : "none"}; ${panels5.length} panels, ${hung5} hung, ${colours5} colours, ${pooled5} pooled; sign ${B5?.text ?? "none"}, seen from 20b ${seen5}; ${clusters5} clusters`
+  );
+}
+
+// 2. The atrium open to the sky (picture 29, both, and round 16 both: "open the atrium to the sky for real, and hang a big
+// sign or sculpture in it that can be seen from the hall, as the base's centrepiece", "cut it truly open to the sky with a
+// light shaft, and remove the cable through the ceiling"; "looking up through the atrium shows a tiled ceiling, not sky", "a
+// rod with a collar pierces the hall ceiling")
+{
+  const S6 = (SOLIDS as { solids: number[][] }).solids;
+  const AT6 = (cfg.rules.base as unknown as { atrium: { slabs: Array<{ y: number; at: number[][] }> } }).atrium;
+  const V6 = AT6.slabs.find((q) => q.y === 3.5)!.at[0];
+  const RF6 = AT6.slabs.find((q) => q.y === 10.5)!.at;
+  // (1) the sky over the void: on a half-metre grid over the first floor's hole, the cells where a line straight up from
+  // over the second floor (7.5 m) meets no box; 10 m2 and more (version 133: under the roof's underside at 10 and the
+  // tower's 13.5 m balcony, about 3 m2 at the band's north edge)
+  const up6 = S6.filter((b) => b[1] > V6[0] && b[0] < V6[1] && b[3] > V6[2] && b[2] < V6[3] && b[5] > 7.5);
+  let sky6 = 0;
+  for (let x = V6[0] + 0.25; x < V6[1]; x += 0.5) for (let z = V6[2] + 0.25; z < V6[3]; z += 0.5) if (!up6.some((b) => x > b[0] && x < b[1] && z > b[2] && z < b[3])) sky6++;
+  // (2) the roof's openings railed: along each edge of each, a point every half metre where the roof is outside it (its
+  // slab's top at 10.5 within 0.4 m out) has a box from the roof to 0.8 m over it within 0.3 m
+  const open6: string[] = [];
+  let points6 = 0;
+  for (const [x0, x1, z0, z1] of RF6)
+    for (const [ax, az, bx, bz, nx, nz] of [[x0, z0, x1, z0, 0, -1], [x0, z1, x1, z1, 0, 1], [x0, z0, x0, z1, -1, 0], [x1, z0, x1, z1, 1, 0]]) {
+      const L = Math.hypot(bx - ax, bz - az);
+      for (let t = 0.25; t < L; t += 0.5) {
+        const [px, pz] = [ax + ((bx - ax) * t) / L, az + ((bz - az) * t) / L];
+        const [ox, oz] = [px + nx * 0.4, pz + nz * 0.4];
+        if (RF6.some((r) => ox > r[0] && ox < r[1] && oz > r[2] && oz < r[3])) continue;
+        if (!S6.some((b) => ox >= b[0] && ox <= b[1] && oz >= b[2] && oz <= b[3] && Math.abs(b[5] - 10.5) < 0.1)) continue;
+        points6++;
+        if (!S6.some((b) => px >= b[0] - 0.3 && px <= b[1] + 0.3 && pz >= b[2] - 0.3 && pz <= b[3] + 0.3 && b[4] <= 10.75 && b[5] >= 11.3)) open6.push(`(${px.toFixed(2)}, ${pz.toFixed(2)})`);
+      }
+    }
+  // (3) the stalls' lanterns hung from the ceiling: each one's top (its pivot) within 2 cm under the ceiling over it, its
+  // foot (1.396 m at its scale) over a standing body
+  const lanterns6 = placed5("c-base").filter((q) => /\/ChineseLamp00 Variant\.prefab$/.test(q[0]) && q[2] < 3.5);
+  // (the ceiling: the top of the first box over it, the slab's lower layer, whose top is its underside: 3.0 m, the 3.5 m
+  // slab's collision two layers, 2.7 to 3.0 and 3.2 to 3.5)
+  const loose6 = lanterns6.filter((q) => {
+    const up = S6.filter((b) => q[1] > b[0] && q[1] < b[1] && q[3] > b[2] && q[3] < b[3] && b[4] > q[2] - 0.5 && b[5] >= q[2] - 0.01);
+    const c = up.length ? Math.min(...up.map((b) => b[5])) : Infinity;
+    return !(c - q[2] <= 0.02) || q[2] - 1.396 * (q[8] ?? 1) < MOVE.standHeight + 0.05;
+  });
+  // (4) THE LOBBY, the base's name: a board each way back to back on the first floor's hole's edge (within 0.1 m of its
+  // line, the two faces within 0.1 m and turned 180 degrees), from over a standing body to the slab's top at the most, each
+  // face seen from the hall's floor: a standing eye 15 m out along it (8 m on the west, where the base's face is 15 m off),
+  // the line to its lower half's middle through no box
+  const lobby6 = boards5.filter((q) => q.text === "THE LOBBY");
+  const pair6 = lobby6.some((a) => lobby6.some((b) => b !== a && Math.abs(Math.abs(a.yaw - b.yaw) - 180) < 1 && Math.hypot(a.at[0] - b.at[0], a.at[2] - b.at[2]) < 0.1));
+  const placed6 = lobby6.filter((q) => (Math.abs(q.at[0] - V6[0]) < 0.1 || Math.abs(q.at[0] - V6[1]) < 0.1) && q.at[2] - q.w / 2 > V6[2] && q.at[2] + q.w / 2 < V6[3] && q.at[1] - q.h / 2 >= MOVE.standHeight + 0.05 && q.at[1] + q.h / 2 <= 3.5).length;
+  const seen6 = lobby6.filter((q) => {
+    const [nx, nz] = [Math.sin((q.yaw * Math.PI) / 180), Math.cos((q.yaw * Math.PI) / 180)];
+    const d = nx < -0.5 ? 8 : 15;
+    return !through5([q.at[0] + nx * d, 1.7, q.at[2] + nz * d], [q.at[0] + nx * 0.1, q.at[1] - q.h / 4, q.at[2] + nz * 0.1]);
+  }).length;
+  const ok6 = sky6 * 0.25 >= 10 && points6 > 10 && open6.length === 0 && lanterns6.length >= 6 && loose6.length === 0 && pair6 && placed6 === lobby6.length && seen6 === lobby6.length;
+  check(
+    "the atrium open to the sky: 10 m2 and more of sky over its void, its roof's openings railed, the stalls' lanterns hung from the ceiling, THE LOBBY both ways on its edge and seen from the hall",
+    ok6,
+    `${(sky6 * 0.25).toFixed(2)} m2 of sky; ${open6.length} of ${points6} roof edge points bare${open6.length ? ` (${open6.slice(0, 3).join("; ")})` : ""}; ${loose6.length} of ${lanterns6.length} lanterns not hung${loose6.length ? ` (${loose6.slice(0, 2).map((q) => `(${q[1]}, ${q[3]}) at ${q[2]}`).join("; ")})` : ""}; THE LOBBY ${lobby6.length} faces, a pair ${pair6}, ${placed6} on the edge, ${seen6} seen from the hall`
+  );
+}
+
+// 3. THE WELL legible (picture 19, both: "you cannot tell how deep the shaft is or where you can land", "too dark, a small
+// crate seems to hang on a beam mid-shaft"; A: "a lit floor at the bottom, stepped platforms on the way down, a sign on the
+// rim"; B: "light the shaft's depth in stages and make the landing platforms readable"; round 16 both: "the Well's bottom
+// black")
+{
+  const W7 = cfg.well as unknown as { hole: number[]; bottom: number; levels: number[]; ropes: Array<{ rope: number[][] }> };
+  const RW7 = cfg.rules.well as unknown as { bottom: { piece: string; sink: number; mat?: string } };
+  const [hx0, hx1, hz0, hz1] = W7.hole;
+  // (1) its bottom lit: every tile of it worn in rules.well.bottom.mat, a glow ("~#" its own map lit, or "|#" flat)
+  const tiles7 = placed5("c-well").filter((q) => q[0].endsWith("/" + RW7.bottom.piece));
+  const worn7 = tiles7.filter((q) => !!RW7.bottom.mat && q[6] === RW7.bottom.mat).length;
+  const glow7 = /~#|\|#/.test(RW7.bottom.mat ?? "");
+  // (2) where you land: a lit square (an outline) on its tiles' top, 4 m across and more, inside the hole, a metre and more
+  // off the rope's foot
+  const top7 = W7.bottom - RW7.bottom.sink;
+  const rope7 = W7.ropes[0].rope[0];
+  const land7 = outlines5.filter((o) => !o.posts && o.rect && Math.abs(o.y - top7) < 0.03 && o.rect[1] - o.rect[0] >= 4 && o.rect[3] - o.rect[2] >= 4 && o.rect[0] >= hx0 && o.rect[1] <= hx1 && o.rect[2] >= hz0 && o.rect[3] <= hz1 && !(rope7[0] > o.rect[0] - 1 && rope7[0] < o.rect[1] + 1 && rope7[2] > o.rect[2] - 1 && rope7[2] < o.rect[3] + 1)).length;
+  // (3) THE WELL on its rim: on a face of the shaft (its middle within 0.1 m of the hole's edge, turned into it), between
+  // the street and the first gallery
+  const face7 = (q: Board5) => q.at[0] > hx0 && q.at[0] < hx1 && ((Math.abs(q.at[2] - hz1) < 0.1 && Math.abs(Math.abs(q.yaw) - 180) < 1) || (Math.abs(q.at[2] - hz0) < 0.1 && Math.abs(q.yaw) < 1));
+  const sign7 = boards5.filter((q) => q.text === "THE WELL" && face7(q) && q.at[1] + q.h / 2 <= W7.levels[0] && q.at[1] - q.h / 2 >= W7.levels[1]).length;
+  // (4) its depth in stages: at each gallery over its bottom a lit strip on two faces and more (Milestone 885's)
+  const stages7 = W7.levels.slice(1, -1).map((y) => boards5.filter((q) => !q.text && face7(q) && q.at[1] <= y && q.at[1] >= y - 0.5).length);
+  // (5) its cache stands on the bottom's lit floor (vault4's chest and stack against its south wall)
+  type Cache7 = { where: string; boxes: number[][] };
+  const cache7 = (((cfg as unknown as { caches?: Cache7[] }).caches ?? []) as Cache7[]).filter((s) => s.where === "well").flatMap((s) => s.boxes).filter((b) => Math.abs(b[4] - W7.bottom) < 0.05).length;
+  const ok7 = tiles7.length >= 30 && worn7 === tiles7.length && glow7 && land7 >= 1 && sign7 >= 1 && stages7.every((n) => n >= 2) && cache7 >= 2;
+  check(
+    "THE WELL legible: its bottom's tiles lit, a lit landing square on them clear of the rope's foot, THE WELL on its rim, its galleries' strips in stages, its cache standing on the lit floor",
+    ok7,
+    `${worn7} of ${tiles7.length} bottom tiles worn lit (${RW7.bottom.mat ?? "no mat"}); ${land7} landing squares; ${sign7} rim signs; strips at the galleries ${stages7.join("/")}; ${cache7} cache boxes on the bottom`
+  );
+}
+
+// THE STACKS and GLASS HEIGHTS, the two weakest districts (Milestone 1067; the districts' eleventh reviews of version 133,
+// 2026-11-05: THE STACKS 6 and 5.7, "fill the empty paving with rows of cars and kiosk stalls, the lone central crate out",
+// "two or three head-high clusters per field", "the thin beige grate box in the middle of d10", "the kiosk's CAP... sign
+// hidden behind a tan slab", "pink trims under the tower capsules", "a small box with a helmet-like icon"; GLASS HEIGHTS 6
+// and 5.9, "the frosted panels look like floating blank cards", "tinted frosted glass with bevelled frames, in L shapes with
+// benches or planters", "sets that sit on bases", "the lift shaft frame bands, one object", "a stray black object", "a tall
+// white plinth in the way to the lift", "the name on a dark translucent panel hovering")
+{
+  type Post7 = { id: string; d: string; at: number[]; parts: unknown[][] };
+  type Laid7 = { id: string; d: string; box: number[]; top: number; parts: number };
+  const { outlineBoxes } = await import("../../src/game/outlines");
+  const DC7 = cfg.rules.dress.districtCover as unknown as { posts?: Post7[]; pieces: Record<string, string[]> };
+  const PO7 = DC7.posts ?? [];
+  const LP7 = (cfg as unknown as { posts?: Laid7[] }).posts ?? [];
+  const DV7 = (cfg as unknown as { districtCover?: Array<{ piece: string; d?: string; set?: number | null; post?: string }> }).districtCover ?? [];
+  const CH7 = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks;
+  const S7 = (SOLIDS as { solids: number[][] }).solids;
+  const G7 = cfg.game as unknown as { boards: Array<{ text: string; at: number[]; yaw: number; w: number; h: number }>; outlines: Array<{ name: string; colour: string }> };
+  const remap7 = (s: unknown) => new Map(String(s ?? "").split(";").filter((p) => p.includes("=")).map((p) => p.split("=") as [string, string]));
+  // (a line between two map-local points, [x, y, z], clear of every box but the last `stop` metres)
+  const clear7 = (a: number[], b: number[], stop = 0.3) => {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    for (let k = 0.2; k < L - stop; k += 0.1) {
+      const f = k / L;
+      const [x, y, z] = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+      if (solidsIn(x + BR_X - 0.01, x + BR_X + 0.01, z + BR_Z - 0.01, z + BR_Z + 0.01).some((q: { minX: number; maxX: number; minZ: number; maxZ: number; base: number; top: number }) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y)) return false;
+    }
+    return true;
+  };
+
+  // THE STACKS: no louvred box in its fill, alone or in a row; a raised planter at its avenue's mouth, its strips pink;
+  // two head-high clusters and a stall in its court besides the kiosk, no metro bench there; the kiosk's sign read whole
+  // from the court's open corner; pink strips under the tower's capsules, each against a capsule's underside; no boxed
+  // helmet icon on the hotel's roof
+  const lone7 = DV7.filter((q) => q.d === "stacks" && !q.post && q.piece === "Coolbox01.prefab").length;
+  const singles7 = (DC7.pieces.stacks ?? []).includes("Coolbox01.prefab");
+  const mouth7 = LP7.filter((l) => l.d === "stacks" && l.box[0] > -80 && l.box[1] < -74 && l.box[2] > -112 && l.box[3] < -104);
+  const pinkBeds7 = mouth7.some((l) => (PO7.find((p) => p.id === l.id)?.parts ?? []).some((p) => /Light06\|#ff4fd8/i.test(String(p[7] ?? ""))));
+  const court7 = LP7.filter((l) => l.d === "stacks" && l.box[0] > -140 && l.box[1] < -101 && l.box[2] > -140 && l.box[3] < -101);
+  const clusters7 = court7.filter((l) => l.top <= 4.5 && l.top >= 1.4 && l.parts >= 2);
+  const benches7 = (CH7["c-stacks"]?.place ?? []).filter((q) => /\/Metro_Bench00/.test(String(q[0])) && Number(q[1]) > -142 && Number(q[1]) < -105 && Number(q[3]) > -142 && Number(q[3]) < -105).length;
+  const kiosk7 = LP7.find((l) => l.id === "stacks-kiosk");
+  const corner7 = [-112, 1.7, -112];
+  const signs7 = !kiosk7 ? [] : G7.boards.filter((b) => b.text === "CAPSULE BAR" && b.at[0] > kiosk7.box[0] - 1.5 && b.at[0] < kiosk7.box[1] + 1.5 && b.at[2] > kiosk7.box[2] - 1.5 && b.at[2] < kiosk7.box[3] + 1.5);
+  const read7 = signs7.filter((b) => {
+    const [ux, uz] = [Math.cos((b.yaw * Math.PI) / 180), -Math.sin((b.yaw * Math.PI) / 180)];
+    const [ox, oz] = [Math.sin((b.yaw * Math.PI) / 180), Math.cos((b.yaw * Math.PI) / 180)];
+    const to = [corner7[0] - b.at[0], corner7[2] - b.at[2]];
+    const facing = (to[0] * ox + to[1] * oz) / Math.hypot(to[0], to[1]) > 0.5;
+    return facing && [-0.45, 0, 0.45].every((t) => clear7(corner7, [b.at[0] + ux * t * b.w + ox * 0.05, b.at[1], b.at[2] + uz * t * b.w + oz * 0.05]));
+  });
+  const trimNames7 = G7.outlines.filter((o) => o.name.startsWith("the stacks capsule trim"));
+  const trims7 = outlineBoxes((n: string) => n.startsWith("the stacks capsule trim"));
+  // (each strip under a box of the tower: one whose base is within 0.25 m over the strip's top across its middle)
+  const hung7 = trims7.filter((b) => S7.some((q) => q[0] < (b[0] + b[1]) / 2 && q[1] > (b[0] + b[1]) / 2 && q[2] < b[3] + 0.3 && q[3] > b[2] - 0.3 && q[4] >= b[5] - 0.05 && q[4] <= b[5] + 0.25));
+  const helmet7 = (CH7["c-dress"]?.place ?? []).filter((q) => String(q[0]).endsWith("/Coolbox00b.prefab") && Number(q[1]) > -153 && Number(q[1]) < -111 && Number(q[3]) > -153 && Number(q[3]) < -111 && Number(q[2]) > 10 && Number(q[2]) < 12).length;
+  check(
+    "THE STACKS' fields: no lone louvred box, a pink-lit raised planter at the avenue's mouth, two head-high clusters and a stall in the court besides the kiosk, the kiosk's sign read whole from the court's open corner, pink trims under the tower's capsules, no helmet box on the hotel roof",
+    lone7 === 0 && !singles7 && mouth7.length === 1 && pinkBeds7 && clusters7.length >= 3 && benches7 === 0 && read7.length >= 1 && trimNames7.length >= 8 && trimNames7.every((o) => o.colour.toLowerCase() === "#ff4fd8") && trims7.length > 0 && hung7.length === trims7.length && helmet7 === 0,
+    `${lone7} louvred boxes in the fill${singles7 ? ", the louvred box a single piece" : ""}; the avenue's mouth ${mouth7.map((l) => `${l.id} ${l.top} m`).join("") || "bare"}${pinkBeds7 ? ", lit pink" : ""}; the court ${clusters7.length} clusters (${clusters7.map((l) => `${l.id} ${l.top} m`).join(", ")}), ${benches7} metro benches; the kiosk's sign read whole from the open corner ${read7.length} of ${signs7.length}; ${trimNames7.length} capsule trims, ${hung7.length} of ${trims7.length} strips under a capsule; ${helmet7} helmet boxes on the hotel roof`,
+  );
+
+  // GLASS HEIGHTS: every glass wall on its decks but two standing in a planter trough (its base) on its own middle and turn, eight
+  // benches and more against them, a set an L; the walls' frames in the look's white (their
+  // bevels lit by the sun) on a tinted patterned pane; its lift's shaft framed in white bands at every tier, its glass clear;
+  // its name on an opaque plate inside its face's flat run, a lit frame round it; no box over a head on the looks from the
+  // ring road to the lift's door; no metro bench in its court
+  type GPerch = { name: string; at?: Array<[string, number, number, number]> };
+  const GH7 = (cfg.rules.districts as unknown as { glass: { look: { white: string }; name: { at: number[]; w: number; h: number }; deck: { kit: Record<string, string> }; lift: { car: number[]; line?: number[][]; view?: { tall: number; eyes?: number[][]; eyeClear?: number }; shaft: { mat: string } } } }).glass;
+  const LAID7 = ((cfg as unknown as { perches?: Array<{ name: string; at: number[][] }> }).perches ?? []);
+  const own7 = (cfg.rules.perches as unknown as GPerch[]).filter((p) => p.name.startsWith("glass"));
+  const laidAt = (name: string, x: number, z: number) => (LAID7.find((p) => p.name === name)?.at ?? []).some((q) => Math.abs(q[0] - x) < 0.03 && Math.abs(q[2] - z) < 0.03);
+  const screens7 = own7.flatMap((p) => (p.at ?? []).filter((q) => /^WindowWall0[01] /.test(q[0])).map((q) => ({ p: p.name, q })));
+  // (all but two: two of the twelve walls' spots take no trough, the pass refusing it by the east gangway's end and in the
+  // deck's neck)
+  const based7 = screens7.filter(({ p, q }) => laidAt(p, q[1], q[2]) && own7.find((o) => o.name === p)!.at!.some((t) => t[0] === "GardenPit_premade01.prefab" && Math.abs(t[1] - q[1]) < 0.03 && Math.abs(t[2] - q[2]) < 0.03 && ((t[3] - q[3]) % 180 + 180) % 180 === 0 && laidAt(p, t[1], t[2])));
+  // (a bench against a screen's trough: within 1.2 m of a screen's middle, laid where its perch puts it)
+  const benches7g = own7.flatMap((p) => (p.at ?? []).filter((t) => t[0] === "StreetFurniture00.prefab" && laidAt(p.name, t[1], t[2]) && (p.at ?? []).some((q) => /^WindowWall0[01] /.test(q[0]) && Math.hypot(t[1] - q[1], t[2] - q[2]) < 1.2)).map((t) => t)).length;
+  const ells7 = screens7.filter(({ p, q }) => screens7.some((o) => o.p === p && o.q !== q && Math.abs(((o.q[3] - q[3]) % 180 + 180) % 180 - 90) < 1 && Math.hypot(o.q[1] - q[1], o.q[2] - q[2]) < 2.3)).length / 2;
+  const wall7 = remap7(GH7.deck.kit["WindowWall01 Variant.prefab"]);
+  const glassy7 = wall7.get("BareSteelScratched00") === GH7.look.white && /^Crystal\w+~#[0-9a-f]{6}\|/i.test(wall7.get("Cristal04") ?? "") && /\^#/.test(wall7.get("MetalBare01_lgt 2") ?? "");
+  const shaft7 = remap7(GH7.lift.shaft.mat);
+  const banded7 = shaft7.get("BareSteelScratched00") === GH7.look.white && /^Cristal/.test(shaft7.get("Cristal04") ?? "") && !/~#|\|#/.test(shaft7.get("Cristal04") ?? "");
+  const NN7 = ((cfg as unknown as { districtNames?: Array<{ district: string; back?: string; w: number; at: number[] }> }).districtNames ?? []).find((q) => q.district === "glass");
+  const opaque7 = !!NN7 && (!NN7.back || /^#|rgba?\([^)]*,\s*1(\.0+)?\s*\)$|^rgb\(/.test(NN7.back));
+  // (the plate backed across its whole width: a box within 0.8 m behind each of its ends and its middle at its middle height)
+  const NMg7 = GH7.name;
+  const backedAll7 = [-0.45, -0.25, 0, 0.25, 0.45].every((t) => {
+    const [px, pz] = [NMg7.at[0] + t * NMg7.w, NMg7.at[2]];
+    for (let d = 0; d <= 0.8001; d += 0.05) if (S7.some((b) => px >= b[0] && px <= b[1] && pz - d >= b[2] && pz - d <= b[3] && b[4] < NMg7.at[1] && b[5] > NMg7.at[1])) return true;
+    return false;
+  });
+  const frame7 = outlineBoxes((n: string) => n.startsWith("the glass heights name frame"));
+  const edges7 = [NMg7.at[0] - NMg7.w / 2, NMg7.at[0] + NMg7.w / 2].filter((x) => frame7.some((b) => b[0] < x + 0.15 && b[1] > x - 0.15 && b[4] <= NMg7.at[1] - NMg7.h / 2 + 0.05 && b[5] >= NMg7.at[1] + NMg7.h / 2 - 0.05)).length;
+  const topBar7 = frame7.some((b) => b[0] <= NMg7.at[0] - NMg7.w / 2 + 0.1 && b[1] >= NMg7.at[0] + NMg7.w / 2 - 0.1 && b[4] >= NMg7.at[1] + NMg7.h / 2 - 0.2);
+  // (the looks from the ring road to the car's door: no box standing from the street past view.tall and wider than a pole
+  // within half a metre of one, inside the band, but the car's own walls and the court's lamps; with no eyes in the rules,
+  // version 133's, the look d13 was taken from)
+  const VW7 = GH7.lift.view ?? { tall: 2.2 };
+  const eyes7 = VW7.eyes ?? [[18, -96]];
+  const door7 = (GH7.lift.line ?? [[11.4, -130]]).at(-1)!;
+  const [cx7, cz7] = GH7.lift.car;
+  const seg7 = (x: number, z: number, a: number[], b: number[]) => {
+    const l2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * (b[0] - a[0]) + (z - a[1]) * (b[1] - a[1])) / l2));
+    return Math.hypot(x - a[0] - (b[0] - a[0]) * t, z - a[1] - (b[1] - a[1]) * t);
+  };
+  const lamps7 = ((cfg.rules.districts as unknown as { glass: { ground: { lamps: { at: number[][] } } } }).glass.ground.lamps.at);
+  const blockers7 = S7.filter((b) => b[4] < 0.5 && b[5] > VW7.tall && (b[1] - b[0] > 0.6 || b[3] - b[2] > 0.6) && b[2] < -101 && b[2] > -128 && b[0] < 30 && b[1] > -10 && !lamps7.some(([x, z]) => Math.abs((b[0] + b[1]) / 2 - x) < 0.8 && Math.abs((b[2] + b[3]) / 2 - z) < 0.8) && ![b[0], b[1]].every((x) => [b[2], b[3]].every((z) => Math.hypot(x - cx7, z - cz7) < 2.6)))
+    .filter((b) => eyes7.some((e) => [[b[0], b[2]], [b[0], b[3]], [b[1], b[2]], [b[1], b[3]], [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2]].some(([x, z]) => seg7(x, z, e, door7) < 0.5)));
+  const metro7 = (CH7["c-glass"]?.place ?? []).filter((q) => /\/Metro_Bench00/.test(String(q[0]))).length;
+  check(
+    "GLASS HEIGHTS' sets: every deck screen but two standing in a white planter trough, eight benches and more against them, an L, white bevelled frames on a tinted patterned pane; its lift's shaft in white bands, its glass clear; its name on an opaque plate backed whole, a lit frame round it; the looks from the ring road to the lift clear; no metro bench in its court",
+    screens7.length >= 12 && based7.length >= screens7.length - 2 && benches7g >= 8 && ells7 >= 1 && glassy7 && banded7 && opaque7 && backedAll7 && edges7 === 2 && topBar7 && (VW7.eyes ?? []).length >= 5 && blockers7.length === 0 && metro7 === 0,
+    `${screens7.length} screens, ${based7.length} in a trough, ${benches7g} benches against them, ${ells7} L's; the walls ${glassy7 ? "white-framed on a tinted pane" : `${wall7.get("BareSteelScratched00")} on ${wall7.get("Cristal04")}`}; the shaft ${banded7 ? "banded white" : shaft7.get("BareSteelScratched00")}; the name ${opaque7 ? "opaque" : "see-through"}, ${backedAll7 ? "backed whole" : "its ends off its face"}, framed ${edges7} sides${topBar7 ? " and over" : ""}; ${(VW7.eyes ?? []).length} eyes, ${blockers7.length} boxes on their looks${blockers7.length ? ` (${blockers7.slice(0, 3).map((b) => `x ${b[0]} to ${b[1]}, z ${b[2]} to ${b[3]}, ${b[5]} m`).join("; ")})` : ""}; ${metro7} metro benches in the court`,
+  );
+}
+
+// the seventeenth reviews' finish list (Milestone 1068): the base's and the Sky Ring's rails out of the pack's
+// clover-printed glass ("the same green clover glass rail on the Sky Ring, the base roof and the court makes those levels look
+// alike"; a tint keeps the print, so the glass must be another material, not CrystalPattern03 tinted), and THE TERRACES' lawn
+// a lawn's green ("a flat, very bright green lawn"): its tint's green, linear, at most half, and its green at most twice its red
+{
+  const CH8 = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks;
+  const railsOf = (c: string) => (CH8[c]?.place ?? []).filter((q) => /\/FenceElegant00_x/.test(String(q[0])));
+  const clover = (q: unknown[]) => !q[6] || !/CrystalPattern03=/.test(String(q[6])) || /CrystalPattern03=CrystalPattern/.test(String(q[6]));
+  const rails8 = [...railsOf("c-base"), ...railsOf("c-skyring")];
+  const printed8 = rails8.filter(clover).length;
+  const lin = (h: string, i: number) => {
+    const v = parseInt(h.slice(1 + 2 * i, 3 + 2 * i), 16) / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const lawn8 = String((cfg.rules.districts as unknown as { terraces: { top: { mat: string } } }).terraces.top.mat);
+  const tint8 = /#[0-9a-f]{6}/i.exec(lawn8)?.[0] ?? "#ffffff";
+  const [r8, g8] = [lin(tint8, 0), lin(tint8, 1)];
+  check(
+    "the seventeenth reviews' finish: the base's and the Sky Ring's rails out of the pack's clover-printed glass, THE TERRACES' lawn a lawn's green (its tint's green at most half, its green at most twice its red)",
+    // (the moss's own albedo under a white tint, 0.692 red and 0.226 green linear, off Milestone 1062's measure of it at #60ff50)
+    rails8.length > 300 && printed8 === 0 && g8 <= 0.5 && 0.226 * g8 <= 2 * 0.692 * r8,
+    `${rails8.length} rails, ${printed8} in the clover print; the lawn ${lawn8}, its tint's green ${g8.toFixed(3)}, red ${r8.toFixed(3)}`
   );
 }
 

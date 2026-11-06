@@ -153,7 +153,7 @@ function doubleStair(own: (ox: number, oz: number) => Pt, base: number, where: s
  */
 const INNER_STAIRS: Array<{ where: string; box: number[]; lanes: number[][][] }> = [];
 function innerStair(chunk: string, foot: Pt, up: Pt, base: number): OBox {
-  const S = R.tower.floors.stair as { piece: string; flights: number; run: number; rise: number; treads: number; half: number; guard: number; thick: number; plate: number; under: number; lanes: number[]; off: number };
+  const S = R.tower.floors.stair as { piece: string; mat?: string; flights: number; run: number; rise: number; treads: number; half: number; guard: number; thick: number; plate: number; under: number; lanes: number[]; off: number };
   const [run, rise, n] = [S.run * S.flights, S.rise * S.flights, S.treads * S.flights];
   const across: Pt = [-up[1], up[0]];
   const on = (a: number, b: number): Pt => [foot[0] + up[0] * a + across[0] * b, foot[1] + up[1] * a + across[1] * b];
@@ -165,7 +165,8 @@ function innerStair(chunk: string, foot: Pt, up: Pt, base: number): OBox {
   const yaw = yawToward(-up[0], -up[1]);
   for (let k = 0; k < S.flights; k++) {
     const [cx, cz] = on(S.run * (k + 0.5), 0);
-    placeTurned(chunk, S.piece, cx, cz, yaw, "g", base + S.rise * k);
+    // (worn in the stair's `mat` where it names one, Milestone 1065: the pack's cracked paint stretched along its rails)
+    placeTurned(chunk, S.piece, cx, cz, yaw, "g", base + S.rise * k, S.mat);
   }
   const tread = run / n;
   for (let k = 0; k < n; k++) {
@@ -1226,13 +1227,17 @@ if (holes.length) {
   /** a side's wall segment from `a` left out: a hall's door */
   const door = (side: string, a: number) => hallList.some((h) => h.side === side && Math.abs(h.at - a) < 1e-6);
   // along x at z0 and z1, along z at x0 and x1, each wall just outside the hole, its face on the hole's edge
+  // (its foot at its floor's tiles' top, `wallSink` under the court's foot, base5: at the foot the 3 cm between the tiles
+  // and the wall's lower edge, which has no face under it, showed the sky through the world all along the court, the
+  // centre's seventeenth reviews' "pale seam where the floor meets the wall"; its top goes as far under the plaza's slab)
+  const wallFoot = foot - (C.wallSink ?? 0);
   for (let x = x0; x < x1 - 1e-6; x += len) {
-    if (!door("n", x)) placeAt("c-court", "c", C.wall, x + len / 2, z0 - thick / 2, yawFacing("+z"), "o", { y: foot });
-    if (!door("s", x)) placeAt("c-court", "c", C.wall, x + len / 2, z1 + thick / 2, yawFacing("-z"), "o", { y: foot });
+    if (!door("n", x)) placeAt("c-court", "c", C.wall, x + len / 2, z0 - thick / 2, yawFacing("+z"), "o", { y: wallFoot });
+    if (!door("s", x)) placeAt("c-court", "c", C.wall, x + len / 2, z1 + thick / 2, yawFacing("-z"), "o", { y: wallFoot });
   }
   for (let z = z0; z < z1 - 1e-6; z += len) {
-    if (!door("w", z)) placeAt("c-court", "c", C.wall, x0 - thick / 2, z + len / 2, yawFacing("+x"), "o", { y: foot });
-    if (!door("e", z)) placeAt("c-court", "c", C.wall, x1 + thick / 2, z + len / 2, yawFacing("-x"), "o", { y: foot });
+    if (!door("w", z)) placeAt("c-court", "c", C.wall, x0 - thick / 2, z + len / 2, yawFacing("+x"), "o", { y: wallFoot });
+    if (!door("e", z)) placeAt("c-court", "c", C.wall, x1 + thick / 2, z + len / 2, yawFacing("-x"), "o", { y: wallFoot });
   }
   // A post in each corner (rules.court.post). The wall is a raised panel whose face steps back its whole thickness at
   // both ends (read off its mesh), so where two meet at a corner there was a slot as tall as the court, the haze and
@@ -1330,7 +1335,7 @@ if (holes.length) {
     const tile = piece(C.hallTile).row.size![0];
     for (let t = 0; t < d - 1e-6; t += tile) placeAt("c-court", "c", C.hallTile, ...spot(t + tile / 2), 0, "g", { y: foot - C.under });
     // (its end wall looks back down the hall, toward the court; none where it goes on, down to the station)
-    if (!h.open) placeAt("c-court", "c", C.wall, ...spot(d + thick / 2), yawFacing(back), "o", { y: foot });
+    if (!h.open) placeAt("c-court", "c", C.wall, ...spot(d + thick / 2), yawFacing(back), "o", { y: wallFoot });
     const [hx0, hx1, hz0, hz1] = rect(0, h.open ? d : d + thick);
     halls.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, slab: rect(0, slabTo), ...(route ? { route } : {}), ...(h.open ? { open: true } : {}) });
   }
@@ -1606,7 +1611,7 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
   // slab's holes and the rails along the edges a body can walk to, and the flights through them. The whole band stands in
   // `cfg.tallest`'s rectangle, where the base's insides lay nothing, and it replaces the stair at (-6, -16) (its `keep` stays,
   // rules.base.stairs.ghost): no storey's draw moves, and no room or piece of cover with it
-  const AT = B.atrium as { slabs: Array<{ y: number; at: number[][]; rails: number[][] }>; flights: Array<{ foot: number[]; up: number[]; base: number }>; stall: { piece: string; lantern: string; lanterns: number[][]; at: number[][] }; screen: { piece: string; at: number[][] } } | undefined;
+  const AT = B.atrium as { slabs: Array<{ y: number; at: number[][]; rails: number[][] }>; flights: Array<{ foot: number[]; up: number[]; base: number }>; stall: { piece: string; lantern: string; lanterns: number[][]; lanternScale?: number; at: number[][] }; screen: { piece: string; at: number[][] } } | undefined;
   // the atria: over each kiosk's and the glass hall's raised middle (its own x0, x1, z0, z1, measured off its parts: what
   // tops out over 3 m), on the first floor, railed round
   let atria = 0;
@@ -1915,7 +1920,7 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
       const [mx, mz] = [(sr.min![0] + sr.max![0]) / 2, (sr.min![2] + sr.max![2]) / 2];
       for (const [ox, oy, oz] of AT.stall.lanterns) {
         const [ex, ez] = rotY(yaw, ox - mx, oz - mz);
-        placeTurned("c-base", AT.stall.lantern, x + ex, z + ez, 0, "g", oy);
+        placeTurned("c-base", AT.stall.lantern, x + ex, z + ez, 0, "g", oy, undefined, AT.stall.lanternScale ?? 1);
       }
     }
     for (const [x, z, y, yaw] of AT.screen.at) placeTurned("c-base", AT.screen.piece, x, z, yaw, "o", y);
@@ -1931,7 +1936,8 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
     let u = 0;
     while (u < L - 0.3) {
       const name = L - u >= long - 0.2 ? B.rail.long : B.rail.short;
-      add("c-base", "c", [piece(name).key, +(a[0] + d[0] * u).toFixed(3), y, +(a[1] + d[1] * u).toFixed(3), yaw, "o"] as Place);
+      // (in the base's own glass, `rail.mat`, Milestone 1068: one green glass on the base, the Sky Ring and the court made them one level)
+      add("c-base", "c", [piece(name).key, +(a[0] + d[0] * u).toFixed(3), y, +(a[1] + d[1] * u).toFixed(3), yaw, "o", ...(B.rail.mat ? [B.rail.mat] : [])] as Place);
       u += name === B.rail.long ? long : short;
       fences++;
     }
@@ -2031,7 +2037,7 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
     const tile = piece(W.bottom.piece).row;
     const bottom = Math.min(...(W.levels as Array<{ y: number }>).map((q) => q.y));
     for (let x = hole[0]; x < hole[1] - 1e-6; x += tile.size![0])
-      for (let z = hole[2]; z < hole[3] - 1e-6; z += tile.size![2]) placeAt("c-well", "c", W.bottom.piece, x + tile.size![0] / 2, z + tile.size![2] / 2, 0, "o", { y: bottom - W.bottom.sink - tile.max![1] });
+      for (let z = hole[2]; z < hole[3] - 1e-6; z += tile.size![2]) placeAt("c-well", "c", W.bottom.piece, x + tile.size![0] / 2, z + tile.size![2] / 2, 0, "o", { y: bottom - W.bottom.sink - tile.max![1], ...(W.bottom.mat ? { mat: W.bottom.mat } : {}) });
     // the stack's whole footprint underground (its galleries reach past its ring at the street)
     const foot = [ox + W.under[0], ox + W.under[1], oz + W.under[2], oz + W.under[3]].map((v) => +v.toFixed(3));
     const ug = cfg.underground as { floors: Array<{ rect: number[]; y: number; well?: boolean }>; slabs: number[][] };
@@ -2179,7 +2185,7 @@ const skyStairs: Pt[] = [];
       if (!open && liftRing.some((e) => Math.hypot(e[0] - mid[0], e[1] - mid[1]) < SR.fence.gap)) continue;
       const d: Pt = [pb[0] - pa[0], pb[1] - pa[1]];
       // (its own x along the chord from its pivot)
-      add("c-skyring", "c", [piece(SR.fence.piece).key, +pa[0].toFixed(3), SR.deck, +pa[1].toFixed(3), +((Math.atan2(-d[1], d[0]) * 180) / Math.PI).toFixed(2), "o"] as Place);
+      add("c-skyring", "c", [piece(SR.fence.piece).key, +pa[0].toFixed(3), SR.deck, +pa[1].toFixed(3), +((Math.atan2(-d[1], d[0]) * 180) / Math.PI).toFixed(2), "o", ...(SR.fence.mat ? [SR.fence.mat] : [])] as Place);
       fences++;
     }
   }
@@ -4109,8 +4115,9 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
 // across every `every` metres from front to front and on to the next in an X, the pack's Chinese lanterns hung along each,
 // drawn only. Placed off rules alone, so nothing measured moves it
 {
-  type Court = { shops: Array<{ piece: string; c: Pt; yaw: number }>; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; web: { from: Pt; height: number; to: Pt[]; mast?: string }; stalls: { pieces: string[]; at: Pt[]; face: Pt }; tables?: Array<[string, number, number, number]> };
-  const DL = (R.districts as { lantern?: { chunk: string; seed: number; pool: string[]; roofs?: Record<string, string>; swap?: { pieces: Record<string, string>; rows: string[] }; gap: number[]; rows: Array<{ id: string; from: Pt; to: Pt; front: Pt; deep: number; skip?: number[][] }>; lights: { cable: string; lanterns: string[]; height: number; every: number; hang: number; alleys: Array<{ from: Pt; to: Pt; half: number }> }; court?: Court } } | undefined)?.lantern;
+  type Court = { shops: Array<{ piece: string; c: Pt; yaw: number }>; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; web: { from: Pt; height: number; to: Pt[]; mast?: string }; stalls: { pieces: string[]; at: Pt[]; face: Pt; mat?: string }; tables?: Array<[string, number, number, number]> };
+  type Infill = { houses: Array<[string, number, string]>; walls: string[]; mats: Record<string, string>; sides: Record<string, number[]>; back: string[]; least: number; over: number; thick: number; height: number };
+  const DL = (R.districts as { lantern?: { chunk: string; seed: number; pool: string[]; roofs?: Record<string, string>; swap?: { pieces: Record<string, string>; rows: string[] }; gap: number[]; rows: Array<{ id: string; from: Pt; to: Pt; front: Pt; deep: number; skip?: number[][] }>; lights: { cable: string; lanterns: string[]; height: number; every: number; hang: number; alleys: Array<{ from: Pt; to: Pt; half: number }>; lines?: number[][]; masts?: Pt[]; mast?: string }; court?: Court; infill?: Infill } } | undefined)?.lantern;
   if (DL) {
     const rndD = seeded(DL.seed);
     const houses: Array<{ row: string; piece: string; c: Pt; yaw: number; hu: number; hv: number; top: number }> = [];
@@ -4149,6 +4156,85 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
         const box = placeTurned(DL.chunk, own, c[0], c[1], yaw, "o", 0, DL.roofs?.[own]);
         houses.push({ row: row.id, piece: own, c: [+c[0].toFixed(3), +c[1].toFixed(3)], yaw: +yaw.toFixed(2), hu: +(w2 / 2).toFixed(3), hv: +(d / 2).toFixed(3), top: +box.top.toFixed(2) });
         at += w + DL.gap[0] + rndD() * (DL.gap[1] - DL.gap[0]);
+      }
+    }
+    // the rows' gaps filled (`infill`, Milestone 1066; the districts' eleventh reviews of version 133: "fill the gaps between
+    // shophouses with infill shophouses and walls so the streets narrow to alleys 4 to 6 m wide", "free-standing houses with
+    // gaps between them", "the only district whose layout contradicts its name"). First `houses` [row, along, piece], each
+    // laid as the rows lay theirs, its box's near end `along` metres down its row, where the seeded mix left a house's room
+    // beside a cross alley; nothing here draws from the rows' seeded mix, so every house of it stands where it stood. Then
+    // along each row its houses' ground storeys (each one's box less its piece's `sides`, how far in from its box's own -x
+    // and +x ends its walls stand at the street: the Decoratives' upper storeys overhang an open ground storey), and each gap
+    // between two of them outside the cross alleys walled on the row's front line, and on its back line on the rows `back`
+    // names, `over` metres into each house and none into a cross alley, in the wall kit's lengths longest first, each in its
+    // `mats`: unless the wall would stand on a street node of the bots' graph or across a link along its lines (the street
+    // graph's model), so a slot the bots walk stays a way through
+    const IF = DL.infill;
+    const walls: Array<{ row: string; line: string; a: number[]; b: number[] }> = [];
+    let kept = 0;
+    if (IF) {
+      const frame = (row: (typeof DL.rows)[number]) => {
+        const L = Math.hypot(row.to[0] - row.from[0], row.to[1] - row.from[1]);
+        return { t: [(row.to[0] - row.from[0]) / L, (row.to[1] - row.from[1]) / L] as Pt, yaw: yawToward(row.front[0], row.front[1]) };
+      };
+      for (const [rid, along, name] of IF.houses) {
+        const row = DL.rows.find((r) => r.id === rid)!;
+        const { t, yaw } = frame(row);
+        const f = row.front;
+        const r = piece(name).row;
+        const [w, d] = [r.size![0], r.size![2]];
+        const mid = along + w / 2;
+        const c: Pt = [row.from[0] + t[0] * mid - f[0] * (d / 2), row.from[1] + t[1] * mid - f[1] * (d / 2)];
+        const box = placeTurned(DL.chunk, name, c[0], c[1], yaw, "o", 0, DL.roofs?.[name]);
+        houses.push({ row: row.id, piece: name, c: [+c[0].toFixed(3), +c[1].toFixed(3)], yaw: +yaw.toFixed(2), hu: +(w / 2).toFixed(3), hv: +(d / 2).toFixed(3), top: +box.top.toFixed(2) });
+      }
+      for (const row of DL.rows) {
+        const { t, yaw } = frame(row);
+        const f = row.front;
+        // (a point `a` metres down the row, `b` behind its front line)
+        const at = (a: number, b: number): Pt => [row.from[0] + t[0] * a - f[0] * b, row.from[1] + t[1] * a - f[1] * b];
+        const spans = houses
+          .filter((h) => h.row === row.id)
+          .map((h) => {
+            const a = (h.c[0] - row.from[0]) * t[0] + (h.c[1] - row.from[1]) * t[1];
+            const [sx0, sx1] = IF.sides[h.piece] ?? [0, 0];
+            // (its own +x down the row or back up it)
+            const ox = rotY(h.yaw, 1, 0);
+            const down = ox[0] * t[0] + ox[1] * t[1] > 0;
+            return { a0: a - h.hu + (down ? sx0 : sx1), a1: a + h.hu - (down ? sx1 : sx0), deep: 2 * h.hv };
+          })
+          .sort((p, q) => p.a0 - q.a0);
+        const skips = row.skip ?? [];
+        for (let k = 0; k + 1 < spans.length; k++) {
+          // (the gap less the cross alleys in it)
+          let segs: number[][] = [[spans[k].a1, spans[k + 1].a0]];
+          for (const [s0, s1] of skips) segs = segs.flatMap(([g0, g1]) => [[g0, Math.min(g1, s0)], [Math.max(g0, s1), g1]]).filter(([g0, g1]) => g1 - g0 > 1e-6);
+          const lines: Array<[string, number]> = [["front", 0]];
+          if (IF.back.includes(row.id)) lines.push(["back", Math.min(spans[k].deep, spans[k + 1].deep) - IF.thick]);
+          for (const [g0, g1] of segs) {
+            if (g1 - g0 < IF.least) continue;
+            const e0 = g0 - (skips.some(([, s1]) => Math.abs(g0 - s1) < 1e-6) ? 0 : IF.over);
+            const e1 = g1 + (skips.some(([s0]) => Math.abs(g1 - s0) < 1e-6) ? 0 : IF.over);
+            for (const [line, back] of lines) {
+              const o: OBox = { c: at((e0 + e1) / 2, back + IF.thick / 2), u: t, v: [f[0], f[1]], hu: (e1 - e0) / 2, hv: IF.thick / 2, top: IF.height };
+              if (STREET_GRAPH?.crosses(o)) {
+                kept++;
+                continue;
+              }
+              // (the kit's lengths, longest first; the last one set back so it ends at the gap's end)
+              let s = e0;
+              while (e1 - s > 1e-3) {
+                const name = IF.walls.find((n) => piece(n).row.size![0] <= e1 - s + 1e-3) ?? IF.walls[IF.walls.length - 1];
+                const len = piece(name).row.size![0];
+                const m = Math.min(s + len / 2, e1 - len / 2);
+                const p = at(m, back + IF.thick / 2);
+                placeTurned(DL.chunk, name, p[0], p[1], yaw, "s", 0, IF.mats[name]);
+                s = m + len / 2;
+              }
+              walls.push({ row: row.id, line, a: at(e0, back).map((v) => +v.toFixed(2)), b: at(e1, back).map((v) => +v.toFixed(2)) });
+            }
+          }
+        }
       }
     }
     // the lantern lines
@@ -4199,13 +4285,23 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
       for (const p of CT.web.to) string(CT.web.from, p, CT.web.height);
       // (a mast where the lines meet: they met in mid-air, held by nothing)
       if (CT.web.mast) STREET_GRAPH?.add(placeTurned(DL.chunk, CT.web.mast, CT.web.from[0], CT.web.from[1], 0, "o"));
-      CT.stalls.at.forEach((p, k) => placeTurned(DL.chunk, CT.stalls.pieces[k % CT.stalls.pieces.length], p[0], p[1], yawToward(CT.stalls.face[0] - p[0], CT.stalls.face[1] - p[1]), "o"));
+      // (in `mat`, Milestone 1066: their backs a beige sci-fi hatch, d02, in the shophouses' timber and red)
+      CT.stalls.at.forEach((p, k) => placeTurned(DL.chunk, CT.stalls.pieces[k % CT.stalls.pieces.length], p[0], p[1], yawToward(CT.stalls.face[0] - p[0], CT.stalls.face[1] - p[1]), "o", 0, CT.stalls.mat));
       // (and its tables, `tables` [piece, x, z, yaw], between the stalls and the mast, Milestone 789: given to the street
       // graph's model, as the mast is, so the street cover laid after them keeps its links)
       for (const [name, x, z, yaw] of CT.tables ?? []) STREET_GRAPH?.add(placeTurned(DL.chunk, name, x, z, yaw, "o"));
       cfg.districtNames = [{ district: "lantern", ...CT.name }];
     }
-    cfg.lanternAlleys = { houses, shops, cables, lanterns: hung };
+    // the lantern lines down the other alleys and out to the ring road (Milestone 1066; the districts' eleventh reviews: "run
+    // lantern lines down every alley and out to the ring-road entry", "string lanterns over every alley"): `lines`, each
+    // [x0, z0, x1, z1, y] from wall to wall, its ends read off the collision 0.1 m into what they meet; `masts` the court's
+    // cable pole (`mast`) either side of each cross alley's mouth on the ring road, where a line has nothing else to end
+    // on, colliding and given to the street graph's model as the court's is. After the court, so its lanterns keep their order
+    const [cables0, hung0] = [cables, hung];
+    for (const [x, z] of LT.masts ?? []) STREET_GRAPH?.add(placeTurned(DL.chunk, LT.mast!, x, z, 0, "o"));
+    for (const [x0, z0, x1, z1, y] of LT.lines ?? []) string([x0, z0], [x1, z1], y);
+    cfg.lanternAlleys = { houses, shops, cables, lanterns: hung, walls, kept, lines: { cables: cables - cables0, lanterns: hung - hung0 }, masts: LT.masts ?? [] };
+    if (IF) console.log(`LANTERN ALLEYS' infill: ${IF.houses.length} houses, ${walls.length} walls (${walls.filter((w) => w.line === "back").length} on back lines), ${kept} gaps kept open for the bots' links; ${cables - cables0} lines and ${hung - hung0} lanterns down the other alleys, ${(LT.masts ?? []).length} masts`);
     console.log(`LANTERN ALLEYS: ${houses.length} houses (${DL.rows.map((r) => `${r.id} ${houses.filter((h) => h.row === r.id).length}`).join(", ")}), ${cables} cables, ${hung} lanterns`);
   }
 }
@@ -6603,8 +6699,12 @@ function onNode(o: OBox): boolean {
     // (and nothing over a head within `view.within` of that line, its middle that and its own radius off it: with the line
     // alone the fill stood a single 3 m post 2.5 m off it, between the court's east side and the car; a set's 1.8 m panels
     // stay, the court's cover)
-    const GLV = (R.districts as { glass?: { lift?: { view?: { tall: number; within: number } } } } | undefined)?.glass?.lift?.view;
-    const liftView = (o: OBox, r: number) => !!GLV && o.top > GLV.tall && GLL.some((p, i) => i + 1 < GLL.length && seg(o.c, p, GLL[i + 1]) < r + GLV.within);
+    const GLV = (R.districts as { glass?: { lift?: { view?: { tall: number; within: number; eyes?: number[][]; eyeClear?: number } } } } | undefined)?.glass?.lift?.view;
+    // (and nothing over a head on a line from the ring road's eyes, `view.eyes`, to the car's door, the line's last point,
+    // within its radius and `eyeClear`, Milestone 1067; the districts' eleventh reviews, d13: "a tall white plinth dead centre",
+    // "a tall plain cream slab in the way to the lift": a 3 m post of a set stood 5.3 m off the line, on the look from the
+    // ring road's pavement east of the court's mouth)
+    const liftView = (o: OBox, r: number) => !!GLV && o.top > GLV.tall && (GLL.some((p, i) => i + 1 < GLL.length && seg(o.c, p, GLL[i + 1]) < r + GLV.within) || (GLL.length > 0 && (GLV.eyes ?? []).some((e) => seg(o.c, e, GLL[GLL.length - 1]) < r + (GLV.eyeClear ?? 0))));
     // (no piece in a district name's view from the ring road, `nameView` either side of the line out to it, as the
     // street's tall boards keep out of it: a 4.7 m box hid THE WORKS' name)
     const views = Object.values((R.districts ?? {}) as Record<string, { name?: { at: number[] } }>).flatMap((d) => (d && typeof d === "object" && d.name ? [d.name.at] : []));
