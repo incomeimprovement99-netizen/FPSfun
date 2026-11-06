@@ -19811,3 +19811,23 @@ From the districts' twelfth fresh reviews (2026-11-05, on version 134), both rev
 - **Checks that learned the new work:** THE CANYON's cloths each a poster, none a flat colour (on version 136's placements
   it failed).
 - **Checked:** the map's checks, 398, all passing on version 137 at every size (the centre's draws 219 of 220 at max), the new one failing on version 136's placements (96 cloths of 96 a flat colour). verify, rules and tsc. Map files version 137: lo 215.8 MB, hi 299.8 MB, max 616.0 MB.
+
+## Milestone 1074 — the district mouths in each district's own kit
+
+From the districts' twelfth fresh reviews (2026-11-05, on version 134), both reviewers, their first and fourth asks.
+
+- **1074, the district mouths** (d01 and d22: "the mouth on the ring road is a blank concrete cube plus white sci-fi pods
+  that don't fit the theme", "replace the shared white pods and grey slabs with each district's own kit", "the same white
+  pods as LANTERN ALLEYS"). Read off the bake's own triangles from d01 and d22, the pods were the centre's street kiosk set
+  (x 99 to 101 by LANTERN ALLEYS, z 98.5 to 100 by THE WORKS) and the cube a bare wall of Milestone 982. A new
+  `rules.dress.cover.band`: from 94 out, the ring road's outer half and its pavement, the street's cover is the facing
+  district's, its sets (districtCover.sets by the sector the districts' cover reads) and every piece there, a set's or a
+  single one, in that district's materials (districtCover.mats): LANTERN ALLEYS' mouth in its brick walls, THE WORKS' in its
+  rust, THE STACKS' its cooling units, THE TERRACES' its hedges in planters. Version 137's first try, the kiosk set kept
+  inside the ring road, filled the band with grey walls and a bin of black bags and was dropped after its pictures.
+- **Checks that learned the new work:** the band's pieces in the facing district's materials (on version 137's placements,
+  0 dressed and 55 not, it failed). Two checks taught the band: the street cover's planters may come from a facing
+  district's set there, as THE TERRACES' hedges stand in planters, still each listed in the bake's laid-last boxes; and a
+  cooling unit there is THE STACKS' own when THE STACKS faces its set (by the most of its parts, a part may reach over a
+  sector's line).
+- **Checked:** the map's checks, 399, all passing on version 138 at every size (the centre's draws 219 of 220 at max), the new one failing on version 137's placements. verify, rules and tsc. Map files version 138: lo 216.9 MB, hi 300.9 MB, max 617.1 MB.

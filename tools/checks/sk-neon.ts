@@ -604,7 +604,10 @@ check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS
   const unlisted = capped.filter(({ c: [x, z] }) => !S.some((b, i) => b[0] < x && b[1] > x && b[2] < z && b[3] > z && Math.abs(b[5] - b[4] - CAPS.top) < 0.01 && LAIDR.some(([a, e]) => i >= a && i < e)));
   // (none when no set of the street cover has a planter: the yellow palm planter left the pavements in Milestone 772)
   const COv = (cfg.rules.dress as unknown as { cover: { road: string[]; pave: string[] } }).cover;
-  const usesCaps = [...COv.road, ...COv.pave].some((p) => CAPS.pieces.includes(p));
+  // (or, since Milestone 1074, on the ring road's band a facing district's sets with one: THE TERRACES' hedges stand in planters)
+  const DCv = (cfg.rules.dress as unknown as { districtCover: { sets?: Record<string, Array<{ parts: unknown[][] }>> }; cover: { band?: { from: number } } });
+  const bandCaps = !!DCv.cover.band && Object.values(DCv.districtCover.sets ?? {}).some((k) => k.some((s) => s.parts.some((q) => CAPS.pieces.includes(String(q[0])))));
+  const usesCaps = [...COv.road, ...COv.pave].some((p) => CAPS.pieces.includes(p)) || bandCaps;
   check("the street cover's planters laid again by the layout's next run: each one's box listed in the bake's laid-last boxes", (usesCaps ? capped.length > 0 : capped.length === 0) && unlisted.length === 0, `${capped.length - unlisted.length} of ${capped.length} listed${unlisted.length ? `; first unlisted at ${unlisted[0].c.join(", ")}` : ""}`);
   const VAN = (cfg.rules.dress as unknown as { cars: { vans?: { pieces: string[] } } }).cars.vans;
   const vans = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place).filter((q) => VAN?.pieces.some((v) => String(q[0]).endsWith(`/${v}`)) && Number(q[2]) < 2);
@@ -5175,7 +5178,24 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const named = (q: Cov, n: string) => q.piece.startsWith(n);
   const barrels = [...SC, ...DV].filter((q) => named(q, "Barrel00")).length;
   const ribbed = DV.filter((q) => named(q, "Streetdeco002")).length;
-  const cooling = [...SC, ...DV].filter((q) => named(q, "Coolbox") && q.d !== "stacks").length;
+  // (a street piece on the ring road's band is its facing district's, Milestone 1074: THE STACKS' cooling units at its own mouth)
+  const BD5 = (cfg.rules.dress as unknown as { cover: { band?: { from: number } }; districtCover: { sectors: Record<string, string> } });
+  const facing5 = (c?: number[]) => {
+    if (!c || !BD5.cover.band || Math.max(Math.abs(c[0]), Math.abs(c[1])) < BD5.cover.band.from) return undefined;
+    const [x, z] = c;
+    return BD5.districtCover.sectors[Math.abs(x) <= 50 ? (z < 0 ? "n" : "s") : Math.abs(z) <= 50 ? (x < 0 ? "w" : "e") : (z < 0 ? "n" : "s") + (x < 0 ? "w" : "e")];
+  };
+  // (by its set: a set laid from a spot on the band is its spot's district's, the most of its parts', though a part may reach
+  // inside the band or over a sector's line)
+  const votes5 = new Map<number, Map<string, number>>();
+  for (const q of SC as Array<{ c?: number[]; set?: number }>) {
+    const f = facing5(q.c);
+    if (!f || q.set === undefined) continue;
+    const v = votes5.get(q.set) ?? votes5.set(q.set, new Map()).get(q.set)!;
+    v.set(f, (v.get(f) ?? 0) + 1);
+  }
+  const setFacing5 = (s?: number) => (s === undefined ? undefined : [...(votes5.get(s) ?? new Map<string, number>())].sort((p, q) => q[1] - p[1])[0]?.[0]);
+  const cooling = [...SC, ...DV].filter((q) => named(q, "Coolbox") && (q.d ?? setFacing5((q as { set?: number }).set) ?? facing5((q as { c?: number[] }).c)) !== "stacks").length;
   const outer = (CH["c-cover"]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${CL.board.piece}`) && Math.max(Math.abs(Number(q[1])), Math.abs(Number(q[3]))) >= CL.cover.tall.within + 3).length;
   const kinds = new Map<string, Set<string>>();
   for (const q of DV) (kinds.get(q.piece) ?? kinds.set(q.piece, new Set()).get(q.piece)!).add(q.d!);
@@ -7071,6 +7091,32 @@ const outlines5 = ((cfg.game as unknown as { outlines?: Outline5[] }).outlines ?
     "the eighteenth reviews' blank faces: THE CANYON's hanging cloths each one of the pack's posters, none a flat colour",
     panels12.length >= 40 && plain12 === 0,
     `${panels12.length} cloths, ${plain12} a flat colour`
+  );
+}
+
+// the eighteenth reviews' district mouths (Milestone 1074): the street's cover on the ring road's band in the facing district's
+// materials, each piece that district dresses ("white sci-fi pods that don't fit the theme", "a blank concrete cube", d01, d22)
+{
+  const CO13 = (cfg.rules.dress as unknown as { cover: { chunk: string; band?: { from: number } } }).cover;
+  const DC13 = (cfg.rules.dress as unknown as { districtCover: { sectors: Record<string, string>; mats?: Record<string, Record<string, string>> } }).districtCover;
+  const P13 = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)[CO13.chunk]?.place ?? [];
+  const sec13 = (x: number, z: number) => (Math.abs(x) <= 50 ? (z < 0 ? "n" : "s") : Math.abs(z) <= 50 ? (x < 0 ? "w" : "e") : (z < 0 ? "n" : "s") + (x < 0 ? "w" : "e"));
+  let dressed13 = 0;
+  const bare13: string[] = [];
+  for (const q of P13) {
+    const [x, z] = [Number(q[1]), Number(q[3])];
+    if (!CO13.band || Math.max(Math.abs(x), Math.abs(z)) < CO13.band.from) continue;
+    const district = DC13.sectors[sec13(x, z)];
+    const name = String(q[0]).split("/").pop()!;
+    const want = DC13.mats?.[district]?.[name];
+    if (!want) continue;
+    if (q[6] === want) dressed13++;
+    else bare13.push(`${name} by ${district} at (${x}, ${z})`);
+  }
+  check(
+    "the eighteenth reviews' district mouths: the street's cover on the ring road's band in the facing district's own materials",
+    !!CO13.band && dressed13 >= 10 && bare13.length === 0,
+    `band from ${CO13.band?.from ?? "none"}; ${dressed13} pieces dressed, ${bare13.length} not${bare13.length ? `: ${bare13.slice(0, 3).join("; ")}` : ""}`
   );
 }
 

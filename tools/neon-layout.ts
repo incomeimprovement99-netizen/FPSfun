@@ -101,9 +101,9 @@ function placeTurned(chunk: string, name: string, cx: number, cz: number, yaw: n
  * a one-sided piece (rules.dress.twoFaced: the pack's tall poster board is posters on one face, an empty frame from
  * behind round what collides as a solid box) with a drawn twin turned about on the same footprint, a face to each side
  */
-function placeFaced(chunk: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], y = 0): OBox {
-  const b = placeTurned(chunk, name, cx, cz, yaw, mode, y);
-  if (((R.dress.twoFaced ?? []) as string[]).includes(name)) placeTurned(chunk, name, cx, cz, yaw + 180, "g", y);
+function placeFaced(chunk: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], y = 0, mat?: string): OBox {
+  const b = placeTurned(chunk, name, cx, cz, yaw, mode, y, mat);
+  if (((R.dress.twoFaced ?? []) as string[]).includes(name)) placeTurned(chunk, name, cx, cz, yaw + 180, "g", y, mat);
   return b;
 }
 /**
@@ -4049,11 +4049,19 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
         // (and a part over a parked car's height, `roadTop`, that is no poster wall, Milestone 1061: off the carriageway by its
         // reach less half a metre, and out of the names' views and the glass lift's as the wall is)
         const overCar = (p: SetPart) => !isWall(p) && p.o.top > ((CO as { roadTop?: number }).roadTop ?? Infinity);
-        const got = CO.sets && noSet < (CO.setTries ?? Infinity) && room(CO.clear - 0.5) ? coverSet(CO.sets, rndC, x, z, [along, along + 180], (o, p) => !(isWall(p) && (inView(x, z) || seesLift(x, z) || !wallHere)) && !(overCar(p) && (inView(x, z) || seesLift(x, z) || onRoad(o.c[0], o.c[1]) < Math.hypot(o.hu, o.hv) - 0.5)) && fits(o, true)) : null;
+        // (on the ring road's band, `band.from` out, the facing district's own sets and materials, Milestone 1074: the street's
+        // white food kiosks and bare grey walls stood at the districts' mouths, "white sci-fi pods that don't fit the theme",
+        // "a blank concrete cube"; the district by its sector as the districts' cover reads it)
+        const BDc = (CO as { band?: { from: number } }).band;
+        const DCc = R.dress.districtCover as { sectors: Record<string, string>; sets?: Record<string, CoverSet[]>; mats?: Record<string, Record<string, string>> };
+        const facing = BDc && m >= BDc.from ? DCc.sectors[Math.abs(x) <= 50 ? (z < 0 ? "n" : "s") : Math.abs(z) <= 50 ? (x < 0 ? "w" : "e") : (z < 0 ? "n" : "s") + (x < 0 ? "w" : "e")] : undefined;
+        const kitHere = facing && DCc.sets?.[facing]?.length ? DCc.sets[facing] : CO.sets;
+        const wearHere = (name: string, own?: string) => own ?? (facing ? DCc.mats?.[facing]?.[name] : undefined);
+        const got = CO.sets && noSet < (CO.setTries ?? Infinity) && room(CO.clear - 0.5) ? coverSet(kitHere!, rndC, x, z, [along, along + 180], (o, p) => !(isWall(p) && (inView(x, z) || seesLift(x, z) || !wallHere)) && !(overCar(p) && (inView(x, z) || seesLift(x, z) || onRoad(o.c[0], o.c[1]) < Math.hypot(o.hu, o.hv) - 0.5)) && fits(o, true)) : null;
         if (got) {
           for (const p of got) {
             const row = piece(p.name).row;
-            const b = placeTurned(CO.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, p.y - row.min![1] * p.scale, p.mat, p.scale);
+            const b = placeTurned(CO.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, p.y - row.min![1] * p.scale, wearHere(p.name, p.mat), p.scale);
             if (p.how === "g") continue;
             const board = posters && isWall(p);
             if (board) dressBoard(CO.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, 0);
@@ -4077,7 +4085,7 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
             const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.size![1] };
             if (!fits(o)) continue;
             // (solid, "s", as the street walls: the bake lists a solid placement's boxes in `laid`, an open one's it merges)
-            const b = placeFaced(CO.chunk, name, x, z, yaw, "s", -row.min![1]);
+            const b = placeFaced(CO.chunk, name, x, z, yaw, "s", -row.min![1], wearHere(name));
             if (name === CO.tall.piece && posters) dressBoard(CO.chunk, name, x, z, yaw, 0);
             STREET_GRAPH?.add(b);
             for (const c of cellsOf(b)) body[c] = cover[c] = 1;
