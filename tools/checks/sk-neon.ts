@@ -7060,5 +7060,19 @@ const outlines5 = ((cfg.game as unknown as { outlines?: Outline5[] }).outlines ?
   );
 }
 
+// the eighteenth reviews' blank faces (Milestone 1073): THE CANYON's lines of cloth each a poster, not a flat colour ("the
+// advert blocks hung over the street are plain green, grey and pink squares", d20)
+{
+  const CL12 = (cfg.rules.districts as unknown as { canyon: { chunk: string; market: { cloth: { panel: string; wear: string[] } } } }).canyon;
+  const P12 = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)[CL12.chunk]?.place ?? [];
+  const panels12 = P12.filter((q) => String(q[0]).endsWith(`/${CL12.market.cloth.panel}`));
+  const plain12 = panels12.filter((q) => !/^Advert00=Advert\d/.test(String(q[6] ?? ""))).length;
+  check(
+    "the eighteenth reviews' blank faces: THE CANYON's hanging cloths each one of the pack's posters, none a flat colour",
+    panels12.length >= 40 && plain12 === 0,
+    `${panels12.length} cloths, ${plain12} a flat colour`
+  );
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

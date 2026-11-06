@@ -19794,3 +19794,20 @@ From the districts' twelfth fresh reviews (2026-11-05, on version 134), both rev
 - **Checks that learned the new work:** every map board back to back with a second turned about (on version 135's
   placements, 12 of 12 alone, it failed); THE STACKS' check holds the kiosk's windows lit by a glow or by the pack's lit ads.
 - **Checked:** the map's checks, 397, all passing on version 136 at every size (the centre's draws 219 of 220 at max), the new one failing on version 135's placements; verify passed on its third run, the battle royale heir's package check (Milestone 1006) failing twice right after the bakes and passing on every run since, twelve alone. verify, rules and tsc. Map files version 136: lo 215.8 MB, hi 299.8 MB, max 616.0 MB.
+
+## Milestone 1073 — THE CANYON's hanging cloths worn as posters
+
+From the districts' twelfth fresh reviews (2026-11-05, on version 134), both reviewers.
+
+- **1073, THE CANYON's cloths** (d20: "the advert blocks hung over the street are plain green, grey and pink squares", "put
+  content on the blank faces: THE CANYON's coloured advert squares"). The squares are Milestone 887's lines of cloth across
+  the street, each the pack's flat 0.8 by 1 m board worn in a tint of its awnings' fabric, flat colour at their distance.
+  Each now wears one of the pack's four vertical posters (Advert03 to 06, read first: the pack's own lettering, no word of any
+  language; THE CANYON's crossings wear them already), hung both ways as before, so the lines read as banners.
+- **Tried and not shipped, the district mouths** (d01 and d22: "white sci-fi pods that don't fit the theme"): the pods are
+  the centre's street kiosk set (Milestone 1061) on the ring road's band. Kept inside the ring road, the band at both spots
+  filled with the street's grey wall sets and a concrete bin of black bags, both named in reviews before, and the street laid
+  5 kiosks for 10; left for the facing district's own sets in its materials (docs/PLAN_MAP_RUNBOOK.md 4.6).
+- **Checks that learned the new work:** THE CANYON's cloths each a poster, none a flat colour (on version 136's placements
+  it failed).
+- **Checked:** the map's checks, 398, all passing on version 137 at every size (the centre's draws 219 of 220 at max), the new one failing on version 136's placements (96 cloths of 96 a flat colour). verify, rules and tsc. Map files version 137: lo 215.8 MB, hi 299.8 MB, max 616.0 MB.
