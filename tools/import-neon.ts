@@ -1155,9 +1155,11 @@ if (mode === "bake") {
     }
     // Thin skins drawn over what stands (rules.tower.clad, Milestone 977): the core's walls are one material the whole way
     // up and THE VAULT is one storey of it, so its gold is laid over them, round its doors, with no collision of its own
-    for (const [k, c] of ((cfg.rules.tower as { clad?: Array<{ mat: string; scale: number; boxes: number[][] }> }).clad ?? []).entries()) {
+    // (and with their undersides where a clad says `under`, Milestone 1078: a skin stands on what is under it, but THE VAULT's
+    // strongroom has a ceiling of its own, seen from under it)
+    for (const [k, c] of ((cfg.rules.tower as { clad?: Array<{ mat: string; scale: number; boxes: number[][]; under?: boolean }> }).clad ?? []).entries()) {
       const part = { pos: [] as number[], nrm: [] as number[], uv: [] as number[], idx: [] as number[] };
-      for (const [x0, x1, y0, y1, z0, z1] of c.boxes) boxInto(part, x0, x1, y0, y1, z0, z1, c.scale, { bottom: true });
+      for (const [x0, x1, y0, y1, z0, z1] of c.boxes) boxInto(part, x0, x1, y0, y1, z0, z1, c.scale, { bottom: !c.under });
       tri += push(`tower-clad-${k}`, [{ part, mat: c.mat }], false);
     }
     // The tower's storey lines (rules.tower.storeyBands, Milestone 1046; the centre's fifteenth reviews: "the tower's yellow edge

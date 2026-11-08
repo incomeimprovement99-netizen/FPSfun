@@ -58,6 +58,28 @@ export const DISTRICT_HOLDS: number[] = [];
  */
 export const SPIRE_TOP = { x: 0, z: 0, y: 0, w: 0, d: 0, mast: 0 };
 
+type FenceLook = { far?: { from: number; to: number; top: number }; eye?: { from: number; below: number } };
+/**
+ * How much of the fence's line light is left at `y` metres up it, seen from `dist` metres off across the ground by an eye
+ * `eyeY` metres up (Milestone 1076; the districts' thirteenth reviews, d11 and d12: "the fence's lit lines streak across
+ * the sky like red lasers", "a red line crosses the sky at right"). Past `far.from` metres its lines over `far.top` go, all
+ * gone by `far.to`: from across a district it is its posts and a band of light at its foot, and its lines no longer cross
+ * the city past it. And from an eye over `eye.from` metres (a roof beside it) the lines over the eye less `eye.below` go:
+ * near the eye they climbed into the sky. Its shader works the same out a pixel at a time (buildEdgeFence); the map's
+ * check reads it here
+ */
+export function fenceLight(y: number, dist: number, eyeY: number): number {
+  const F = worldCfg.edge.fence as FenceLook;
+  const ss = (a: number, b: number, x: number) => {
+    const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
+  let k = 1;
+  if (F.far) k *= 1 - ss(F.far.from, F.far.to, dist) * ss(F.far.top, F.far.top + 0.5, y);
+  if (F.eye) k *= 1 - ss(F.eye.from, F.eye.from + 1, eyeY) * ss(eyeY - F.eye.below - 0.5, eyeY - F.eye.below, y);
+  return k;
+}
+
 // Lit lines climbing a red fence on all four sides, posts along it and a strip on the ground: the map's edge,
 // plain in the world and not only on the minimap. Past it a countdown runs (edge.ts). Its materials opt out of
 // the decay (userData.decay): the edge sectors dissolving would take the fence with them.
@@ -100,6 +122,24 @@ export function buildEdgeFence(root: THREE.Group): void {
   }
   const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(F.color), vertexColors: fade !== undefined, transparent: true, opacity: F.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, forceSinglePass: true });
   mat.userData.decay = true;
+  // (its lines gone with the distance and over a raised eye, a pixel at a time, Milestone 1076: fenceLight works out the same)
+  const FL = F as FenceLook;
+  if (FL.far || FL.eye) {
+    const f = (v: number) => v.toFixed(3);
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vFenceW;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvFenceW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vFenceW;").replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+        {
+          float fenceK = 1.0;
+          ${FL.far ? `fenceK *= 1.0 - smoothstep(${f(FL.far.from)}, ${f(FL.far.to)}, distance(vFenceW.xz, cameraPosition.xz)) * smoothstep(${f(FL.far.top)}, ${f(FL.far.top + 0.5)}, vFenceW.y);` : ""}
+          ${FL.eye ? `fenceK *= 1.0 - smoothstep(${f(FL.eye.from)}, ${f(FL.eye.from + 1)}, cameraPosition.y) * smoothstep(cameraPosition.y - ${f(FL.eye.below + 0.5)}, cameraPosition.y - ${f(FL.eye.below)}, vFenceW.y);` : ""}
+          diffuseColor.a *= fenceK;
+        }`
+      );
+    };
+  }
   for (const [x, z, turn] of [
     [0, -BR_HALF, false],
     [0, BR_HALF, false],

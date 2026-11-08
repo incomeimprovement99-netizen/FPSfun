@@ -20,7 +20,17 @@
    "line": 2,
    "_line": "The fence's lit lines, a metre apart, each `line` 256ths of their 8 m texture high (6 cm; 3 until Milestone 668, 9 cm: from a roof beside the fence the lines over the eye ran off as wide red bands, the districts' review, picture 12).",
    "fade": 0.5,
-   "_fade": "Milestone 826 (the districts' sixth review: from THE STACKS' and THE WORKS' roofs 'pink and red fence wires fan across the sky', 'climb steeply like lasers'): the lines fade from `fade` of the fence's height (7 m) to nothing at its top, so over the eye of a body on a 10 to 12 m roof beside it they are gone and the fence still reads at the street."
+   "_fade": "Milestone 826 (the districts' sixth review: from THE STACKS' and THE WORKS' roofs 'pink and red fence wires fan across the sky', 'climb steeply like lasers'): the lines fade from `fade` of the fence's height (7 m) to nothing at its top, so over the eye of a body on a 10 to 12 m roof beside it they are gone and the fence still reads at the street.",
+   "far": {
+    "from": 18,
+    "to": 32,
+    "top": 2
+   },
+   "eye": {
+    "from": 4.5,
+    "below": 1
+   },
+   "_far1076": "Milestone 1076, backdrop6 (the districts' thirteenth reviews, d11 and d12: 'the fence's lit lines streak across the sky like red lasers', 'a red line crosses the sky at right'): the lines faded a pixel at a time (src/game/world.ts buildEdgeFence, worked out the same by fenceLight for the check). From `far.from` metres off across the ground to `far.to` the lines over `far.top` go: from across a district (d11's eye is 40 m off the north and the west sides) the fence is its posts and a band of light at its foot, and its lines no longer cross the buildings past it, as they did over THE STACKS' court. And with the eye over `eye.from` metres (on a roof) the lines over the eye less `eye.below` go: d12's eye is 12.2 m up, 2 m off the north side, where the line at 13 m (lit 0.14 by Milestone 826's fade, to the near opacity 0.45) climbed across the sky. Within `far.from` of the street every line to its lit height still shows, and the fence still brightens as you come near it."
   }
  },
  "_padSolve": "A jump pad onto a roof (city.ts padOnto), in metres: it stands standOff past a body's radius from the face, throws you straight up to peakOver above the roof, and once you are clear above the edge carries you across to land landInside past it. Ours, so a pad lands you on the roof with no steering; holding forward in the air still carries you further.",
@@ -87,7 +97,8 @@
    "height": [
     0.12,
     0.3
-   ]
+   ],
+   "shift": 0.8
   },
   "storey": 3.6,
   "bay": 2.4,
@@ -103,11 +114,11 @@
   "warm": "#ffc98a",
   "cool": "#8fd3ff",
   "bodies": [
-   "#1d212b",
-   "#2b2721",
-   "#222b35",
-   "#2c2c30",
-   "#1f2622"
+   "#454f52",
+   "#5f5a56",
+   "#80807f",
+   "#8c8c8c",
+   "#8d8789"
   ],
   "groundColour": "#17191e",
   "seed": 6800,
@@ -146,6 +157,69 @@
   "groundDay": "#4a4d54",
   "_groundDay884": "Milestone 884 (the districts' seventh review: 'the black ground past the fence a pale road by day'): `groundDay`, the ground past the fence by day; by night `groundColour`, where the map's own lamps should be the light in view.",
   "_glow1062": "Milestone 1062 (the districts' tenth reviews: 'at night the filler city brighter than the districts', 'dim the filler city at night'): the windows' night glow 0.3 (0.6, Milestone 878; 1.15 before). Measured off night-d99 (by a proposal agent): the districts, 100 to 152 m out, mean linear luminance 0.053 and their brightest hundredth over 0.392; the city past the fence, 190 to 400 m out, 0.037 and 0.438, so its windows outshone the map's lights though it was darker on the whole. With the windows' light halved (its pixels over its own 30th percentile scaled in linear light) its brightest hundredth is 0.225, 0.57 of the districts', its mean 0.45 of theirs; the lit roads (`roads`) stay at 0.9, the one thing the reviews said helped at night.",
+  "facade": {
+   "slab": 0.1,
+   "slabK": 1.35,
+   "glass": "#000000",
+   "glassRough": 0.3,
+   "styles": [
+    [
+     0.18,
+     0.82,
+     0.3,
+     0.78
+    ],
+    [
+     0.04,
+     0.96,
+     0.32,
+     0.8
+    ],
+    [
+     0.25,
+     0.75,
+     0.15,
+     0.88
+    ]
+   ],
+   "share": [
+    0.45,
+    0.3,
+    0.25
+   ],
+   "cap": 0.7,
+   "capK": 1.4,
+   "base": 4.5,
+   "baseK": 0.45,
+   "shop": [
+    0.06,
+    0.94,
+    0.12,
+    0.82
+   ],
+   "shopLit": 2.2,
+   "foot": 1.2,
+   "footK": 0.45,
+   "roof": "#8d8789",
+   "rim": 0.6,
+   "rimK": 1.25,
+   "body": {
+    "day": 1,
+    "night": 0.113
+   }
+  },
+  "_facade1076": "Milestone 1076, backdrop6 (the nineteenth reviews, all four: 'the city past it is untextured boxes with dot windows', 'flat boxes with dot windows', 'give its boxes storey lines, roof clutter and set-back silhouettes', 'roof caps, setbacks, roof props and a dark base'; the centre's: 'replace the skyline boxes with low-detail copies of pack buildings, or thicken the fog'). The first rows are the pack's own buildings now (neonmap.json rules.backdrop) and the towers past them wear a facade worked out in their shader (src/game/skyline.ts): each storey's slab edge a band `slab` of its height at `slabK` the wall's light; the glass in every window `glass` (the pack's window map's glass is black, BuildingWindows00_dif2) at `glassRough`, so the unlit windows show by day as dark glass framed in the wall and not only the lit ones as dots; each block's windows one of `styles` [x0, x1, y0, y1] of a bay and a storey, `share` of the blocks each (the first version 138's own); the top `cap` metres a coping at `capK`; the ground storey, `base` metres, a shop front at `baseK` with one wide window a bay (`shop`, of the bay and of the storey) lit `shopLit` times as often as the windows over it; the foot shaded over `foot` metres down to `footK`; the roof `roof` (Concrete03d's base map's mean, measured), its coping `rimK`, `rim` metres in from its edges. `body`, the walls' light by day and by night: `bodies` are the pack's facade materials' own colours, the means of their base maps (MetalBare02 69,79,82; Concrete03 95,90,86; MetalPanels01b 128,128,127; MetalPanel03_00 140,140,140; Concrete03d 141,135,137, measured off the extract), a mean linear luminance of 0.181 where version 138's (#1d212b, #2b2721, #222b35, #2c2c30, #1f2622) was 0.0205: the boxes stood near black against the map's tan; by night the walls take 0.113 of it and come to 0.0204, as dark as they were (Milestone 1062's night). `setback.shift`: each setback stepped toward a side by up to that share of the room it has (from a sequence of its own, so every tower stands where it stood). `haze` is not moved: the lighter walls go into the map's own air as the dark ones did not.",
+  "field": {
+   "res": 1.25,
+   "reach": 575,
+   "far": 8,
+   "shade": 1.6,
+   "shadeK": 0.45,
+   "kerb": 2.5,
+   "paveK": 1.2,
+   "roadK": 0.85
+  },
+  "_field1076": "Milestone 1076, backdrop6 (the districts' thirteenth reviews: 'some seeming to float over grey ground', 'a dark base with a contact shadow so they sit on the ground'): the ground past the fence (src/game/skyline.ts) reads a field of each point's distance to the nearest wall of a block standing on the ground (the pack's buildings' and the towers'), a texel every `res` metres out to `reach` either way (920 by 920 texels, a byte each, 0.85 MB, built once as the map is), out to `far` metres: shaded to `shadeK` at a wall and back to its own light `shade` metres out, a pavement `paveK` as light out to the kerb, `kerb` metres, and the road past it `roadK`. The sun's shadow covers the map (range.ts setShadowRegion, 230 m round its middle), and past the fence the blocks threw none on a flat grey ground.",
   "ring": {
    "from": 166,
    "to": 186,

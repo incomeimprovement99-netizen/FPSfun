@@ -271,7 +271,7 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   buildEdgeFence(root);
   // a city past the fence (skyline.ts, Milestone 680) and a ring of light round each pad (padrings.ts, Milestone 668):
   // both the city's, hidden with it while a Neon arena is drawn alone (CITY_EXTRAS)
-  buildSkyline(root);
+  buildSkyline(root, (neonCfg as unknown as { backdrop?: { blocks: number[][] } }).backdrop?.blocks ?? []);
   {
     const SP = (neonCfg as unknown as { spine?: { up: Array<{ pad: number[]; floor: number }>; down: Array<{ pad: number[]; floor: number }>; across?: Array<{ pad: number[]; floor: number }> } }).spine;
     const spots = [...neonCfg.pads, ...(SP?.up ?? []), ...(SP?.down ?? []), ...(SP?.across ?? [])].map((q) => ({ x: q.pad[0] + BR_X, z: q.pad[1] + BR_Z, y: q.floor }));

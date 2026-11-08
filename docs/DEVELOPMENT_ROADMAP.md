@@ -19831,3 +19831,123 @@ From the districts' twelfth fresh reviews (2026-11-05, on version 134), both rev
   cooling unit there is THE STACKS' own when THE STACKS faces its set (by the most of its parts, a part may reach over a
   sector's line).
 - **Checked:** the map's checks, 399, all passing on version 138 at every size (the centre's draws 219 of 220 at max), the new one failing on version 137's placements. verify, rules and tsc. Map files version 138: lo 216.9 MB, hi 300.9 MB, max 617.1 MB.
+
+## Milestones 1075 to 1080 and 1087 — the carriageways as mid-range ground, the city past the fence, GLASS HEIGHTS at street level, THE VAULT's strongroom, the kerbs, THE TERRACES' mouth, the bake's texture cache
+
+From the nineteenth fresh reviews (2026-11-06, on version 138: the centre 6.0 and 6.0, the districts 6.2 and 6.2), whose asks
+had turned structural. Four proposal agents measured the larger items as dry runs on version 138's files,
+each applied, laid and baked here one at a time and photographed before the next.
+
+- **1075, the carriageways and the plaza** ("cover in the carriageway every 15-20 m on the Loop and the corner streets:
+  angled hover vans, median islands with barriers, road-works pens; lane dashes, crossings, manholes", "the missing
+  mid-range band", "an angled wrecked van plus a barrier set in each empty 15 m stretch", "the plaza a place to fight",
+  "lit stairs onto the Sky Ring"). Measured against a standing body, 51.6% of the Loop's carriageway lay more than 5 m from
+  cover. Down the Loop and the eight corner streets a station every 16 m where one fits, laid before the street fill: a hover
+  van slewed 15 to 25 degrees across its half, a planted island on the middle line (two of the median's fern planters and a
+  low panel between), or an L of two low panels in one half, each panel 1.86 m (over a standing head) with the centre's lit
+  top strip; parked cars and median blocks within a body's width of one move off. A zebra crossing across each street near
+  its fork and the ring road and across the Loop on each axis, a manhole every 18 m in a lane, a worn lane edge 0.35 m in from
+  each kerb, all painted as the dashes. The stations settle in one bake: the street graph leaves the last run's
+  stations out, as it does the low street pieces (a hover van floats at 1.02 m, over their metre, and each run's stations
+  had dodged the last run's by turns). The Sky Ring's four stairs lit up both flights and light lines out of the base's
+  ground gates across the plaza floor to the Sky Ring's edge (the game's outlines, no bake). No new material. Predicted on
+  version 138: the Loop past 5 m from cover 51.6% to 22.2%, the decay's longest sprint 29.4 to 22.7 s of 31. Road-works pens,
+  stains and a plaza paving pattern are not done: the pack has no cones or barriers, and a new paving material costs a draw
+  at 219 of 220. A proposal agent built and measured it on version 138's files; spaced at 15 m it cost a Loop street wall,
+  so the stations stand 16 m apart.
+- **Checks that learned the new work:** three new (the carriageway's stations, a set every 15 to 25 m down every street
+  and the Loop, each part laid and in its kerb; the centre's road marks, crossings, manholes and lane edges painted; the
+  plaza lit, the stairs' flights and the gates' lines); the median's counts its islands with its blocks; the street cover's
+  planters each listed in the bake's laid-last boxes when one is laid. On version 138 exactly the three new failed; eight
+  faults put back one at a time each failed only its own.
+- **1076, the backdrop** ("the skyline boxes low-detail pack buildings or thicker fog", "the box skyline as pack silhouettes
+  or denser fog", "the outer city's first two rows with roof caps, setbacks, roof props and a dark base", "the box city
+  plainly low fidelity, floating over grey ground"; d11, d12: "the fence's lit lines like red lasers across the sky").
+  Measured headless off the game's own skyline: 1,506 boxes whose walls stood near black (mean linear luminance 0.0205,
+  the pack's facades nine times that), only their lit windows showing, each base on flat lit grey ground. The bundle ships
+  low-detail buildings for exactly this (its Decorative Modules, 90 to 566 triangles). A new `rules.backdrop`, laid last
+  and drawn only into the city's file: in the band the low boxes stood in (194 to 245 m), 245 of them on an even 16 m
+  grid, storey modules stacked one to three high by the fence and the 20 and 27 m blocks only in the band's back half,
+  their windows in the pack's dimmer variants, 251 of the map's own roof props on their roofs, and 16 of the street's cars
+  on the outer ring road, the lanes two each way. The game's skyline draws no box where they stand; a distance field shades
+  and paves the ground at every block's foot, a kerb round each and the road between; the towers behind take storey slabs,
+  black glass, a shop storey and coped roofs in the pack's measured colours by day and as dark as before by night. The
+  fence's lines fade from 18 to 32 m across the ground and over a raised eye, so a district's court and roof no longer see
+  red lines across the sky; within 18 m of the street it shows as it did. No new material: +2.1% triangles in the city's
+  file, the skyline 10 draws by day and 11 by night as before. A proposal agent built and measured it on version 138's
+  files.
+- **Checks that learned the new work:** five new: the backdrop's buildings in their band clear of each other and the
+  fence, in materials the file draws, their roof props on their roofs; the ground's field shading each foot; the towers'
+  facade and their walls by night no brighter than before; the cars in lanes; the fence's far and over-eye fades. On
+  version 138 all five failed; ten faults put back one at a time each failed only its own check.
+lowest district in one review.
+
+- **1077, GLASS HEIGHTS' street** ("lit lobbies and shop signs in the grey lower panels", "white planter-and-bench sets in
+  place of the cream boxes", "cover round the lift's foot", "white troughs in place of the hazard-striped ones, and no flower
+  box"; "the plain white blocks at GLASS HEIGHTS' mouth as built kit", "near-white deck tops and roofs so it reads from the
+  air"). Measured off the pack's own faces: every pit and trough is one 1 m pit whose sides are a light panel glowing a
+  yellow cross in a square (the "hazard stripes"), its rim mossy dirt; Milestones 1054 and 1067 had whitened its soil, taking
+  it for the rim. The flower box's plants are cut-out cards the bake reads opaque, white cards round purple flowers. The
+  white blocks were GLASS HEIGHTS' own panel sets, laid on the ring road's band by Milestone 1074. So its cover kit is now
+  its decks' own: a frosted screen standing in a white trough with a white bench before it, in an L, a bench each side, low
+  ones where nothing over a head may stand; the troughs and planters white with lit cyan edges, the planters' cards the
+  cypress's own branches, the benches white; two low sets either side of the lift's approach and one at the mouth's east;
+  four shop signs (SKY CAFE, GALLERY 26, FLOWERS, BOOKS) over a head on the ground storey's panes facing the court and LOBBY
+  over a lit door frame on the front block; the decks' tops the pack's white hex glowing near white. One material is new,
+  opaque and batched, so the draws stand. A proposal agent built and measured it on version 138's files.
+- **Checks that learned the new work:** GLASS HEIGHTS at street level (its sets a screen in a trough, no plain wall and none
+  of the old kit on the band, low sets by the lift's foot, its looks to the lift clear, no striped pit and no card, its shops
+  and lobbies on their panes, every deck near white). On version 138 every part failed; twelve faults put back one at a time
+  were each caught.
+- **1078, the strongroom** ("the round doorway shows flat gold wall inside, so it reads as a ring on a wall", "give THE
+  VAULT's round doorway depth: a darker strongroom with lit racks receding behind the ring; halve the gold bars", "the gold
+  bars are slabs the size of benches"). Measured off version 138: the ring was always open (the cap's middle is its grille,
+  left out since Milestone 1060), and what showed through it was the gold wall 1 cm behind it; behind that wall the facade's
+  bay is glass to the outside from z 7.0. So the room comes out of the alcove: the doorway's wall moves from z 6.98 to 5.15,
+  the deepest the side gates allow (their north halves still pass a body, their south halves are filled), and behind it
+  stands a strongroom 1.60 m deep, 6.96 m wide and 3.6 m high in the vault ceiling's dark steel, under its own ceiling (a
+  clad's new `under`, its underside drawn). The wall is built in steps round the circle, each hidden behind the ring's rim,
+  so the opening is a real round hole; a 0.45 m black threshold is the step in (a player steps 0.56 m). The leaf swings
+  right back against the wall (stood a quarter open, it would reach past the core's face). Inside, two racks two high along
+  the back, each lit by the floor trim's gold strip, three strips under the ceiling and the lit chest; nothing is left in the
+  doorway. The bars at half size (0.29 m long, a real bar is 0.25), laid in rows on every shelf: 320 where 160 stood. A
+  proposal agent built and measured it on version 138's files; every material was already drawn. After its first bake's
+  pictures the ring stands 14 cm proud of its wall: the cap's rim is crenellated (its faces at two depths in alternate
+  segments, measured off the model), and with its back in the wall's plane its lowered faces stood behind the wall's stepped
+  hole, which showed through them as gold teeth round the doorway (read by a pixel pick).
+- **Checks that learned the new work:** THE VAULT's strongroom a room behind its round doorway (open through its wall, its
+  back 1.5 m and more behind the face, walked into over the threshold and out, its floor reached from the core's door and
+  both halls and not at all with the doorway shut); its gold on shelves (two racks and more in the room, each tier lit and
+  full, nothing between the core's door and the doorway, the bars 0.33 m and under); the strongroom's ways now go over the
+  threshold and out along the leaf through the gates' north halves; the door swung right back, beside the doorway on its
+  wall. On version 138 all four failed (the room 0.22 m deep, the leaf a quarter open, 34 racks and bars before the
+  doorway, the bars 0.58 m long); 17 faults put back one at a time were each caught. The door's check reads the wall round
+  the doorway anywhere within the ring's own depth, so the ring may stand proud of it.
+- **1079, the kerbs** ("the ring road's kerb a black pipe with blue dots", "the black bar with blue dots at the ring road's
+  edge", "a black kerb line with blue dots floating"). The pack's kerb, Curb00b, wears FloorTiles04, a dark metal panel whose emission map is a row of
+  small lit dots (read off its material). `rules.streets.kerb.mat` wears every street kerb in the pavement's concrete
+  (Concrete03d, drawn already), so the road's edge reads as a kerb.
+- **Checks that learned the new work:** every street kerb in the kerb's own wear and none in the lit panel (on version
+  138's placements, all of them were).
+- **1080, THE TERRACES' mouth** ("hedge courts for the white pods and grey blocks before the stair"). Read off version 138's
+  placements, what still stood before THE TERRACES' stair was the centre's own street cover on the ring road's inner half:
+  a lit street box at x -91.2 and a low wall at -91.6, inside Milestone 1074's band (from 94). The band now starts at the
+  ring road's inner edge, 90, so the whole ring road takes the facing district's kit. Version 139's first bake still stood
+  two of the centre's white street boxes alone before the stair (x -91.2 and -98.7): the band had changed the fill's sets but
+  not its single pieces. On the band those now wear the facing district's own wall material (THE TERRACES' green plaster,
+  THE WORKS' rust, LANTERN ALLEYS' timber, GLASS HEIGHTS' white, THE STRIP's dark panel; each a material the map already
+  draws). Laying the district's own single pieces there was tried first and starved the fill: GLASS HEIGHTS' one single is
+  a tall screen its lift's looks refuse, and after 70 thousand refusals there the street fill stopped laying sets anywhere.
+- **Checks that learned the new work:** the band's check counts one of the centre's single street pieces there in the
+  centre's own wear as not dressed, wherever the district dresses its walls; the streets' cover check counts boxes standing one on another from the ground as
+  cover (a crate stack is two 1 m boxes, the lower's top at 1.0: with the band from 90, THE WORKS' crate stacks at the ring
+  road's corner read as none and the farthest point from cover came to 8.7 m).
+
+- **1087, the bake's texture cache** (tools/basis-pool.ts). Every bake encoded all its ~1,100 textures again, though almost
+  none change between versions: a release was about two hours of the machine's time. Each encoded texture is now kept in the
+  paid folder's cache under a hash of its pixels, size and kind and of the encoder and its settings, and a bake encodes only
+  the new ones. Measured on version 139: a low bake with every texture cached took 1.5 minutes for about 5.5, and its file
+  came out byte for byte the same as the bake before it (the same SHA-1). `NEON_KTX2_CACHE=0` encodes everything.
+- **The gap plan** (docs/PLAN_MAP_GAPS.md): every area of the centre and each district, what the reviewers keep naming, what
+  stands there and why, the fix and its batch, toward 7 and then 8.
+- **Checked:** the map check 411 of 411 on the hi and max bakes (each converged, the layout's rerun 0 lines off the bake); the centre's draws 207 at lo, 209 at hi, 219 at max of 220; the cached bakes: lo 1,124 textures all from the cache, hi 717 of 1,124, max 404. verify, rules and tsc. Map files version 139: lo 223.7 MB, hi 307.9 MB, max 627.0 MB.

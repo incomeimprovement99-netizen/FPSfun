@@ -1377,8 +1377,8 @@ round an atrium, gas risers glowing up through it, cabinets, engines and pipe ru
 crowned with tanks 31 m up, lit teal by night. By night every street lamp throws a pool of light on the ground and each
 district is washed in its own colour, THE STRIP the brightest; the central tower's corners and crown glow amber, THE TERRACES' grand stair is lined in green, and a frame of light in its
 place's colour stands at the foot of each fire escape and each stair onto the Sky Ring and the base; THE TERRACES' tier lips, THE CANYON's
-walkway edges, a cornice round each of THE WORKS' halls and the capsule hotel's roof edge are traced in their districts' colours; past the fence low blocks and
-then tower blocks stand to the horizon (`src/game/skyline.ts`), their windows lit. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+walkway edges, a cornice round each of THE WORKS' halls and the capsule hotel's roof edge are traced in their districts' colours; past the fence the bundle's own low buildings with roof clutter, cars on the outer ring road, and
+then tower blocks in storeys stand to the horizon (`src/game/skyline.ts`), their windows lit. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the

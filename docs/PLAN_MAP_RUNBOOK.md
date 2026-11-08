@@ -162,7 +162,10 @@ comment above each check). Count with `grep -c "  ok" T/sknNN.log`.
 
 1. Only after the low loop converged, sk-neon passed and the photos are accepted.
 2. Go script line: `bash $T/fullv.sh NN; grep -v "^item\|^val\|^len" $T/fullNN.out | cut -c1-200 | tail -12`.
-3. **Expected:** about 60 to 110 minutes; `hi exit 0`, `max exit 0`, and each rerun's `diff lines: 0`.
+3. **Expected:** about 60 to 110 minutes before the texture cache (Milestone 1087, 2026-11-08), far less once a size's
+   textures are in it: each bake's log ends `ktx2: N encoded, M from the cache` (the paid folder's `cache/ktx2`; a
+   low bake fully cached took 1.5 minutes for about 5.5). `NEON_KTX2_CACHE=0` encodes everything. Then `hi exit 0`,
+   `max exit 0`, and each rerun's `diff lines: 0`.
 4. **If a rerun's diff is not 0:** the config moved. Run one more low loop (SOP-B) and then the full bakes again.
 5. **Run sk-neon again after the full bakes.** Each bake writes its own statistics into the config (`baked.draw`, the
    centre's batches and the primitives left one a material), and the draws check (Milestone 657: 220 primitives at most
