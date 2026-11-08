@@ -33,6 +33,7 @@ than one round of pictures.
 | 18 (134) | 6.0, 6.0 | 6.2, 6.2 | finish 5 to 5.5, the roads' blotches |
 | 19 (138) | 6.0, 6.0 | 6.2, 6.2 | finish 5 to 5.5, play-style 6 |
 | 20 (139) | 6.0, 6.0 | 6.2, 6.3 | finish 5 to 5.6, flow 5.9 to 7 |
+| 21 (140) | 6.2, 6.3 | 6.4, 6.3 | finish 5.5 to 5.8, flow 5.8 to 6 in the districts |
 
 Round 19's districts, one by one (reviewer A, reviewer B): LANTERN ALLEYS 6.5, 6.6; THE TERRACES 6.0, 5.9; THE TERMINAL
 7.0, 6.3; THE STACKS 6.0, 6.0; GLASS HEIGHTS 5.5, 6.0; THE STRIP 6.5, 6.8; THE CANYON 6.5, 6.3; THE WORKS 6.5, 6.4.
