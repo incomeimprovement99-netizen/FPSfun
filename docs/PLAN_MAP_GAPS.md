@@ -32,9 +32,16 @@ than one round of pictures.
 | 17 (133) | 6.0, 6.0 | 6.2, 6.2 | finish 5, the ground smeared |
 | 18 (134) | 6.0, 6.0 | 6.2, 6.2 | finish 5 to 5.5, the roads' blotches |
 | 19 (138) | 6.0, 6.0 | 6.2, 6.2 | finish 5 to 5.5, play-style 6 |
+| 20 (139) | 6.0, 6.0 | 6.2, 6.3 | finish 5 to 5.6, flow 5.9 to 7 |
 
 Round 19's districts, one by one (reviewer A, reviewer B): LANTERN ALLEYS 6.5, 6.6; THE TERRACES 6.0, 5.9; THE TERMINAL
 7.0, 6.3; THE STACKS 6.0, 6.0; GLASS HEIGHTS 5.5, 6.0; THE STRIP 6.5, 6.8; THE CANYON 6.5, 6.3; THE WORKS 6.5, 6.4.
+
+Round 20's (2026-11-08, version 139): LANTERN ALLEYS 6.5, 6.5; THE TERRACES 6.0, 6.3; THE TERMINAL 7.0, 6.8; THE STACKS
+5.9, 6.2; GLASS HEIGHTS 6.2, 5.8; THE STRIP 6.8, 7.0; THE CANYON 6.7, 6.7; THE WORKS 6.4, 6.4. Version 139's work was read
+(the carriageway cover gone from the asks, the strongroom "gold and costly inside", the pack's low buildings past the fence)
+and each brought its next fault: the strongroom's racks outside it too, its gold flat orange paint, the white towers behind
+the low buildings. Batch 7 (version 140) answers the first two; the rest of round 20's new asks are in section 6.2.
 
 **The pattern, plainly.** Every fault a reviewer names gets fixed, and the next round names that fix as seen. The road
 blotches that every reviewer named for two rounds were named by none in round 19, for example. But the centre has held 6.0
@@ -49,7 +56,7 @@ structural: places to fight in, ways up and across, interiors worth entering, an
 - **The pack.** Everything is built from Daelonik's Neon City bundle (your rule). It has no traffic cones, road barriers,
   fountains or furniture sets, so those asks get the nearest pack pieces, or are left with the reason written down.
 
-## 3. What version 139 answers (shipping now)
+## 3. What version 139 answered (live since 2026-11-08)
 
 | Ask (round 19 and before) | What 139 does | Expect |
 |---|---|---|
@@ -347,7 +354,7 @@ empty, the city past it untextured boxes" (the last two answered by 139).
 
 ## 6. The order
 
-### 6.1 Batch 7 (next; aimed at the centre's play-style and finish, and the lowest districts)
+### 6.1 Batch 7 (built 2026-11-08 as version 140, Milestones 1081 to 1094)
 
 Six proposal agents, all measuring on version 139's files at once. Each comes back with a dry run, its checks proven, and
 the review spots that show it. They are applied one at a time, then baked once as one version:
@@ -363,11 +370,30 @@ the review spots that show it. They are applied one at a time, then baked once a
 Mine, alongside them: the plaza (4.1), the tower floors (4.5), every chest gold (4.6), THE WELL's rope (4.9), night (4.10),
 the finish list (4.12), the districts' night colours (5.9).
 
-**What round 20 should show** (reviewing 139 while batch 7 is built): the strongroom, the backdrop and GLASS HEIGHTS named
-as fixed. If the centre stays at 6, its asks will be the ones batch 7 is already building.
+**What round 20 showed** (version 139): the strongroom, the street cover and the backdrop read as fixed, the centre held at
+6.0; its asks were batch 7's (the plaza first in both, the roofs' cover, the base's skin, MARKET, the atrium). **Built as
+version 140:** all six agents' items and a seventh, the plaza (Milestone 1088), and of mine every chest gold (1089), the lamp
+pools (1090), THE WELL's rope frame (1091), the tower floors' light and numbers (1092), and from round 20 THE VAULT's gold in
+one room with its walls scratched gold (1093) and THE CANYON's worn paving (1094). Left for batch 8: the desks on the 26 m
+floor, the districts' night colours, the finish list's hover car and picture 24's dark facade.
 
 ### 6.2 Batch 8 (then round 22)
 
+From round 20, new and named twice or first:
+- **GLASS HEIGHTS' street storeys as real shopfronts** (district B's first ask): mullioned glazing, lit interiors,
+  canopies and recessed doors in the grey lower panels; the lift's white bands as slim rings.
+- **The lift ropes' tops anchored** (centre A, 04 and 14: "a vertical rope from the sky with no anchor"), as THE WELL's.
+- **Roof access seen from the street** (both district reviews): a stair, ladder or pad visible on every block.
+- **THE WORKS' yard as a few big set pieces** (both): container stacks, a pipe rack, a gantry, for the crate field.
+- **THE CANYON's roofs** (both): rooftop structures 3 to 6 m, gaps, zips across.
+- **THE TERRACES' room** (both, d06): a garden pavilion for the shipping container; its dark forecourt lit.
+- **The pale slab across LANTERN ALLEYS' mouth** (both, d01) and a centrepiece in its court.
+- **THE STRIP's red X tile on every face** (both): two or three facade materials; the pyramid's pink band (d17).
+- **The centre's white lit street boxes** read as greybox cubes (06, 16); the city's white striped towers past the fence
+  (all four).
+- **Night**: the facades lit from below where a street is dark (24); the north and west districts nearly invisible (d99).
+
+And from before:
 - Rooms at street level (4.2) and the tower's balconies (4.4).
 - The best loot as a route (4.6) and one tower floor in rooms (4.5).
 - LANTERN ALLEYS, THE STRIP and THE TERMINAL (5.6 to 5.8), and GLASS HEIGHTS' court (5.2).
@@ -388,7 +414,7 @@ met (runbook section 6.1).
 - **The texture cache (built 2026-11-08).** Every bake used to encode all its ~1,100 textures again, even though almost
   none change between versions. A full release was about 2 hours of machine time: about 35 minutes for the low loop and 75
   for the full-size bakes. The bake now keeps each encoded texture, keyed by its pixels, size and kind and by the encoder,
-  and encodes only new ones. A cached bake is checked byte for byte against an uncached one.
+  and encodes only new ones. A cached bake is checked byte for byte against an uncached one. Measured on version 140: the hi bake 4 minutes and the max 8, one texture of 1,126 encoded, for about 75 minutes the pair before.
 - **Bigger batches.** The agents of a batch all measure on one snapshot, and the batch ships as one version: one low loop,
   one pair of full bakes and one round of reviews per batch, instead of one per milestone.
 - **What cannot be baked ahead.** The map's geometry is one merged file per size, so any piece that moves means a re-bake.

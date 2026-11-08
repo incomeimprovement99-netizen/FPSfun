@@ -41,7 +41,7 @@ interface Spine {
 }
 
 /** what the map drew, for the page's hook and the checks */
-export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; batches: { batches: number; materials: number; layers: number }; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean; anisotropy: { asked: number; textures: number }; flattened: number } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, batches: { batches: 0, materials: 0, layers: 0 }, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false, anisotropy: { asked: 0, textures: 0 }, flattened: 0 };
+export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; batches: { batches: number; materials: number; layers: number }; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean; anisotropy: { asked: number; textures: number }; flattened: number; towerLit: { materials: number; rows: number } } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, batches: { batches: 0, materials: 0, layers: 0 }, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false, anisotropy: { asked: 0, textures: 0 }, flattened: 0, towerLit: { materials: 0, rows: 0 } };
 
 /**
  * The city's collision boxes (src/config/neon/neonmap.solids.json, measured off the pieces at the bake): a file of their
@@ -80,6 +80,34 @@ export function addNeonSolids(boxes: number[][]): void {
 }
 
 const G = neonCfg.game;
+
+type WellFrameCfg = { side: number; out: number; top: number; thick: number; over: number; brace: number; block: number };
+/**
+ * THE WELL's rope's frame (game.wellFrame, Milestone 1091; the centre's nineteenth reviews, A, 19b: "the rope rising past
+ * the rim into empty sky"): a post on the rim outside its rail, `side` metres across from the rope's way out so a rider
+ * steps off clear of it and `out` past the rail's outer face, a boom from its top out over the rope, `over` past it, with a
+ * block in the rope's colour where the rope hangs, and a brace under the boom. Map-local; null without a well, its rope or
+ * its rail.
+ */
+export function wellFrame(): { post: [number, number]; top: number; end: [number, number]; rope: [number, number]; box: number[]; brace: { post: number; boom: number }; cfg: WellFrameCfg } | null {
+  const W = (neonCfg as unknown as { well?: { ropes?: Array<{ rope: number[][]; out: number[] }>; rail?: number[][] } }).well;
+  const F = (G as unknown as { wellFrame?: WellFrameCfg }).wellFrame;
+  const q = W?.ropes?.[0];
+  if (!q || !F || !W?.rail?.length) return null;
+  const [rx, , rz] = q.rope[0];
+  const [ox, oz] = q.out;
+  // (the rail's cells within a metre of the rope's line out, across it: their outermost corner along `out`)
+  const [ax, az] = [-oz, ox];
+  const near = W.rail.filter(([x0, x1, z0, z1]) => Math.abs(((x0 + x1) / 2 - rx) * ax + ((z0 + z1) / 2 - rz) * az) < 1);
+  if (!near.length) return null;
+  const face = Math.max(...near.flatMap(([x0, x1, z0, z1]) => [x0, x1].flatMap((x) => [z0, z1].map((z) => (x - rx) * ox + (z - rz) * oz))));
+  const d = face + F.out;
+  const post: [number, number] = [rx + ox * d + ax * F.side, rz + oz * d + az * F.side];
+  const len = Math.hypot(rx - post[0], rz - post[1]);
+  const end: [number, number] = [post[0] + ((rx - post[0]) / len) * (len + F.over), post[1] + ((rz - post[1]) / len) * (len + F.over)];
+  const h = F.thick / 2;
+  return { post, top: F.top, end, rope: [rx, rz], box: [post[0] - h, post[0] + h, post[1] - h, post[1] + h, 0, F.top], brace: { post: F.top - F.brace, boom: F.brace }, cfg: F };
+}
 /** the map's own haze (atmosphere.ts ownAir), neonmap.json game.air */
 export const NEON_AIR = G.air;
 /** the plain floor drawn until the bundle's file is in, or where it is not */
@@ -138,7 +166,7 @@ export function updateNeonFill(eye: THREE.Vector3): void {
  * arenas' own nodes are hidden with the city shown. Kept, and put on the file when it comes in.
  */
 const PART: { shown: string | null; root: THREE.Object3D | null } = { shown: null, root: null };
-const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes", "neon:names", "skyline", "skylineGround", "skylineRing", "padRings", "padColumns", "lightPools", "outlines"]);
+const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes", "neon:names", "skyline", "skylineGround", "skylineRing", "padRings", "padColumns", "lightPools", "lightWashes", "outlines"]);
 export function showNeonPart(chunk: string | null): void {
   if (PART.shown === chunk) return;
   PART.shown = chunk;
@@ -264,6 +292,12 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   // (over the corridor only: an entrance's well is open to the street; over the station and its tunnel, the street)
   for (const { slab: [x0, x1, z0, z1] } of K.halls) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
   for (const [x0, x1, z0, z1] of UG.slabs) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
+  // (and THE WELL's frame's post, wellFrame: it stands on the rim's paving, so it collides as the street's pieces do)
+  const WF = wellFrame();
+  if (WF) {
+    const [x0, x1, z0, z1, y0, y1] = WF.box;
+    RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
+  }
   const slabs = RANGE_SOLIDS.slice(first);
   // (and the boxes the bake measured, when they are in: addNeonSolids)
   rebuildSolidGrid();
@@ -488,10 +522,34 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       ropes.push(collar);
     }
   };
+  // (THE WELL's rope drawn up to its frame's boom, wellFrame, not ending in the air over the rim)
+  const WFr = wellFrame();
+  const wellRope = ropeCfg.well?.ropes?.[0];
   for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? []), ...(ropeCfg.express ?? []), ...(ropeCfg.glass?.lift ? [ropeCfg.glass.lift] : [])]) {
     const [a, b] = q.rope;
-    cable(new THREE.Vector3(a[0], q.floor, a[2]), new THREE.Vector3(a[0], b[1] + 0.3, a[2]), G.liftRope, q.colour);
+    const top = WFr && q === wellRope ? WFr.top - WFr.cfg.thick / 2 : b[1] + 0.3;
+    cable(new THREE.Vector3(a[0], q.floor, a[2]), new THREE.Vector3(a[0], top, a[2]), G.liftRope, q.colour);
     ZIPLINES.push({ a: new THREE.Vector3(a[0] + BR_X, a[1], a[2] + BR_Z), b: new THREE.Vector3(b[0] + BR_X, b[1], b[2] + BR_Z) });
+  }
+  // the frame itself: post, boom and brace in the ropes' dark steel, the block where the rope hangs lit as their collars
+  if (WFr && wellRope) {
+    const FR = WFr.cfg;
+    const steel = cableMat ?? emissive(new THREE.Color(wellRope.colour).getHex(), G.zipGlow);
+    const bar = (a: THREE.Vector3, b: THREE.Vector3) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(FR.thick, a.distanceTo(b), FR.thick), steel);
+      m.position.copy(a).add(b).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      ropes.push(m);
+    };
+    const [[px, pz], [ex, ez]] = [WFr.post, WFr.end];
+    const len = Math.hypot(ex - px, ez - pz);
+    const along = (t: number, y: number) => new THREE.Vector3(px + ((ex - px) * t) / len, y, pz + ((ez - pz) * t) / len);
+    bar(new THREE.Vector3(px, 0, pz), new THREE.Vector3(px, WFr.top + FR.thick / 2, pz));
+    bar(along(-FR.thick / 2, WFr.top), along(len, WFr.top));
+    bar(new THREE.Vector3(px, WFr.brace.post, pz), along(WFr.brace.boom, WFr.top));
+    const block = new THREE.Mesh(new THREE.BoxGeometry(FR.block, FR.block, FR.block), emissive(new THREE.Color(wellRope.colour).getHex(), G.zipCollar.glow));
+    block.position.set(WFr.rope[0], WFr.top - FR.thick / 2 - FR.block / 2, WFr.rope[1]);
+    ropes.push(block);
   }
   // the zip lines (neon-layout.ts rules.low.zip): from each rooms building's roof yard up to a High City deck, a rope
   // between its ends lit in its block's colour, ridden up or down
@@ -613,8 +671,9 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     over(K.x0, K.x1, K.z0, K.z1, K.y + F.height);
     for (const f of UG.floors as Array<{ rect: number[]; y: number; ramp?: boolean; well?: boolean }>) if (!f.ramp && !f.well) over(f.rect[0], f.rect[1], f.rect[2], f.rect[3], f.y + F.height);
     // (and over the floors named in `rects` [x0, x1, z0, z1, floor]: THE TERMINAL's concourse and THE WORKS' halls, which
-    // the reviews found near black, Milestone 688)
-    for (const r of (F as unknown as { rects?: number[][] }).rects ?? []) over(r[0], r[1], r[2], r[3], r[4] + F.height);
+    // the reviews found near black, Milestone 688; a row's sixth field its own height over its floor, Milestone 1086: THE
+    // WORKS' halls' spots at 3 m threw a bright disc on the floor under each, the thirteenth reviews' "light pool" in d23)
+    for (const r of (F as unknown as { rects?: number[][] }).rects ?? []) over(r[0], r[1], r[2], r[3], r[4] + (r[5] ?? F.height));
     // (none inside or within `off` of anything solid: the station's grid met platform edges and the corridors' low
     // ceilings, and a spot on a wall's face lit one side of it only)
     const off = F.off;
@@ -843,6 +902,93 @@ function flattenMains(scene: THREE.Object3D, F: Record<string, { keep: number; m
   return done.size;
 }
 
+/**
+ * The tower's windows lit only on its played storeys (rules.tower.lit, Milestone 1081; the centre's nineteenth reviews, A's
+ * second ask: "the tower's bands and windows lit only on the playable storeys, each in its floor's colour, the dummy storeys
+ * dark"). The shell is one model and its window strips (Light02, measured: 24.4 m2 lit a storey from 38.5 to 105.5 m) glow
+ * the same at every height. Here each named material's glow, inside the tower's boxes and outside its square's inner part
+ * (the props on its floors wear Light02 too, and stand 1.1 m and more inside), takes the colour of the storey it is on at
+ * the strength it had, and is put out (`dark`) on a storey no one plays. Applied after the decay's patch, so the decay's
+ * own glow is added after it. A batch's rows by the names the bake writes (tools/import-city.ts), each marked in its table's
+ * spare slot (row 2's fourth). How many materials it taught and how many of their batch rows
+ */
+type TowerLit = { spans: Array<[number, number, string]>; mats: string[]; boxes: number[][]; inner: number[]; dark: number; gain: number };
+function lightTower(scene: THREE.Object3D): { materials: number; rows: number } {
+  const L = (neonCfg.rules.tower as unknown as { lit?: TowerLit }).lit;
+  if (!L || !L.spans.length) return { materials: 0, rows: 0 };
+  const want = new Set(L.mats);
+  // (each storey's light at its own hue and full strength, times the glow the material had: a strip as bright as before)
+  const cols = L.spans.map(([, , spec]) => {
+    const c = new THREE.Color(`#${/#([0-9a-f]{6})/i.exec(spec)?.[1] ?? "ffffff"}`);
+    const k = Math.max(c.r, c.g, c.b, 1e-3) / L.gain;
+    return new THREE.Vector3(c.r / k, c.g / k, c.b / k);
+  });
+  const u = {
+    uTwXZ: { value: L.boxes.map(([x0, x1, , , z0, z1]) => new THREE.Vector4(x0 + BR_X, z0 + BR_Z, x1 + BR_X, z1 + BR_Z)) },
+    uTwY: { value: L.boxes.map(([, , y0, y1]) => new THREE.Vector2(y0, y1)) },
+    uTwIn: { value: new THREE.Vector4(L.inner[0] + BR_X, L.inner[2] + BR_Z, L.inner[1] + BR_X, L.inner[3] + BR_Z) },
+    uTwSpan: { value: L.spans.map(([y0, y1]) => new THREE.Vector2(y0, y1)) },
+    uTwCol: { value: cols },
+    uTwDark: { value: L.dark },
+  };
+  const [nb, ns] = [L.boxes.length, L.spans.length];
+  const glsl = (on: string) => `
+  if (${on} > 0.5) {
+    bool twIn = false;
+    for (int i = 0; i < ${nb}; i++) if (vTwW.x > uTwXZ[i].x && vTwW.x < uTwXZ[i].z && vTwW.z > uTwXZ[i].y && vTwW.z < uTwXZ[i].w && vTwW.y > uTwY[i].x && vTwW.y < uTwY[i].y) twIn = true;
+    if (twIn && !(vTwW.x > uTwIn.x && vTwW.x < uTwIn.z && vTwW.z > uTwIn.y && vTwW.z < uTwIn.w)) {
+      float twG = max(totalEmissiveRadiance.r, max(totalEmissiveRadiance.g, totalEmissiveRadiance.b));
+      vec3 twOut = totalEmissiveRadiance * uTwDark;
+      for (int i = 0; i < ${ns}; i++) if (vTwW.y >= uTwSpan[i].x && vTwW.y < uTwSpan[i].y) twOut = uTwCol[i] * twG;
+      totalEmissiveRadiance = twOut;
+    }
+  }`;
+  const done = new Set<THREE.Material>();
+  let [materials, rows] = [0, 0];
+  scene.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    for (const m of (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as THREE.MeshStandardMaterial[]) {
+      if (done.has(m)) continue;
+      done.add(m);
+      const batch = m.userData?.batch as { names?: string[]; width: number } | undefined;
+      const table = BATCH_OF.get(m)?.uBTable?.value as THREE.DataTexture | undefined;
+      let on = "";
+      if (batch && table) {
+        // (a batch: its rows by name, each marked in row 2's spare slot, which the batch's own patch leaves at 0)
+        const data = table.image.data as unknown as Float32Array;
+        let marked = 0;
+        (batch.names ?? []).forEach((name, row) => {
+          if (!want.has(name)) return;
+          data[(row * batch.width + 2) * 4 + 3] = 1;
+          marked++;
+        });
+        if (!marked) continue;
+        table.needsUpdate = true;
+        rows += marked;
+        on = "bRow2.w";
+      } else if ([...want].some((k) => m.name === `neon/${k}`)) on = "1.0";
+      else continue;
+      materials++;
+      const prev = m.onBeforeCompile;
+      m.onBeforeCompile = (shader, r) => {
+        prev?.call(m, shader, r);
+        Object.assign(shader.uniforms, u);
+        shader.vertexShader = shader.vertexShader
+          .replace("#include <common>", "#include <common>\nvarying vec3 vTwW;")
+          .replace("#include <begin_vertex>", "#include <begin_vertex>\nvTwW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+        shader.fragmentShader = shader.fragmentShader
+          .replace("#include <common>", `#include <common>\nvarying vec3 vTwW;\nuniform vec4 uTwXZ[${nb}];\nuniform vec2 uTwY[${nb}];\nuniform vec4 uTwIn;\nuniform vec2 uTwSpan[${ns}];\nuniform vec3 uTwCol[${ns}];\nuniform float uTwDark;`)
+          .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>${glsl(on)}`);
+      };
+      const prevKey = m.customProgramCacheKey.bind(m);
+      m.customProgramCacheKey = () => `${prevKey()}|towerlit${on === "1.0" ? "" : "b"}`;
+      m.needsUpdate = true;
+    }
+  });
+  return { materials, rows };
+}
+
 /** the city's file at a size: the one dressNeonMap reads (?neontag=: a bake of another grouping, tools/import-neon.ts NEON_TAG) */
 function cityUrl(size: "lo" | "hi" | "max"): string {
   const tag = (new URLSearchParams(location.search).get("neontag") ?? "").replace(/[^a-z0-9-]/gi, "");
@@ -1023,6 +1169,8 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
       o.matrixAutoUpdate = false;
     });
   holdForDecay(gltf.scene, null);
+  // (after the decay's patch, so its glow is added after this one's colour: the tower's windows by storey, Milestone 1081)
+  NEON_MAP.towerLit = lightTower(gltf.scene);
   reflectCity(gltf.scene, renderer);
   if (standIn) standIn.visible = false;
   renderer.shadowMap.needsUpdate = true;

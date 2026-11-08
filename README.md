@@ -1355,14 +1355,14 @@ City bundle alone, nothing drawn by hand; the ILranch city it replaced went on
 The same nine districts, the eight round the centre plain for now with straight
 roads, but for LANTERN ALLEYS past the ring road in the north-east: alleys lined with
 low shophouses under lantern lines meeting at a pole in its court, jump pads up onto their roofs; and THE TERRACES in
-the west: three garden tiers stepping up to the edge, their lips lit green, a grand stair up the middle with a tall tree either
+the west: three garden tiers stepping up to the edge, their lips lit green, terracotta planters and slim pergolas with benches on the lawn, a grand stair up the middle under its name large on the gate, a tall tree either
 side of its head, a run of
 balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls, each lit and
 furnished; and
 THE TERMINAL in the south: a station hall of arcades under hex glass vaults, lit amber, metro map boards and
 ticket machines along its concourses, a metro train at its platform and trams on the strips beside it, jump pads onto its vault roofs; and THE STACKS
 in the north-west: three towers of stacked capsule pods round an avenue and a car park, and a
-capsule hotel of 21 pods on three storeys round a court, galleries and stairs up to its roof, lit pink by
+capsule hotel of 21 pods on three storeys round a court with a line of cover across its middle, galleries and stairs up to its pink-railed roof with cover on it, lit pink by
 night, and a jump pad onto a pod roof 20 m up the twin towers; and GLASS HEIGHTS in the north: white glass
 towers with decks at the High City's height, joined by gangways, the North deck's carried across the ring road onto
 them, a glass lift up from its courtyard, its gangways glowing cyan underneath by night, its towers' windows glowing cyan, and a 72 m tower in
@@ -1371,10 +1371,10 @@ black tower on the city's edge at the end of a boulevard, its foot ringed by glo
 stepped pyramid of lit windows, each step edged in magenta, to run up onto a lookout 7 m over the plaza, and a club walled in red lit panels under a glowing inverted pyramid, a lit dance floor and a DJ booth
 in it, its balcony running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
 between two cliffs of lit windows 27 m high, down both arms and round the corner, passages in from the ring road,
-walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor, bundles of cables slung across it, neon signs out over its walkways and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L, lintels over their doors and teal lights under their roofs,
+walkways 3.5 m up both walls with stairs set into them, its fronts in runs of white offices, glass and dark blocks with balconies over the walkways, bridges across its roofs, jump pads up from its passages, a market down its worn paving, a service lane with parked vans past it to the fence, bundles of cables slung across it, neon signs out over its walkways and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L on concrete floors, lintels over their doors, bolted plates on its rust walls and teal lights under their roofs,
 crossed indoors from hall to hall, each with columns, gantry rails under its roof, a gallery and its stair, a tank and engines, and the corner's works block with an upper floor
 round an atrium, gas risers glowing up through it, cabinets, engines and pipe runs under it, jump pads up to it; pads in its yards onto the roofs, footbridges between them, and the works block
-crowned with tanks 31 m up, lit teal by night. By night every street lamp throws a pool of light on the ground and each
+crowned with tanks 31 m up, lit teal by night. By night every street lamp throws a pool of light on the ground, bright under the lamp and fading to nothing, and each
 district is washed in its own colour, THE STRIP the brightest; the central tower's corners and crown glow amber, THE TERRACES' grand stair is lined in green, and a frame of light in its
 place's colour stands at the foot of each fire escape and each stair onto the Sky Ring and the base; THE TERRACES' tier lips, THE CANYON's
 walkway edges, a cornice round each of THE WORKS' halls and the capsule hotel's roof edge are traced in their districts' colours; past the fence the bundle's own low buildings with roof clutter, cars on the outer ring road, and
@@ -1397,7 +1397,7 @@ from the edge road, crates on it to fight from, and on MOTEL HILL and MARKET a f
 the roof beside it. In the south-east block's corner
 instead, the Well: the pack's inverted building, a light-well with galleries of
 shops 3.5 m apart down to 10 m under the street, a stair down every storey from
-a stairwell in the street, a rope up its middle, and a corridor from its lowest
+a stairwell in the street, a rope up its middle hung from a steel frame at its rim, and a corridor from its lowest
 gallery to the metro station's concourse. A walkway one floor up, the Sky
 Ring, circles the tower's plaza inside the Loop, glass-railed, with a stair up
 from the plaza on each side, and a footbridge from it to a glass lift beside each
@@ -1406,15 +1406,15 @@ to a landing onto the roof, or back down; up the north and west islands' Loop fa
 climb from the street to the roof. The tower stands on a wide base filling the plaza,
 built of the tower's own pieces (`tools/neon-base.ts` bakes its floors to meet
 the tower's on every storey): three storeys and a roof, an open hall behind a
-colonnade on the ground floor (open to the plaza all round), offices on the first, a warehouse hall on the second, four stairs between
-each, bridges from its first floor's corners to the Sky Ring, and its roof runs
+colonnade on the ground floor (open to the plaza all round, canopies over its entrances, a turnstile line at the metro, a reception desk and a lounge under a lit coffer in its atrium), offices on the first, a warehouse hall on the second, its faces banded in cyan light at each floor with framed windows and THE LOBBY in large letters over each, four stairs between
+each, bridges from its first floor's corners to the Sky Ring, round its foot on the plaza a ring of low lit walls with gaps at its gates, cover clusters, planters and a sign column, and its roof runs
 onto the tower's terrace and in through its glass waist. A stair core runs
 up the tower's middle from its lobby to its top floor (`tools/neon-tower.ts`), a
 door onto each of its 15 storeys, eight of them new floors between 14 and 35 m and the pack's three over them,
-each laid out differently: open, rooms, halls, a maze, a loop, two halves or corner bunkers, each numbered 1 to 11 in lights on black at the stair (2 m high beside two of its doors), its doorways in steel frames, its walls their own colour
-and its own tiles, and loot on each; the top storey is closed over by a lid, and over it the stair climbs on through the hollow upper half to three levels, a sky lobby at 60.5 m (open, its windows at eye height over the city), a machine hall at 75.5 (rusted metal behind gates) and a penthouse at 90.5 (an open loft two storeys tall, in gold), numbered 12 to 14, and out onto the crown at 109 m; two express ropes in gold run non-stop from the 45.5 m floor up through the levels to the penthouse, ridden up or down and grabbed from each level over the low barrier round its shaft; the maze floor at 32 m is THE VAULT, named on the map, the richest loot in the centre, its row of windows framed in gold light round the tower and its lamps burning gold, and inside it gold: its gates gold vault doors, its hex floor gold, gold strips along its walls and its floor edged in gold light. Its floors and the base's upper storeys have
+each laid out differently: open, rooms, halls, a maze, a loop, two halves or corner bunkers, each numbered 1 to 11 in lights on black at the stair (2 m high beside two of its doors) and in its own colour at each landing inside the core, facing you as you climb, its doorways in steel frames, its walls their own colour
+and its own tiles, and loot on each; the top storey is closed over by a lid, and over it the stair climbs on through the hollow upper half to three levels, a sky lobby at 60.5 m (open, its windows at eye height over the city), a machine hall at 75.5 (rusted metal behind gates) and a penthouse at 90.5 (an open loft two storeys tall, in gold), numbered 12 to 14, and out onto the crown at 109 m; two express ropes in gold run non-stop from the 45.5 m floor up through the levels to the penthouse, ridden up or down and grabbed from each level over the low barrier round its shaft; the maze floor at 32 m is THE VAULT, named on the map, the richest loot in the centre, its row of windows framed in gold light round the tower and its lamps burning gold, and inside it gold: its walls scratched gold, its gates gold vault doors, its hex floor gold, gold strips along its walls and its floor edged in gold light, and behind a round vault door swung open on its hinge a strongroom with the gold bars on lit racks, the only gold bars on the floor. From outside only the storeys you can play are lit, each in its floor's colour, the dummy storeys between the levels dark. Its floors and the base's upper storeys have
 open windows, 1.25 m wide, no glass: shot through, jumped in through. Its floors, the base's storeys, the court and the
-station are lit from their lamps by a pool of lights that follows you (neonmap.json game.fill: two lights on Competitive, four on Balanced, eight on High), the tower's at a fifth of the others' strength. The streets carry the pack's lamps,
+station are lit from their lamps by a pool of lights that follows you (neonmap.json game.fill: two lights on Competitive, four on Balanced, eight on High), the tower's at a fifth of the others' strength and near white, each floor's colour in its lamps and trim. The streets carry the pack's lamps,
 parked cars and hover vans as cover, a broken median of planters (solid to a crouched head, the plant over it shot through) and concrete walls with posters on both faces down every street, more planters, poster walls and kiosks so that no point of a street is more than 6 m from something to crouch behind, low buildings where the ground beside them was free, flying cars and neon signs; a check keeps how far a standing body on the streets is seen from in bounds. `tools/neon-layout.ts` places every piece
 by its measured bounds from the rules in `src/config/neonmap.json`, and
 `tools/import-neon.ts NEON=bake` bakes them into one file a texture size (the tutorial's rooms have their own,
@@ -1444,10 +1444,10 @@ roofs; four more throw you from the plaza onto the tower's base's roof, one from
 on the tower's east block at 49 m, two more from there up to the tower's crown at 109 m, and one back
 down off the lookout; and pads in Market and by the Well throw you across onto their higher roofs and on onto the bridge
 ring, and the four roofs are joined into a ring round the tower by the pack's
-floating bridges over the street crossings, each riding over its islands' fence
+floating bridges over the street crossings (cut at two corners into gaps with a jump pad either side), chest-high cover on the decks, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map; the four corner blocks are named too (MOTEL HILL, NOODLE
-ROW, MARKET, THE WELL), each with loot of its own through its building and on its roof, and a big neon sign on a roof facing the middle; NOODLE ROW has street food stalls and a canopy of lanterns strung across its streets, MARKET stacks of crates along its pavements, and lamps ring THE WELL's shaft; THE WELL and MARKET have their names in neon letters on the roof of the building facing their junction; and one building along the curves on each corner block is the pack's realistic kind, rooms and stairs inside to walk into from the street, a lit gold frame at its door; and from MOTEL HILL's and NOODLE ROW's roof yards a zip line, a dark cable with lit collars in its block's colour, runs up to a High City deck, and three run from the tower's lookout at 49 m down to the north, east and south decks.
+ROW, MARKET, THE WELL), each with loot of its own through its building and on its roof (every loot chest gold-lidded and lit), and a big neon sign on a roof facing the middle; NOODLE ROW has street food stalls with bistro tables by them and a canopy of lanterns strung across its streets, MARKET market stalls under cloth awnings, crates in wood and awnings strung across its streets, MOTEL HILL a railed walkway one floor up round its motel, and lamps ring THE WELL's shaft; THE WELL and MARKET have their names in neon letters on the roof of the building facing their junction; and one building along the curves on each corner block is the pack's realistic kind, rooms and stairs inside to walk into from the street, a lit gold frame at its door; and from MOTEL HILL's and NOODLE ROW's roof yards a zip line, a dark cable with lit collars in its block's colour, runs up to a High City deck, and three run from the tower's lookout at 49 m down to the north, east and south decks.
 `tools/checks/sk-neon.ts` rides every pad, walks every bridge from island to island and back, walks the graph, both metro
 entrances and each rooms building's floors from the street, and climbs each fire escape onto its roof and back and into its yard.
 

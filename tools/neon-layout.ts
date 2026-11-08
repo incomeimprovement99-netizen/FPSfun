@@ -1060,11 +1060,11 @@ const wedges: Array<{ block: string; fork: Pt; out: Pt; w: number; top: number }
   // footprint grown by `grow` for what stands round it; turned so its own side `face` (degrees from its own +z) is to
   // its nearest road (down the road distance's slope), and its `extras` (pieces at x, y, z in its own metres) with it.
   // The pavement is 2.5 m, so none stands on it
-  type DressSet = { name: string; block: string; pieces: string[]; count: number; apart: number; near: number[]; face: number; grow?: number; extras: Array<{ piece: string; at: number[]; mode: "g" | "s" | "o" }>; save?: string };
-  const SL = L.stalls as { block: string; pieces: string[]; count: number; apart: number; lantern: string; lanterns: number[][] } | undefined;
+  type DressSet = { name: string; block: string; pieces: string[]; count: number; apart: number; near: number[]; face: number; grow?: number; extras: Array<{ piece: string; at: number[]; mode: "g" | "s" | "o" }>; save?: string; mats?: Record<string, string> };
+  const SL = L.stalls as { block: string; pieces: string[]; count: number; apart: number; lantern: string; lanterns: number[][]; mats?: Record<string, string> } | undefined;
   const sets: DressSet[] = [
     // (a stall's counter is its own +x, measured by photographing it from all four sides: its z faces are panels)
-    ...(SL ? [{ name: "NOODLE ROW", block: SL.block, pieces: SL.pieces, count: SL.count, apart: SL.apart, near: [1, 6], face: 90, extras: SL.lanterns.map((at) => ({ piece: SL.lantern, at, mode: "g" as const })), save: "stalls" }] : []),
+    ...(SL ? [{ name: "NOODLE ROW", block: SL.block, pieces: SL.pieces, count: SL.count, apart: SL.apart, near: [1, 6], face: 90, extras: SL.lanterns.map((at) => ({ piece: SL.lantern, at, mode: "g" as const })), save: "stalls", mats: SL.mats }] : []),
     ...((L.market as DressSet[] | undefined) ?? []),
   ];
   const saved: Record<string, Array<{ at: number[]; yaw: number; piece: string }>> = {};
@@ -1096,7 +1096,8 @@ const wedges: Array<{ block: string; fork: Pt; out: Pt; w: number; top: number }
     chosen.forEach((q, i) => {
       const name = D.pieces[i % D.pieces.length];
       const { row } = piece(name);
-      const box = placeTurned(chunk, name, q.c[0], q.c[1], q.yaw, "o");
+      // (in the set's own wear for that piece where it gives one, `mats`, Milestone 1084)
+      const box = placeTurned(chunk, name, q.c[0], q.c[1], q.yaw, "o", 0, D.mats?.[name]);
       placed.push({ ...box, hu: box.hu + (D.grow ?? 0), hv: box.hv + (D.grow ?? 0) });
       // (its pivot, as placeTurned puts it, for its extras in its own metres)
       const [ox, oz] = rotY(q.yaw, (row.min![0] + row.max![0]) / 2, (row.min![2] + row.max![2]) / 2);
@@ -1130,8 +1131,11 @@ cfg.game.beacons = (R.streets.beacons as string[]).map((id) => {
 // side of the straight roads (`seam`): the eye reads a road as where one place stops, and the sectors' own line, 50 m out,
 // runs through a block's paving. The tiles past the centre lie in chunks of their own, out of the batches
 const groundOf = (x: number, z: number): { mat?: string } => {
-  const G = R.ground.districts as { seam: number; sides: Record<string, string> } | undefined;
+  const G = R.ground.districts as { seam: number; sides: Record<string, string>; lanes?: Array<[number, number, number, number, string]> } | undefined;
   if (!G || Math.max(Math.abs(x), Math.abs(z)) < R.centre) return {};
+  // (a tile whose middle is inside one of `lanes` [x0, x1, z0, z1, its wear], Milestone 1086: THE CANYON's service lane past the fence)
+  const lane = G.lanes?.find(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+  if (lane) return { mat: lane[4] };
   const mat = G.sides[(z < -G.seam ? "n" : z > G.seam ? "s" : "") + (x < -G.seam ? "w" : x > G.seam ? "e" : "")];
   return mat ? { mat } : {};
 };
@@ -1613,7 +1617,7 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
   // slab's holes and the rails along the edges a body can walk to, and the flights through them. The whole band stands in
   // `cfg.tallest`'s rectangle, where the base's insides lay nothing, and it replaces the stair at (-6, -16) (its `keep` stays,
   // rules.base.stairs.ghost): no storey's draw moves, and no room or piece of cover with it
-  const AT = B.atrium as { slabs: Array<{ y: number; at: number[][]; rails: number[][] }>; flights: Array<{ foot: number[]; up: number[]; base: number }>; stall: { piece: string; lantern: string; lanterns: number[][]; lanternScale?: number; at: number[][] }; screen: { piece: string; at: number[][] } } | undefined;
+  const AT = B.atrium as { slabs: Array<{ y: number; at: number[][]; rails: number[][] }>; flights: Array<{ foot: number[]; up: number[]; base: number }>; stall: { piece: string; lantern: string; lanterns: number[][]; lanternScale?: number; at: number[][] }; screen: { piece: string; at: number[][] }; coffer?: { y: number; rect: number[]; clear: number } } | undefined;
   // the atria: over each kiosk's and the glass hall's raised middle (its own x0, x1, z0, z1, measured off its parts: what
   // tops out over 3 m), on the first floor, railed round
   let atria = 0;
@@ -1898,8 +1902,10 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
         for (let x = O[7][0] + I.lamps.every / 2; x < O[2][0]; x += I.lamps.every)
           for (let z = O[0][1] + I.lamps.every / 2; z < O[4][1]; z += I.lamps.every) {
             const o: OBox = { c: [x, z], u: [1, 0], v: [0, 1], hu: lamp.size![0] / 2, hv: lamp.size![2] / 2, top: 0 };
-            // (nor under the atrium's holes, Milestone 978: no `keep` of theirs, as none is needed for anything else)
-            if (!inside([x, z], 1.5) || inTower(o, 0.5) || keep.get(h + 3.5)!.some((k) => overlaps(o, k, 0.5)) || (AT?.slabs ?? []).some((q) => q.y === h + 3.5 && q.at.some((r) => overlaps(o, boxOf(r), 0.5)))) continue;
+            // (nor under the atrium's holes, Milestone 978: no `keep` of theirs, as none is needed for anything else; nor
+            // across the atrium's coffer, Milestone 1083: with the roof whole over the void, the 7 m storey's lamp at
+            // (-7.5, -18), 3.14 m long, hung half over the void's north edge, through the coffer's frame)
+            if (!inside([x, z], 1.5) || inTower(o, 0.5) || keep.get(h + 3.5)!.some((k) => overlaps(o, k, 0.5)) || (AT?.slabs ?? []).some((q) => q.y === h + 3.5 && q.at.some((r) => overlaps(o, boxOf(r), 0.5))) || (AT?.coffer !== undefined && AT.coffer.y === h + 3.5 && overlaps(o, boxOf(AT.coffer.rect), AT.coffer.clear))) continue;
             placeTurned("c-base", I.lamps.piece, x, z, 0, "g", h + 3.5 - B.slab - I.lamps.under - lamp.max![1]);
             nLamps++;
           }
@@ -2774,6 +2780,10 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
   if (B.deck - B.roof - B.stairs.rise > B.stairs.step) throw new Error(`the stair climbs ${B.stairs.rise} m and the deck is ${(B.deck - B.roof).toFixed(2)} m over the roof: a step of more than ${B.stairs.step} m at its top`);
   let decks = 0;
   let stairs = 0;
+  // (the ring's gaps, rules.bridges.gaps, Milestone 1082: each a straight cell left out, a pad either side throwing a body
+  // over it, rules.pads.spine.across; the centre's nineteenth reviews found the ring "one walkway, not parkour" and asked for it
+  // "cut at two points into gaps with a pad". A gap that names no straight cell's middle stops the layout)
+  const gaps = ((B.gaps ?? []) as Array<{ at: number[] }>).map((g) => ({ at: g.at, cut: 0 }));
   const bridgeStairs: Array<{ at: number[]; back: number; lift: number }> = [];
   /** the sill of the window an end runs into (rules.bridges.into), as the last bake measured it (cfg.windows); null elsewhere */
   const sillAt = (e: number[]): number | null => {
@@ -2791,6 +2801,11 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
       const from = i === 0 ? cell / 2 : cell;
       const to = i + 2 === path.length ? len - cell / 2 : len - cell;
       for (let t = from; t <= to + 1e-6; t += cell) {
+        const gap = gaps.find((g) => Math.hypot(g.at[0] - (a[0] + d[0] * t), g.at[1] - (a[1] + d[1] * t)) < 0.01);
+        if (gap) {
+          gap.cut++;
+          continue;
+        }
         // (the cell at an end that runs into a building at its window's sill: on the deck's height a body's head met the
         // window's head, 1.66 m over it; the step up to the rest is the sill's 0.46 m under the deck)
         const low = (i === 0 && t === from ? sillAt(a) : null) ?? (i + 2 === path.length && t + cell > to + 1e-6 ? sillAt(b) : null);
@@ -2832,8 +2847,9 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
       bridgeStairs.push({ at: e, back, lift });
     }
   }
+  for (const g of gaps) if (g.cut !== 1) throw new Error(`the bridge ring's gap at (${g.at.join(", ")}) is not one straight cell of a path`);
   cfg.bridgeStairs = bridgeStairs;
-  console.log(`bridges: ${decks} decks on ${B.paths.length} paths, ${stairs} stairs at their ends (${bridgeStairs.filter((q) => q.lift).length} lifted, the rest set back)`);
+  console.log(`bridges: ${decks} decks on ${B.paths.length} paths, ${gaps.length} cells left out as gaps, ${stairs} stairs at their ends (${bridgeStairs.filter((q) => q.lift).length} lifted, the rest set back)`);
 
   // The gangway's cover (rules.bridges.gangwayCover, Milestone 656; the sixth review: "the gangway's cover staggered with
   // side shields"; the fifth had found it a bare 52 m slab over the plaza). Along its long leg, out of the tower's window,
@@ -3705,6 +3721,217 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     console.log(`the corner blocks' signs: ${out.map((q) => `${q.block} ${q.piece.replace(".prefab", "")} ${q.w} by ${q.h} m`).join(", ")}`);
   }
 }
+// Each corner block its own kit at street level (rules.low.kits, Milestone 1084; the centre's nineteenth reviews: B, "MARKET
+// themed: stall canopies, produce and cargo crates, an awning over the street, for the white sci-fi crates", A, "each weak
+// corner block a signature: a stall canopy over MARKET's street, a two-storey L-shaped motel with outside walkways at MOTEL
+// HILL", pictures 18 and 22; the eighteenth's B, "ledges and balconies on MARKET and NOODLE ROW", 16, 18 and 22). The corner
+// blocks were built as streets and their dress was the centre's own street kit. Laid here, before the street furniture,
+// MARKET's crate stacks, the street walls and the street cover, so each of them keeps off it in the same run, and every spot
+// written into the rules, measured off version 139's collision, so nothing laid before it moves it:
+//  `rows`, stall sets in a row as THE CANYON's market rows are, each [x, z, turn?] a set's middle, the row's `yaw` (or the
+//  spot's own turn) turning a set's own z toward the street, its wall 1.3 m behind it; a set laid unless it would cut the
+//  bots' street graph in two;
+//  `canopy`, an awning across the street at each [street, metres along it] where both its lamps stand: a cable from the
+//  head of one over the road to the other's, and along it `per` of the pack's window awnings either side, back to back,
+//  each without its window frame, its cloth's high edge on the cable; drawn only, over all a body or a van reaches;
+//  `balconies`, the pack's balcony on a walk-in's street face, its back on the face, its floor at `y`, colliding as its own;
+//  `motel`, MOTEL HILL's walk-in given a walkway round two faces at its first floor: `decks` floored in the pack's concrete
+//  panels on typed slabs, railed on `rails`, held on `posts`, up the tower's stair at `stair`, all drawn only on typed
+//  collision (into cfg.stairs, as THE VAULT's boxes and the caches' are);
+//  `cover`, the street cover's pieces in a block's own streets worn in its materials (the street cover below)
+/** the kits' standing parts, each a circle round its box: the street furniture and MARKET's crate stacks keep off them */
+const KIT_PARTS: Array<{ c: Pt; r: number }> = [];
+/** the kits' boxes on the street graph: the street walls keep off them */
+const KIT_BOXES: OBox[] = [];
+/** what the kits roof over a body's head, [x0, x1, z0, z1, y0]: the street cover keeps its tall pieces from under it in this
+ * run, as the next run reads it off the bake */
+const KIT_OVER: number[][] = [];
+/** the street cover's pieces in a corner block's own streets worn in its kit (`cover`), by the block whose streets they stand in */
+let kitWear: (x: number, z: number) => Record<string, string> | undefined = () => undefined;
+{
+  type KitPart = [string, number, number, number, number, ("g" | "o" | "s")?, boolean?];
+  type Motel = { block: string; y: number; slab: number; tiles: string[]; decks: number[][]; rail: string[]; railH: number; rails: number[][]; post: string; postHalf: number; posts: number[][]; stair: { foot: number[]; up: number[] }; routes: number[][][]; edges: number[][][] };
+  const K = (R.low as { kits?: { sets: Record<string, KitPart[]>; wear: string[]; rows: Array<{ id: string; block: string; yaw: number; sets: string[]; at: number[][] }>; canopy?: { block: string; piece: string; without: string[]; back: number; wire: string; y: number; head: number; per: number; at: Array<[string, number]> }; balconies?: Array<{ block: string; piece: string; at: number[]; out: number[]; y: number }>; motel?: Motel; cover?: Record<string, Record<string, string>> } }).kits;
+  if (K) {
+    const chunkOf = (block: string) => {
+      const [bx, bz] = block.split(",").map(Number);
+      return `c-${bz < 0 ? "n" : "s"}${bx < 0 ? "w" : "e"}`;
+    };
+    const out = {
+      rows: [] as Array<{ id: string; set: string; at: number[]; yaw: number; box: number[]; parts: number[][]; cloth: { at: number[]; mat: string } | null }>,
+      of: 0,
+      canopies: [] as Array<{ street: string; at: number; a: number[]; b: number[]; y: number; awnings: number }>,
+      balconies: [] as number[][],
+      motel: null as null | { decks: number[][]; rails: number[][]; posts: number[][]; y: number; lanes: number[][][]; routes: number[][][]; edges: number[][][] },
+    };
+    // the rows
+    for (const row of K.rows)
+      for (const [x, z, turn] of row.at) {
+        const name = row.sets[out.of % row.sets.length];
+        const yaw = turn ?? row.yaw;
+        // (the set's cloth by its number among all the rows' sets, not by those laid: one left out would change every colour after it)
+        const worn = K.wear[out.of % K.wear.length];
+        out.of++;
+        const set = K.sets[name].map(([n, al, o, tn, y, how, w]) => {
+          const [dx, dz] = rotY(yaw, al, o);
+          return { n, x: x + dx, z: z + dz, yaw: yaw + tn, y, how: how ?? "o", mat: w ? worn : undefined };
+        });
+        // (the set's box, what of it collides in its own frame, as THE CANYON's rows take theirs)
+        let [hu, hv, top] = [0, 0, 0];
+        for (const p of set) {
+          if (p.how === "g") continue;
+          const r = piece(p.n).row;
+          const t = Math.abs(Math.round((p.yaw - yaw) / 90)) % 2 === 1;
+          const [lu, lv] = rotY(-yaw, p.x - x, p.z - z);
+          hu = Math.max(hu, Math.abs(lu) + (t ? r.size![2] : r.size![0]) / 2);
+          hv = Math.max(hv, Math.abs(lv) + (t ? r.size![0] : r.size![2]) / 2);
+          top = Math.max(top, p.y + r.size![1]);
+        }
+        const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu, hv, top };
+        if (STREET_GRAPH?.splits(o)) {
+          console.log(`the corner kits: ${row.id}'s ${name} at (${x}, ${z}) left out, it would cut the bots' street graph`);
+          continue;
+        }
+        STREET_GRAPH?.add(o);
+        KIT_BOXES.push(o);
+        // (each colliding part's own box for the check, and the worn part's pivot and cloth: the box above stands either
+        // side of the set's middle, the parts only on the wall's side)
+        const kept: number[][] = [];
+        let cloth: { at: number[]; mat: string } | null = null;
+        for (const p of set) {
+          const b = placeTurned(chunkOf(row.block), p.n, p.x, p.z, p.yaw, p.how as Place[5], p.y - piece(p.n).row.min![1], p.mat);
+          if (p.how !== "g") KIT_PARTS.push({ c: b.c, r: Math.hypot(b.hu, b.hv) });
+          if (p.how !== "g") kept.push([+b.c[0].toFixed(3), +b.c[1].toFixed(3), +b.hu.toFixed(3), +b.hv.toFixed(3), +p.yaw.toFixed(2)]);
+          if (p.mat) {
+            const q = chunks.get(chunkOf(row.block))!.place.at(-1)!;
+            cloth = { at: [q[1], q[3]], mat: p.mat };
+          }
+        }
+        out.rows.push({ id: row.id, set: name, at: [x, z], yaw: +yaw.toFixed(2), box: [+hu.toFixed(2), +hv.toFixed(2), +top.toFixed(2)], parts: kept, cloth });
+      }
+    // the canopies over the street
+    const CA = K.canopy;
+    if (CA) {
+      const D = R.dress;
+      const lampKey = piece(D.lamp.piece).key;
+      const lamps = (chunks.get("c-dress")?.place ?? []).filter((q) => q[0] === lampKey).map((q) => [q[1], q[3]] as Pt);
+      const aw = piece(CA.piece);
+      const wire = piece(CA.wire).row;
+      const chunk = chunkOf(CA.block);
+      let k = 0;
+      for (const [id, at] of CA.at) {
+        const st = STREETS.find((q) => q.id === id)!;
+        const i = Math.round(at / 0.5);
+        const n = normalAt(st, i);
+        // (each lamp's spot as the dress block works it out, and a lamp standing there; its head over the road `head` in from it)
+        const heads = [-1, 1].map((side) => {
+          const spot: Pt = [st.pts[i][0] + n[0] * side * (st.half + D.lamp.inset), st.pts[i][1] + n[1] * side * (st.half + D.lamp.inset)];
+          return lamps.some((q) => Math.hypot(q[0] - spot[0], q[1] - spot[1]) < 0.25) ? ([spot[0] - n[0] * side * CA.head, spot[1] - n[1] * side * CA.head] as Pt) : null;
+        });
+        if (!heads[0] || !heads[1]) {
+          console.log(`the corner kits: no canopy over ${id} at ${at} m, a lamp of its pair not standing`);
+          continue;
+        }
+        const [a, b] = heads as Pt[];
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const w: Pt = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+        placeTurned(chunk, CA.wire, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, yawToward(w[0], w[1]), "g", CA.y, undefined, len / Math.max(wire.size![0], wire.size![2]));
+        const t = st.tan[i];
+        let awnings = 0;
+        for (const s of [-1, 1]) {
+          // (its own +x, the way its cloth falls from its wall side, along the street by `s`; its own z then along the cable)
+          const yaw = yawToward(-s * t[1], s * t[0]);
+          const [ox, oz] = rotY(yaw, CA.back, (aw.row.min![2] + aw.row.max![2]) / 2);
+          for (let p = 0; p < CA.per; p++) {
+            const m = (p - (CA.per - 1) / 2) * aw.row.size![2];
+            const [mx, mz] = [(a[0] + b[0]) / 2 + w[0] * m, (a[1] + b[1]) / 2 + w[1] * m];
+            add(chunk, "c", [aw.key, +(mx - ox).toFixed(3), +(CA.y - aw.row.max![1]).toFixed(3), +(mz - oz).toFixed(3), +yaw.toFixed(2), "g", K.wear[k++ % K.wear.length], CA.without]);
+            awnings++;
+          }
+        }
+        out.canopies.push({ street: id, at, a: [+a[0].toFixed(3), +a[1].toFixed(3)], b: [+b[0].toFixed(3), +b[1].toFixed(3)], y: CA.y, awnings });
+      }
+    }
+    // the balconies
+    for (const BC of K.balconies ?? []) {
+      const { key, row } = piece(BC.piece);
+      // (its own +z to the wall, its back (its own z max) on the face at `at`, its length its own -x from there)
+      const yaw = yawToward(-BC.out[0], -BC.out[1]);
+      const [px, pz] = [BC.at[0] + BC.out[0] * row.max![2], BC.at[1] + BC.out[1] * row.max![2]];
+      add(chunkOf(BC.block), "c", [key, +px.toFixed(3), BC.y, +pz.toFixed(3), +yaw.toFixed(2), "o"]);
+      const ends = [[row.min![0], row.min![2]], [row.max![0], row.max![2]]].map(([a, c]) => rotY(yaw, a, c)).map(([dx, dz]) => [px + dx, pz + dz]);
+      const box = [Math.min(ends[0][0], ends[1][0]), Math.max(ends[0][0], ends[1][0]), Math.min(ends[0][1], ends[1][1]), Math.max(ends[0][1], ends[1][1]), BC.y + row.min![1]].map((v) => +v.toFixed(3));
+      KIT_OVER.push(box);
+      out.balconies.push([...box, BC.y]);
+    }
+    // the motel
+    const MO = K.motel;
+    if (MO) {
+      const chunk = chunkOf(MO.block);
+      const S = R.tower.floors.stair as { rise: number; flights: number };
+      if (Math.abs(S.rise * S.flights - MO.y) > 1e-6) throw new Error(`the motel's walkway at ${MO.y} m, the tower's stair rises ${S.rise * S.flights} m`);
+      const typed = (b: number[]) => STAIR_SOLIDS.push(b.map((v) => +v.toFixed(3)));
+      // (each deck in half-metre strips along its long side, the longest of `tiles` that fits laid next: the panels' pivots
+      // are their tops)
+      for (const [x0, x1, z0, z1] of MO.decks) {
+        const alongX = x1 - x0 >= z1 - z0;
+        const [a0, a1, b0, b1] = alongX ? [x0, x1, z0, z1] : [z0, z1, x0, x1];
+        for (let bb = b0; bb < b1 - 1e-6; bb += 0.5)
+          for (let a = a0; a < a1 - 1e-6; ) {
+            const name = MO.tiles.find((q) => a + piece(q).row.size![2] <= a1 + 1e-6) ?? MO.tiles.at(-1)!;
+            const r = piece(name).row;
+            const L = r.size![2];
+            placeTurned(chunk, name, alongX ? a + L / 2 : bb + 0.25, alongX ? bb + 0.25 : a + L / 2, alongX ? 90 : 0, "g", MO.y - r.size![1] - r.min![1]);
+            a += L;
+          }
+        typed([x0, x1, z0, z1, MO.y - MO.slab, MO.y]);
+        KIT_OVER.push([x0, x1, z0, z1, MO.y - MO.slab]);
+      }
+      // (each rail's box typed, and the railing drawn down its middle, the longest of `rail` that fits laid next and the last
+      // drawn back to end flush)
+      for (const [x0, x1, z0, z1] of MO.rails) {
+        const alongX = x1 - x0 >= z1 - z0;
+        const [a0, a1] = alongX ? [x0, x1] : [z0, z1];
+        const mid = alongX ? (z0 + z1) / 2 : (x0 + x1) / 2;
+        for (let a = a0; a < a1 - 1e-6; ) {
+          const name = MO.rail.find((q) => a + piece(q).row.size![2] <= a1 + 1e-6) ?? MO.rail.at(-1)!;
+          const r = piece(name).row;
+          const c = Math.min(a + r.size![2] / 2, a1 - r.size![2] / 2);
+          placeTurned(chunk, name, alongX ? c : mid, alongX ? mid : c, alongX ? 90 : 0, "g", MO.y - r.min![1]);
+          a += r.size![2];
+        }
+        typed([x0, x1, z0, z1, MO.y, MO.y + MO.railH]);
+      }
+      // (the columns drawn to the slab's middle, so their caps stand inside it, not through the walk)
+      for (const [x, z] of MO.posts) {
+        const r = piece(MO.post).row;
+        const scale = (MO.y - MO.slab / 2) / r.size![1];
+        placeTurned(chunk, MO.post, x, z, 0, "g", -r.min![1] * scale, undefined, scale);
+        typed([x - MO.postHalf, x + MO.postHalf, z - MO.postHalf, z + MO.postHalf, 0, MO.y - MO.slab]);
+        const o: OBox = { c: [x, z], u: [1, 0], v: [0, 1], hu: MO.postHalf, hv: MO.postHalf, top: MO.y - MO.slab };
+        STREET_GRAPH?.add(o);
+        KIT_BOXES.push(o);
+        KIT_PARTS.push({ c: [x, z], r: MO.postHalf * Math.SQRT2 });
+      }
+      // (the tower's stair, its lanes taken off the tower's list for this kit's own check, as the shops' are)
+      const n0 = INNER_STAIRS.length;
+      const so = innerStair(chunk, [MO.stair.foot[0], MO.stair.foot[1]], [MO.stair.up[0], MO.stair.up[1]], 0);
+      const lanes = INNER_STAIRS.splice(n0).flatMap((s) => s.lanes);
+      STREET_GRAPH?.add(so);
+      KIT_BOXES.push(so);
+      KIT_PARTS.push({ c: so.c, r: Math.hypot(so.hu, so.hv) });
+      out.motel = { decks: MO.decks, rails: MO.rails, posts: MO.posts, y: MO.y, lanes, routes: MO.routes, edges: MO.edges };
+    }
+    // the street cover's wear in a corner block's own streets: its quadrant past the High City blocks and the Loop's pavement
+    // (the ring road's band wears the facing district's, which the street cover asks first)
+    const KC = K.cover;
+    if (KC)
+      kitWear = (x: number, z: number) =>
+        Math.min(Math.abs(x), Math.abs(z)) < (R.blocks.inner as number[])[1] || Math.hypot(x, z) < CV.loop.r + CV.road / 2 + CV.pave ? undefined : KC[`${Math.sign(x)},${Math.sign(z)}`];
+    cfg.cornerKits = out;
+    console.log(`the corner kits: ${out.rows.length} of ${out.of} sets in rows, ${out.canopies.length} canopies (${out.canopies.reduce((s, q) => s + q.awnings, 0)} awnings), ${out.balconies.length} balconies, ${out.motel ? `the motel's walkway (${out.motel.decks.length} decks, ${out.motel.posts.length} posts, a stair)` : "no motel"}`);
+  }
+}
 // street furniture (rules.dress.furniture; the centre's first review: "streets are wide, with only hover cars and lamps for
 // cover"): along every street's pavements between the lamps, kiosks, planters, benches, bins and billboard panels, each
 // on the pavement `inset` in from the kerb and turned to the road, clear of everything the lamps are clear of and of the
@@ -3723,6 +3950,8 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     // (and MARKET's food stalls, Milestone 876)
     for (const q of ((cfg.marketStalls ?? []) as Array<{ at: number[] }>)) taken.push({ c: [q.at[0], q.at[1]], r: 2.5 });
     for (const q of ((cfg.walkIns ?? []) as Array<{ door: number[] }>)) taken.push({ c: [q.door[0], q.door[1]], r: 3 });
+    // (and the corner blocks' kits' standing parts, Milestone 1084)
+    for (const q of KIT_PARTS) taken.push(q);
     const clearF = (x: number, z: number, r: number, st: Street, apart = FU.apart): boolean =>
       onRoad(x, z, st) > R.dress.crossing + r &&
       !(Math.hypot(x, z) > R.skyring.r0 - r - 1 && Math.hypot(x, z) < R.skyring.r1 + r + 1) &&
@@ -3763,7 +3992,7 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     // MARKET's crate stacks (rules.low.crateStacks; the second review: "18 no crates"): along its `streets` where they run
     // beside the block, every `every` metres on the block's pavement, two of the pack's crates side by side and one on
     // the first, a step from waist to head high, turned to the road and `inset` off the kerb, clear as the furniture is
-    const CR = R.low.crateStacks as { block: string; streets: string[]; beside: number[]; every: number; inset: number; piece: string; apart: number; space: number } | undefined;
+    const CR = R.low.crateStacks as { block: string; streets: string[]; beside: number[]; every: number; inset: number; piece: string; apart: number; space: number; mat?: string } | undefined;
     if (CR) {
       const [bx, bz] = CR.block.split(",").map(Number);
       const chunk = `c-${bz < 0 ? "n" : "s"}${bx < 0 ? "w" : "e"}`;
@@ -3791,9 +4020,10 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
           const stackBox: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: cr.size![0] + 0.02, hv: depth / 2, top: cr.size![1] * 2 };
           if (STREET_GRAPH?.splits(stackBox)) continue;
           STREET_GRAPH?.add(stackBox);
-          placeTurned(chunk, CR.piece, x - t[0] * half, z - t[1] * half, yaw, "o", -cr.min![1]);
-          placeTurned(chunk, CR.piece, x + t[0] * half, z + t[1] * half, yaw, "o", -cr.min![1]);
-          placeTurned(chunk, CR.piece, x - t[0] * half, z - t[1] * half, yaw, "o", cr.size![1] - cr.min![1]);
+          // (in the stacks' own wear where they give one, `mat`, Milestone 1084: the street's white sci-fi crates, picture 18)
+          placeTurned(chunk, CR.piece, x - t[0] * half, z - t[1] * half, yaw, "o", -cr.min![1], CR.mat);
+          placeTurned(chunk, CR.piece, x + t[0] * half, z + t[1] * half, yaw, "o", -cr.min![1], CR.mat);
+          placeTurned(chunk, CR.piece, x - t[0] * half, z - t[1] * half, yaw, "o", cr.size![1] - cr.min![1], CR.mat);
           taken.push({ c: [x, z], r });
           stacks.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2) });
         }
@@ -3975,6 +4205,8 @@ const STREET_WALL_BOXES: OBox[] = [];
         : lifts.some((q) => seg(o.c, q.ring, q.foot) < Math.hypot(o.hu, o.hv) + R.lifts.clear && r.some((p) => seg(p, q.ring, q.foot) < R.lifts.clear)) ? "lift"
         : foot && overlaps(o, boxOf(foot), W.clear * 2) ? "well"
         : CLIMB_BOXES.some((q) => q.top - 4 < o.top && overlaps(o, q, W.clear)) ? "climb"
+        // (nor on a corner block's kit, Milestone 1084: laid this run, it is in the last bake's collision only from the next)
+        : KIT_BOXES.some((q) => overlaps(o, q, W.clear)) ? "kit"
         : ropes.some((rope) => rope.some((q) => inside(q, under) && q[1] - under < o.top)) ? "zip"
         : o.top > L.underBridge && bridgeLines.some(([a, b]) => r.some((p) => seg(p, a, b) < L.bridgeClear)) ? "bridge"
         : onSolid(o) ? "solid"
@@ -4116,6 +4348,71 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
   cfg.shops = { solids, list: SHOPS };
   if (SH) console.log(`shops on the street: ${SHOPS.length} (${SHOPS.map((s) => `${s.id} ${s.kit}`).join(", ")}), ${solids.length} typed boxes`);
 }
+// The plaza round the base, a designed set (rules.dress.plaza, Milestone 1088; the centre's nineteenth reviews of picture 06,
+// both: B rank 2 "the plaza designed: sunken planters, kiosks, low L-walls round the base, paving with light lines from the
+// tower", "a flat kill bowl"; A rank 5 "the plaza a place to fight: paving, a central feature, two cover clusters"). Measured
+// on version 139: the plaza, inside the Loop's inner pavement and outside the base's octagon (1,488 m2), was the street fill's
+// ground like any street's, 20 of its bins and panels, on the street's own pavers. Its sets are laid by hand, as the districts'
+// positions are (rules.dress.districtCover.posts), each at a spot measured off the collision (plaza7's free map: clear of the
+// base's ground gates and the light lines out of them, the spine's pads and their run-ups, the Sky Ring's stairs, the bots'
+// street nodes and the grid's links between them, the fill's keep spots and THE CENTRE's zones): a ring of low panels round
+// the base's foot with a gap at every gate and planters on its chamfers, two cover clusters on its open faces, a sign column on
+// THE CENTRE's main axis. Laid unasked before the street cover, each part in the street model so all that follows reads it as
+// standing; the street cover keeps off the plaza, whose ground is this set's now. Its ground a field of the court's pale flags
+// inset in each straight face's band, the street's pavers round it, both materials drawn already
+const PLAZA: Array<{ set: string; piece: string; c: Pt; yaw: number; hu: number; hv: number; y: number; top: number }> = [];
+function plazaSet(): void {
+  type PZSet = { id: string; at: number[]; turn: number; parts: CoverSet["parts"] };
+  const PZ = (R.dress as { plaza?: { chunk: string; glow: string; sets: PZSet[]; paving?: { tile: string; field: string; rects: number[][] } } }).plaza;
+  if (!PZ) return;
+  for (const P of PZ.sets) {
+    const got = coverSet([{ id: P.id, parts: P.parts }], () => 0.5, P.at[0], P.at[1], [P.turn], () => true, false)!;
+    for (const p of got) {
+      const row = piece(p.name).row;
+      placeTurned(PZ.chunk, p.name, p.o.c[0], p.o.c[1], p.yaw, p.how, p.y - row.min![1] * p.scale, p.mat, p.scale);
+      if (p.how === "g") continue;
+      // (a low panel's lit strip along its top in the centre's glow, as the street cover's sets wear it)
+      coverTrim(PZ.chunk, p, 0, PZ.glow);
+      if (!p.y) STREET_GRAPH?.add(p.o);
+      // (each with its footprint's half sizes, its foot and its top, for the map check)
+      PLAZA.push({ set: P.id, piece: p.name, c: [+p.o.c[0].toFixed(3), +p.o.c[1].toFixed(3)], yaw: +p.yaw.toFixed(2), hu: +p.o.hu.toFixed(3), hv: +p.o.hv.toFixed(3), y: p.y, top: +p.o.top.toFixed(2) });
+    }
+  }
+  cfg.plaza = PLAZA;
+  // its ground (`paving`): every ground tile with a cell in one of the field's `rects` taken up and laid again in the pack's small
+  // tile, as openGround lays them (the tiles are mapped by the metre, so the small ones join the rest seamlessly), each cell in a
+  // rect in `field`, every other cell in its tile's own material. Rectangles on the small tile's grid, each inside the plaza: a
+  // field cut to the circle's edge stepped across the Sky Ring's pavement in 2.5 m teeth
+  const PV = PZ.paving;
+  if (!PV) return;
+  const inField = (x: number, z: number) => PV.rects.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+  const g = chunks.get("c-ground")!;
+  const big = piece(R.ground.tile), small = piece(PV.tile);
+  const st = small.row.size![0];
+  const keep: Place[] = [], laid: Place[] = [];
+  let field = 0;
+  for (const q of g.place) {
+    const [key, px, , pz] = q;
+    const size = key === big.key ? T : key === small.key ? st : 0;
+    // (a tile's pivot is its corner at the least x and the most z, the big ones' and the small ones' alike)
+    const cells: Pt[] = [];
+    for (let x = px; x < px + size - 1e-6; x += st) for (let z = pz - size; z < pz - 1e-6; z += st) cells.push([x, z]);
+    if (!cells.some(([x, z]) => inField(x + st / 2, z + st / 2))) {
+      keep.push(q);
+      continue;
+    }
+    const own = (q[6] ?? (key === big.key ? big : small).row.materials![0]).split("=").pop()!.split("@")[0];
+    for (const [x, z] of cells) {
+      const mat = inField(x + st / 2, z + st / 2) ? (field++, PV.field) : own;
+      laid.push([small.key, +x.toFixed(3), 0, +(z + st).toFixed(3), 0, "g", mat]);
+    }
+  }
+  g.place = [...keep, ...laid];
+  const tris = PLAZA.reduce((a, q) => a + piece(q.piece).row.tris, 0);
+  console.log(`the plaza: ${PZ.sets.length} sets, ${PLAZA.length} pieces, ${(tris / 1000).toFixed(0)}k triangles; its ground ${field} tiles of ${PV.field} in ${PV.rects.length} fields`);
+}
+plazaSet();
+
 // Cover down the streets (rules.dress.cover; the centre's fourth review: "cover every 8 to 12 m in the streets and
 // plaza", its shots of the streets open with little in them). From every open point of the streets, a curve's or the
 // Loop's road and pavements and the ring road from its inner pavement out, something a crouched body hides behind within
@@ -4180,6 +4477,10 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
       return out;
     };
     for (const o of STREET_WALL_BOXES) for (const k of cellsOf(o)) body[k] = cover[k] = 1;
+    // (and what the corner blocks' kits roof over, Milestone 1084: the last bake has it from the next run on)
+    for (const b of KIT_OVER)
+      for (let i = Math.max(0, Math.floor((b[0] + H) / C)); i <= Math.min(N - 1, Math.floor((b[1] + H) / C)); i++)
+        for (let j = Math.max(0, Math.floor((b[2] + H) / C)); j <= Math.min(N - 1, Math.floor((b[3] + H) / C)); j++) over[i * N + j] = Math.min(over[i * N + j], b[4]);
     // (this run's street pieces as the street graph was given them, each its own height; the last bake's of them were
     // left out above, so a piece the dress block changes is measured where and as it now stands)
     for (const o of STREET_GRAPH?.held ?? []) for (const k of cellsOf(o)) (o.top > 0.3 && (body[k] = 1), o.top > 1 && (cover[k] = 1));
@@ -4189,10 +4490,14 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
     // the curves, NOODLE ROW's and MARKET's among them, the centre's eleventh review's "about 20 m of paving with one
     // cabinet", Milestone 787; open sky over it keeps the cover out of the buildings)
     const plaza = (CO as { plaza?: number }).plaza ?? 0;
+    // (but not the plaza round the base, the Loop's inside past its pavement: its own set holds it now, rules.dress.plaza,
+    // Milestone 1088)
+    const ownPlaza = !!(R.dress as { plaza?: unknown }).plaza;
     for (let k = 0; k < N * N; k++) {
       const [x, z] = mid(k);
       const d = onRoad(x, z);
       if (d < CV.pave || Math.max(Math.abs(x), Math.abs(z)) >= L.edge || (d < CV.pave + plaza && over[k] === Infinity)) street[k] = 1;
+      if (ownPlaza && d >= CV.pave && Math.hypot(x, z) < CV.loop.r) street[k] = 0;
     }
     // (each cell's distance to cover, two passes of a chamfer in cells)
     const D = new Float32Array(N * N);
@@ -4313,7 +4618,8 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
         const DCc = R.dress.districtCover as { sectors: Record<string, string>; sets?: Record<string, CoverSet[]>; mats?: Record<string, Record<string, string>> };
         const facing = BDc && m >= BDc.from - (BDc.reach ?? 0) ? DCc.sectors[Math.abs(x) <= 50 ? (z < 0 ? "n" : "s") : Math.abs(z) <= 50 ? (x < 0 ? "w" : "e") : (z < 0 ? "n" : "s") + (x < 0 ? "w" : "e")] : undefined;
         const kitHere = facing && DCc.sets?.[facing]?.length ? DCc.sets[facing] : CO.sets;
-        const wearHere = (name: string, own?: string) => own ?? (facing ? DCc.mats?.[facing]?.[name] : undefined);
+        // (and in a corner block's own streets its kit's, Milestone 1084: materials only, so the fill lays as it did)
+        const wearHere = (name: string, own?: string) => own ?? (facing ? DCc.mats?.[facing]?.[name] : kitWear(x, z)?.[name]);
         const got = CO.sets && noSet < (CO.setTries ?? Infinity) && room(CO.clear - 0.5) ? coverSet(kitHere!, rndC, x, z, [along, along + 180], (o, p) => !(isWall(p) && (inView(x, z) || seesLift(x, z) || !wallHere)) && !(overCar(p) && (inView(x, z) || seesLift(x, z) || onRoad(o.c[0], o.c[1]) < Math.hypot(o.hu, o.hv) - 0.5)) && fits(o, true)) : null;
         if (got) {
           for (const p of got) {
@@ -4587,12 +4893,19 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
   type Walk = number[][];
   type TerraceBed = { pieces: { body: string; long: string; end: string }; scale: number; coping: number; soilMat: string; mat?: string; fern: string; flower: string; cypress: string; cypressScale: number; plants: number[]; low: number; high: number; at: Array<[number, number, string]> };
   type TerraceStair = { piece: string; cells: number[]; z: number[]; length: number; treads: number; mat?: string; drop: number; bank: string; ferns: number[]; off: number };
-  type TerraceGate = { piece: string; x: number; z: number; count: number; pier: number; crown: number; mat?: string; attic: { wall: string; end: string; roof: string; h: number; thick: number }; crest: { z: number[] } };
-  type TerracePergola = { post: string; beam: string; mat: string; h: number; bay: number; beamScale: number; rafter: number; rafterScale: number; at: number[][] };
+  type TerraceGate = { piece: string; x: number; z: number; count: number; pier: number; crown: number; mat?: string; attic: { wall: string; end: string; roof: string; h: number; thick: number; course?: number }; crest: { z: number[] } };
+  type TerracePergola = { post: string; beam: string; mat: string; h: number; bay: number; beamScale: number; rafter: number; rafterScale: number; at: number[][]; postScale?: number; postMat?: string; beamMat?: string; rafterPieces?: number; seats?: { piece: string } };
   type TerracePiers = { piece: string; scale: number; mat: string; pot: string; at: number[][] };
-  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[]; flight?: TerraceStair }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number; wall?: { piece: string; mat?: string; coping?: string; courses: number; h: number } }; garden: { beds?: TerraceBed; pergola?: TerracePergola; piers?: TerracePiers; trees: string[]; treeOff: number; treesAt: number[]; landmarks?: Array<[string, number, number]>; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; lampSkip?: number[]; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: TerraceGate; rooms?: { at: Pt[]; slab: string; slabMat?: string; front?: { door: number; glass: string }; wall: number; inner: string; innerMat?: string; crate: string; lamp?: string; furnish?: Array<[string, number, number, number]> }; blocks?: { x: number[]; rows: number[][]; uppers: string[]; balcony: { piece: string; inset: number; without: string[] }; hut: { at: Pt; door: string } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
+  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[]; flight?: TerraceStair }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number; wall?: { piece: string; mat?: string; coping?: string; courses: number; h: number } }; garden: { beds?: TerraceBed; pergola?: TerracePergola; piers?: TerracePiers; pots?: Record<string, string>; approach?: { piece: string; post: number[]; at: number[][] }; trees: string[]; treeOff: number; treesAt: number[]; landmarks?: Array<[string, number, number]>; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; lampSkip?: number[]; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: TerraceGate; rooms?: { at: Pt[]; slab: string; slabMat?: string; front?: { door: number; glass: string }; wall: number; inner: string; innerMat?: string; crate: string; lamp?: string; furnish?: Array<[string, number, number, number]> }; blocks?: { x: number[]; rows: number[][]; uppers: string[]; balcony: { piece: string; inset: number; without: string[] }; hut: { at: Pt; door: string } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
   if (DT) {
     const rndT = seeded(DT.seed);
+    // (every garden pit in `garden.pots`' wear, Milestone 1085: the pack's pits' sides are a light panel printing a yellow cross,
+    // "the yellow-black planters"; each pit only in the materials it has, as the bake refuses a remap naming one it lacks)
+    const pot = (name: string): string | undefined => {
+      const own = new Set(piece(name).row.materials ?? []);
+      const m = Object.entries(DT.garden.pots ?? {}).filter(([k]) => own.has(k));
+      return m.length ? m.map(([k, v]) => `${k}=${v}`).join(";") : undefined;
+    };
     const S = DT.cell;
     const [zA, zB] = DT.z;
     const xA = Math.min(...DT.tiers.map((t) => t[0]), ...DT.raised.map((r) => r[0]));
@@ -4722,7 +5035,7 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
         for (const side of [-1, 1])
           for (const u of FL.ferns) {
             const z = side < 0 ? (FL.cells[0] + FL.z[0]) / 2 : (FL.cells[1] + FL.z[1]) / 2;
-            placeTurned(DT.chunk, DT.garden.fern, x0 + S - u, z, 0, "g", foot + (rise * u) / S - FL.off);
+            placeTurned(DT.chunk, DT.garden.fern, x0 + S - u, z, 0, "g", foot + (rise * u) / S - FL.off, pot(DT.garden.fern));
           }
       }
     }
@@ -4821,24 +5134,24 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
       for (const z of G2.treesAt) {
         const [a, b] = [faceAt(x, z - S), faceAt(x, z)];
         if (!a || !b || a.low !== b.low) continue;
-        placeTurned(DT.chunk, G2.trees[trees % G2.trees.length], x + G2.treeOff, z, rndT() * 360, "s", a.low);
+        placeTurned(DT.chunk, G2.trees[trees % G2.trees.length], x + G2.treeOff, z, rndT() * 360, "s", a.low, pot(G2.trees[trees % G2.trees.length]));
         trees++;
       }
     // a flower planter at the foot of each street-side wall's square, in the middle of its run
     let flowers = 0;
     for (const f of faces.filter((q) => !q.lowRamp)) {
-      placeTurned(DT.chunk, G2.flower, f.x + G2.flowerOff, (f.z0 + f.z1) / 2, rndT() * 360, "o", f.low);
+      placeTurned(DT.chunk, G2.flower, f.x + G2.flowerOff, (f.z0 + f.z1) / 2, rndT() * 360, "o", f.low, pot(G2.flower));
       flowers++;
     }
     // a cypress at the foot of each block's street face on the top tier but the middle one's, clear of the gaps' mouths
     for (const z of G2.grove.z) {
-      placeTurned(DT.chunk, G2.trees[trees % G2.trees.length], G2.grove.x, z, rndT() * 360, "s", tierAt(G2.grove.x - S / 2, z - S / 2));
+      placeTurned(DT.chunk, G2.trees[trees % G2.trees.length], G2.grove.x, z, rndT() * 360, "s", tierAt(G2.grove.x - S / 2, z - S / 2), pot(G2.trees[trees % G2.trees.length]));
       trees++;
     }
     // (and its landmarks, `landmarks` [piece, x, z]: the pack's tall trees either side of the grand stair's head, Milestone
     // 785; laid with no random draw, so nothing laid after them moves)
     for (const [name, x, z] of G2.landmarks ?? []) {
-      placeTurned(DT.chunk, name, x, z, 0, "s", tierAt(x - S / 2, z - S / 2));
+      placeTurned(DT.chunk, name, x, z, 0, "s", tierAt(x - S / 2, z - S / 2), pot(name));
       trees++;
     }
     // cover behind the front rails: on each square with a rail on its street side, a fern planter or a bench by turns
@@ -4852,7 +5165,7 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
       if (byHead) continue;
       const [x, z] = [c.x0 + S - G2.coverOff, c.z0 + S / 2 + (rndT() - 0.5)];
       if ((ferns + benches) % 2 === 0) {
-        placeTurned(DT.chunk, G2.fern, x, z, 0, "o", c.top);
+        placeTurned(DT.chunk, G2.fern, x, z, 0, "o", c.top, pot(G2.fern));
         ferns++;
       } else {
         placeTurned(DT.chunk, G2.bench, x, z, yawToward(1, 0), "o", c.top);
@@ -4895,11 +5208,23 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
       const z0 = GT.z + k * ga[2];
       placeTurned(DT.chunk, GT.piece, (gx0 + gx1) / 2, z0 + ga[2] / 2, 0, "g", gateY, GT.mat);
       solids.push([gx0, gx1, z0, z0 + GT.pier, gateY, attic], [gx0, gx1, z0 + ga[2] - GT.pier, z0 + ga[2], gateY, attic], [gx0, gx1, z0 + GT.pier, z0 + ga[2] - GT.pier, gateY + GT.crown, attic]);
-      for (const x of [gx1 - GT.attic.thick / 2, gx0 + GT.attic.thick / 2]) placeTurned(DT.chunk, GT.attic.wall, x, z0 + ga[2] / 2, 90, "g", attic, GT.mat);
+      // (the attic in courses of its wall at `attic.course`, Milestone 1085: a 6 m attic for a name twice as tall; at 1 the one
+      // course of the wall as before)
+      const AC = GT.attic.course ?? 1;
+      const aw = piece(GT.attic.wall).row.size!;
+      for (let cc = 0; cc < Math.round(GT.attic.h / (aw[1] * AC)); cc++)
+        for (let j = 0; j < Math.round(ga[2] / (aw[0] * AC)); j++)
+          for (const x of [gx1 - (GT.attic.thick * AC) / 2, gx0 + (GT.attic.thick * AC) / 2]) placeTurned(DT.chunk, GT.attic.wall, x, z0 + (j + 0.5) * aw[0] * AC, 90, "g", attic + cc * aw[1] * AC, GT.mat, AC);
       placeTurned(DT.chunk, GT.attic.roof, (gx0 + gx1) / 2, z0 + ga[2] / 2, 0, "g", attic + GT.attic.h, GT.mat);
     }
     const gateEnd = GT.z + GT.count * ga[2];
-    for (const z of [GT.z + GT.attic.thick / 2, gateEnd - GT.attic.thick / 2]) placeTurned(DT.chunk, GT.attic.end, (gx0 + gx1) / 2, z, 0, "g", attic, GT.mat);
+    {
+      const AC = GT.attic.course ?? 1;
+      const ae = piece(GT.attic.end).row.size!;
+      for (let cc = 0; cc < Math.round(GT.attic.h / (ae[1] * AC)); cc++)
+        for (let j = 0; j < Math.round((gx1 - gx0) / (ae[0] * AC)); j++)
+          for (const z of [GT.z + (GT.attic.thick * AC) / 2, gateEnd - (GT.attic.thick * AC) / 2]) placeTurned(DT.chunk, GT.attic.end, gx0 + (j + 0.5) * ae[0] * AC, z, 0, "g", attic + cc * ae[1] * AC, GT.mat, AC);
+    }
     solids.push([gx0, gx1, GT.z, gateEnd, attic, attic + GT.attic.h]);
     // the beds (`garden.beds`, Milestone 975; the eighth review: "the top tier is bare paving with plain green cubes for
     // hedges ... real planted beds"): each the pack's floor slab twice, brick round it, its top in the pack's moss (its
@@ -4928,10 +5253,10 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
       const row = kind.startsWith("row");
       for (const [i, u] of B.plants.entries()) {
         const [px, pz] = along ? [x, z + u] : [x + u, z];
-        if (row) placeTurned(DT.chunk, B.cypress, px, pz, i * 77, "g", soil - 0.5 * B.cypressScale, undefined, B.cypressScale);
+        if (row) placeTurned(DT.chunk, B.cypress, px, pz, i * 77, "g", soil - 0.5 * B.cypressScale, pot(B.cypress), B.cypressScale);
         else {
           const name = i % 2 ? B.flower : B.fern;
-          placeTurned(DT.chunk, name, px, pz, i * 77, "g", soil - 0.5);
+          placeTurned(DT.chunk, name, px, pz, i * 77, "g", soil - 0.5, pot(name));
           if (i % 2) flowers++;
           else ferns++;
         }
@@ -4951,20 +5276,50 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
     // lines
     const PG = G2.pergola;
     const pergolas: number[][] = [];
+    // (Milestone 1085; the districts' thirteenth reviews, d05: "slimmer pergolas", two rounds: "the pergola posts oversized, the
+    // wood stretched": the 0.5 m post took the timber at 4 m a repeat, one blotch of grain a face. The post at `postScale`, stacked
+    // to `h`; the joists `rafterPieces` lengths of the beam end to end across the walk; each member in `postMat` or `beamMat`, its
+    // uvs off the map, so its grain runs along it. And the district's bench in each bay of the outer side, `seats`, its back to
+    // the posts and its seat to the lawn: drawn and typed, outside the walk)
+    const seats: number[][] = [];
     for (const [x0, x1, z0, z1] of PG?.at ?? []) {
       const P = PG!;
       const y = tierAt(x0 - S / 2, z0 - S / 2);
-      const post = piece(P.post).row.size![0];
-      for (let x = x0; x < x1 + 0.01; x += P.bay)
+      const ps = P.postScale ?? 1;
+      const pr = piece(P.post).row.size!;
+      const post = pr[0] * ps;
+      const lifts = Math.round(P.h / (pr[1] * ps));
+      const posts: number[] = [];
+      for (let x = x0; x < x1 + 0.01; x += P.bay) {
+        posts.push(x);
         for (const z of [z0, z1]) {
-          placeTurned(DT.chunk, P.post, x, z, 0, "g", y, P.mat);
+          for (let k = 0; k < lifts; k++) placeTurned(DT.chunk, P.post, x, z, 0, "g", y + k * pr[1] * ps, P.postMat ?? P.mat, ps);
           solids.push([x - post / 2, x + post / 2, z - post / 2, z + post / 2, y, y + P.h]);
         }
+      }
       const bm = piece(P.beam).row.size!;
       const beamThick = bm[1] * P.beamScale;
-      const n = Math.ceil((x1 - x0) / (bm[2] * P.beamScale));
-      for (const z of [z0, z1]) for (let k = 0; k < n; k++) placeTurned(DT.chunk, P.beam, x0 + ((k + 0.5) * (x1 - x0)) / n, z, 90, "g", y + P.h + beamThick, P.mat, P.beamScale);
-      for (let x = x0 + P.rafter / 2; x < x1; x += P.rafter) placeTurned(DT.chunk, P.beam, x, (z0 + z1) / 2, 0, "g", y + P.h + beamThick + bm[1] * P.rafterScale, P.mat, P.rafterScale);
+      const n = Math.ceil((x1 - x0) / (bm[2] * P.beamScale) - 1e-6);
+      for (const z of [z0, z1]) for (let k = 0; k < n; k++) placeTurned(DT.chunk, P.beam, x0 + ((k + 0.5) * (x1 - x0)) / n, z, 90, "g", y + P.h + beamThick, P.beamMat ?? P.mat, P.beamScale);
+      const rp = P.rafterPieces ?? 1;
+      const rl = bm[2] * P.rafterScale;
+      for (let x = x0 + P.rafter / 2; x < x1; x += P.rafter)
+        for (let k = 0; k < rp; k++) placeTurned(DT.chunk, P.beam, x, (z0 + z1) / 2 + (k + 0.5 - rp / 2) * rl, 0, "g", y + P.h + beamThick + bm[1] * P.rafterScale, P.beamMat ?? P.mat, P.rafterScale);
+      if (P.seats) {
+        // (the outer side: the post line farther from the grand stair's axis, z 0; a bench's back is its own +z, 0.36 m past
+        // its footprint's middle, put 2 cm outside the posts)
+        const [zo, zi] = Math.abs(z0) > Math.abs(z1) ? [z0, z1] : [z1, z0];
+        const so = Math.sign(zo - zi);
+        const br = piece(P.seats.piece).row;
+        const back = br.max![2] - (br.min![2] + br.max![2]) / 2;
+        const zc = zo + so * (post / 2 + 0.02 + back);
+        for (let k = 0; k + 1 < posts.length; k++) {
+          const xc = (posts[k] + posts[k + 1]) / 2;
+          placeTurned(DT.chunk, P.seats.piece, xc, zc, yawToward(0, -so), "g", y - br.min![1]);
+          solids.push([xc - br.size![0] / 2, xc + br.size![0] / 2, zc - br.size![2] / 2, zc + br.size![2] / 2, y, y + br.size![1]]);
+          seats.push([+xc.toFixed(3), +zc.toFixed(3), y]);
+        }
+      }
       pergolas.push([x0, x1, z0, z1, y]);
     }
     // the piers (`garden.piers`, Milestone 975): the fill's barrels stood on the stair's landings and hid nothing the walk's
@@ -4975,7 +5330,7 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
     for (const [x, z] of PR2?.at ?? []) {
       const y = tierAt(x - S / 2, z - S / 2);
       const q = placeTurned(DT.chunk, PR2!.piece, x, z, 0, "g", y, PR2!.mat, PR2!.scale);
-      placeTurned(DT.chunk, PR2!.pot, x, z, 0, "g", q.top);
+      placeTurned(DT.chunk, PR2!.pot, x, z, 0, "g", q.top, pot(PR2!.pot));
       solids.push([x - q.hu, x + q.hu, z - q.hv, z + q.hv, y, q.top]);
     }
     // the blocks on the top tier (`blocks`, Milestone 585): rows along the fence, each a rectangle [z0, z1, top] across
@@ -5055,14 +5410,25 @@ const SHOPS: Array<{ id: string; block: string; kit: string; at: number[]; turn:
         walls++;
       }
     }
+    // the approach's lamps (`garden.approach`, Milestone 1085; the districts' thirteenth reviews, d04: "lamps on the dark
+    // approach"): the street's lamp, which the game pools by night, on the promenade (a pool on a bastion's 5 m square spills off
+    // it), drawn only, its post typed
+    const approach: number[][] = [];
+    for (const [x, z, yaw] of G2.approach?.at ?? []) {
+      const AP = G2.approach!;
+      const y = tierAt(x - S / 2, z - S / 2);
+      placeTurned(DT.chunk, AP.piece, x, z, yaw, "g", y - piece(AP.piece).row.min![1]);
+      solids.push([x - AP.post[0], x + AP.post[0], z - AP.post[0], z + AP.post[0], y, y + AP.post[1]]);
+      approach.push([x, z, y]);
+    }
     // the cypress avenue along both roads, on the ground beyond each
     for (const z of G2.avenue.z)
       for (const x of G2.avenue.x) {
-        placeTurned(DT.chunk, G2.avenue.pieces[trees % G2.avenue.pieces.length], x, z, rndT() * 360, "s", 0);
+        placeTurned(DT.chunk, G2.avenue.pieces[trees % G2.avenue.pieces.length], x, z, rndT() * 360, "s", 0, pot(G2.avenue.pieces[trees % G2.avenue.pieces.length]));
         trees++;
       }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "terraces"), { district: "terraces", ...DT.name }];
-    cfg.terraces = { cells: cells.map((c) => [c.x0, c.z0, c.top, c.ramp ? 1 : 0]), rise, solids: solids.map((b) => b.map((v) => +v.toFixed(3))), rails: railAt, walls, trees, flowers, ferns, benches, lamps, rooms: rooms.map((q) => [q.x0, q.z0, q.floor, q.top]), blocks: blocks.map((q) => [q.z0, q.z1, q.top]), balconies: balconyAt, flights, beds: bedAt, pergolas, gate: [gx0, gx1, GT.z, gateEnd, gateY, attic + GT.attic.h] };
+    cfg.terraces = { cells: cells.map((c) => [c.x0, c.z0, c.top, c.ramp ? 1 : 0]), rise, solids: solids.map((b) => b.map((v) => +v.toFixed(3))), rails: railAt, walls, trees, flowers, ferns, benches, lamps, rooms: rooms.map((q) => [q.x0, q.z0, q.floor, q.top]), blocks: blocks.map((q) => [q.z0, q.z1, q.top]), balconies: balconyAt, flights, beds: bedAt, pergolas, seats, approach, gate: [gx0, gx1, GT.z, gateEnd, gateY, attic + GT.attic.h] };
     console.log(`THE TERRACES: ${cells.filter((c) => c.top > 0 || c.ramp).length} squares raised (${DT.ramp.cells.length} ramps), ${rooms.length} rooms with ${furnished} pieces of furniture, ${solids.length} collision boxes, ${walls} wall pieces, ${rails} rails, ${trees} cypresses, ${flowers} flower planters, ${ferns} fern planters, ${benches} benches, ${lamps} lamps, ${blocks.length} blocks on the top tier with ${balconies} balconies`);
   }
 }
@@ -5222,7 +5588,7 @@ function onNode(o: OBox): boolean {
 {
   type Ground = { grid: number; at: number[]; keep: number; rowKeep: number; fill: number[][]; doors: number[][]; mix: string[]; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; cars: string[]; vans: string[]; planters: string[]; machines: string[]; crate: string; deco: string };
   type HotelWing = { id: string; axis: "x" | "z"; from: number; count: number; width: number; back: number; deep: number; gallery: number; run: number[]; fenceRun: number[]; yaw: number; floorYaw: number };
-  type Hotel = { storeys: number[]; roof: number; slab: number; rooms: string[]; floor: string; deck: string; wings: HotelWing[]; stairs: { piece: string; rise: number; arrive: number[]; route: number[][]; at: Array<[string, number, number]> }; rail: { x5: string; x2: string; x1: string; inset: number }; outline: Pt[]; roofCover: { pieces: string[]; at: number[][] }; podCrate: { piece: string; back: number; side: number }; lights?: { strip: string; stripRemap: string; every: number; pod: string; podRemap?: string }; court: Ground["rows"]; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
+  type Hotel = { storeys: number[]; roof: number; slab: number; rooms: string[]; floor: string; deck: string; wings: HotelWing[]; stairs: { piece: string; rise: number; arrive: number[]; route: number[][]; at: Array<[string, number, number]> }; rail: { x5: string; x2: string; x1: string; inset: number; mat?: string }; outline: Pt[]; roofCover: { pieces: string[]; at: number[][] }; roofMat?: string; roofSets?: Array<{ at: number[]; turn: number; parts: Array<[string, number, number, number, number?]> }>; line?: Array<{ piece: string; at: number[]; yaw: number }>; podCrate: { piece: string; back: number; side: number }; lights?: { strip: string; stripRemap: string; every: number; pod: string; podRemap?: string }; court: Ground["rows"]; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
   type Stacks = { chunk: string; seed: number; buildings: Array<[string, number, number, number]>; ground: Ground; lamps: { piece: string; at: number; north: number[]; west: number[] }; plugs?: number[][]; hotel?: Hotel; perch?: { box: number[]; y: number; inset: number; cover: { pieces: string[]; at: number[][] } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
   const DS = (R.districts as { stacks?: Stacks } | undefined)?.stacks;
   if (DS) {
@@ -5241,7 +5607,7 @@ function onNode(o: OBox): boolean {
     // bots' street model know it
     const HT = DS.hotel;
     const hotelSolids: number[][] = [];
-    const hotel = { pods: [] as Array<{ c: Pt; y: number; wing: string }>, galleries: [] as Array<{ wing: string; y: number; box: number[] }>, stairs: [] as Array<{ wing: string; at: number; route: number[][] }>, roof: HT?.roof ?? 0, outline: [] as Pt[], fences: 0, tiles: 0, cover: 0 };
+    const hotel = { pods: [] as Array<{ c: Pt; y: number; wing: string }>, galleries: [] as Array<{ wing: string; y: number; box: number[] }>, stairs: [] as Array<{ wing: string; at: number; route: number[][] }>, roof: HT?.roof ?? 0, outline: [] as Pt[], fences: 0, tiles: 0, cover: 0, sets: 0, line: 0 };
     if (HT) {
       const tops = [...HT.storeys.slice(1), HT.roof];
       const deck = piece(HT.deck).row;
@@ -5251,10 +5617,11 @@ function onNode(o: OBox): boolean {
         W.axis === "x" ? [Math.min(a0, a1), Math.max(a0, a1), W.back + d0, W.back + d1] : [W.back + d0, W.back + d1, Math.min(a0, a1), Math.max(a0, a1)];
       const ptOf = (W: HotelWing, a: number, d: number): Pt => (W.axis === "x" ? [a, W.back + d] : [W.back + d, a]);
       // (the deck's tiles over a box at a height, its top at it)
-      const tile = (b: number[], y: number) => {
+      // (in `mat` where given, Milestone 1085: the roof's tiles in `roofMat`)
+      const tile = (b: number[], y: number, mat?: string) => {
         for (let x = b[0]; x < b[1] - 0.01; x += T)
           for (let z = b[2]; z < b[3] - 0.01; z += T) {
-            placeTurned(DS.chunk, HT.deck, x + T / 2, z + T / 2, 0, "g", y);
+            placeTurned(DS.chunk, HT.deck, x + T / 2, z + T / 2, 0, "g", y, mat);
             hotel.tiles++;
           }
       };
@@ -5284,8 +5651,8 @@ function onNode(o: OBox): boolean {
               placeTurned(DS.chunk, HT.lights.strip, p[0], p[1], W.axis === "x" ? 0 : 90, "g", y - HT.slab - piece(HT.lights.strip).row.max![1], HT.lights.stripRemap);
             }
           for (const b of [rooms, gal]) hotelSolids.push([b[0], b[1], b[2], b[3], y - HT.slab, y]);
-          tile(gal, y);
-          if (y === HT.roof) tile(rooms, y);
+          tile(gal, y, y === HT.roof ? HT.roofMat : undefined);
+          if (y === HT.roof) tile(rooms, y, HT.roofMat);
         }
         for (const y of HT.storeys.slice(1)) hotel.galleries.push({ wing: W.id, y, box: gal });
       }
@@ -5340,7 +5707,8 @@ function onNode(o: OBox): boolean {
             u += 0.5;
             continue;
           }
-          add(DS.chunk, "c", [piece(fit[0]).key, +(a[0] + d[0] * u).toFixed(3), y, +(a[1] + d[1] * u).toFixed(3), yaw, "o"] as Place);
+          // (in `rail.mat` where given, Milestone 1085: every rail of the hotel pink, frame and panel)
+          add(DS.chunk, "c", [piece(fit[0]).key, +(a[0] + d[0] * u).toFixed(3), y, +(a[1] + d[1] * u).toFixed(3), yaw, "o", ...(RL.mat ? [RL.mat] : [])] as unknown as Place);
           u += fit[1];
           hotel.fences++;
         }
@@ -5371,6 +5739,26 @@ function onNode(o: OBox): boolean {
         const name = HT.roofCover.pieces[i % HT.roofCover.pieces.length];
         placeTurned(DS.chunk, name, x, z, 0, "o", HT.roof - piece(name).row.min![1]);
         hotel.cover++;
+      }
+      // the roof's sets (`roofSets`, Milestone 1085; the districts' thirteenth reviews, d12: "its roof two or three sets") and the
+      // court's line (`line`; d11: "a cover line across the court's middle"): each piece drawn and typed to its own box, the
+      // line's given to the bots' street model before the court's cover is laid
+      const typed = (o: OBox, y0: number) => {
+        const [ex, ez] = [Math.abs(o.u[0]) * o.hu + Math.abs(o.v[0]) * o.hv, Math.abs(o.u[1]) * o.hu + Math.abs(o.v[1]) * o.hv];
+        hotelSolids.push([+(o.c[0] - ex).toFixed(3), +(o.c[0] + ex).toFixed(3), +(o.c[1] - ez).toFixed(3), +(o.c[1] + ez).toFixed(3), y0, +o.top.toFixed(3)]);
+      };
+      for (const S of HT.roofSets ?? [])
+        for (const [name, al, ac, turn, sc] of S.parts) {
+          const s = sc ?? 1;
+          const [ox, oz] = rotY(S.turn, al, ac);
+          typed(placeTurned(DS.chunk, name, S.at[0] + ox, S.at[1] + oz, S.turn + turn, "g", HT.roof - piece(name).row.min![1] * s, undefined, s), HT.roof);
+          hotel.sets++;
+        }
+      for (const L of HT.line ?? []) {
+        const o = placeTurned(DS.chunk, L.piece, L.at[0], L.at[1], L.yaw, "g", -piece(L.piece).row.min![1]);
+        typed(o, 0);
+        STREET_GRAPH?.add(o);
+        hotel.line++;
       }
       cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "stacks-hotel"), { district: "stacks-hotel", ...HT.name }];
       // THE STACKS' high ground (`perch`, Milestone 593): the roof of 10's east pod, its three open edges railed (the
@@ -5928,10 +6316,12 @@ function onNode(o: OBox): boolean {
     arch: Array<[string, number, number, number]>;
     walkways?: { y: number; slab: string; short: string; rail: string; railShort: string; railH: number; runs: number[][]; crossings?: number[][]; signs?: { piece: string; scale: number; y: number; thick: number; mats: string[]; at: number[][] }; handrail?: { piece: string; every: number; shortest: number; y: number; mat: string } };
     stairs?: { at: number[][] };
+    segments?: { lengths: number[]; kits: Array<{ fronts?: string[]; mat?: string; long?: string; longMat?: string }> };
+    lane?: { marks: { piece: string; mat: string; y: number; every: number; at: number[][] }; parked: Array<[string, number, number, number, number, string?]> };
     roofs?: { bridge: string; bridges: number[][]; cell: number; rail: string; railShort: string; railH: number; cover: Array<[string, number, number, number, string?]>; decks?: { rise: number; tiles: string[]; at: number[][]; shed: string; sheds: number[][] } };
     market?: { out?: number[][]; islands?: Array<{ pieces: string[]; yaw: number; flip?: boolean; at: number[][] }>; bays?: Array<[string, number, number, number]>; crate: string; turned: string[]; sets?: Record<string, Array<[string, number, number, number, number, string?, boolean?]>>; wear?: string[]; cloth?: { panel: string; wire: string; scale: number; gap: number; y: number; panels: number; wear: string[]; at: Array<[string, number]> }; rows: Array<{ pieces: string[]; yaw: number; flip?: boolean; at: number[][] }> };
     light?: { strip: string; remap: string; every: number; in: number; lamp: string; lampEvery: number; roofLamp: string; lampRemap: string; roofLamps: number[][] };
-    cliffs?: { faces: Array<[string, number, number, number, number]>; signs: { pieces: string[]; every: number; y: number[]; gap: number; scale?: number }; units: { pieces: string[]; every: number; y: number[]; gap: number }; banners?: { y: number; h: number; w: number; colour: string; back: string; at: Array<[string, number, string]> } };
+    cliffs?: { faces: Array<[string, number, number, number, number]>; signs: { pieces: string[]; every: number; y: number[]; gap: number; scale?: number }; units: { pieces: string[]; every: number; y: number[]; gap: number }; banners?: { y: number; h: number; w: number; colour: string; back: string; at: Array<[string, number, string]> }; balconies?: { piece: string; clear: number; kits: number[]; at: number[][] } };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
   };
   const DC = (R.districts as { canyon?: Canyon } | undefined)?.canyon;
@@ -5941,6 +6331,18 @@ function onNode(o: OBox): boolean {
     const fr = piece(DC.fronts[0]).row;
     const [deep, unit, longLen] = [fr.size![0], fr.size![2], piece(DC.long).row.size![2]];
     let fronts = 0;
+    // (each front's kit by its segment, `segments`, Milestone 1086: its middle, its turn, its kit, whether it collides, the way out
+    // of its side, its side's line and its length along it, for the check to walk each side's runs)
+    let modules = 0;
+    const kitFronts: number[][] = [];
+    const kitOf = (g: number): number => {
+      const SG = DC.segments;
+      if (!SG) return 0;
+      for (let [n, i] = [0, 0]; ; i++) {
+        n += SG.lengths[i % SG.lengths.length];
+        if (g < n) return i % SG.kits.length;
+      }
+    };
     let k = 0;
     let [ke, edgeFronts] = [0, 0];
     // a side from a to b, `out` the way out of the block: its modules of `unit` metres, one `long` where it ends in a half
@@ -5957,10 +6359,23 @@ function onNode(o: OBox): boolean {
       for (const l of lens) {
         const m: Pt = [a[0] + d[0] * (s + l / 2), a[1] + d[1] * (s + l / 2)];
         s += l;
+        // (every module counted, laid or not, so where each segment of the cliffs starts hangs on the blocks alone)
+        const g = modules++;
         if (inBlock(m[0] + out[0] * 0.5, m[1] + out[1] * 0.5)) continue;
         // (a side on the map's edge counts its own fronts round, so every other side keeps the pieces it had)
-        const name = l > unit + 0.1 ? DC.long : DC.fronts[(how === "o" ? k++ : ke++) % DC.fronts.length];
-        placeTurned(DC.chunk, name, m[0] - out[0] * (deep / 2), m[1] - out[1] * (deep / 2), yaw, how, -piece(name).row.min![1]);
+        const own = l > unit + 0.1 ? DC.long : DC.fronts[(how === "o" ? k++ : ke++) % DC.fronts.length];
+        // (its segment's kit, Milestone 1086; the districts' thirteenth reviews, d20 and d21: "a different facade every 20-30 m",
+        // "a second window material": the kit's own front or long piece and its wear where it names them, the district's own
+        // where it does not)
+        const ki = kitOf(g);
+        const kit = DC.segments?.kits[ki];
+        const isLong = l > unit + 0.1;
+        const kf = kit?.fronts ?? [];
+        const name = isLong ? (kit?.long ?? own) : kf.length ? kf[(k + ke) % kf.length] : own;
+        const mat = (isLong ? (kit?.longMat ?? kit?.mat) : kit?.mat) ?? undefined;
+        const [fx, fz] = [m[0] - out[0] * (deep / 2), m[1] - out[1] * (deep / 2)];
+        placeTurned(DC.chunk, name, fx, fz, yaw, how, -piece(name).row.min![1], mat);
+        kitFronts.push([+fx.toFixed(3), +fz.toFixed(3), yaw, ki, how === "o" ? 1 : 0, out[0], out[1], out[0] ? a[0] : a[1], l]);
         fronts++;
         if (how !== "o") edgeFronts++;
       }
@@ -6291,7 +6706,7 @@ function onNode(o: OBox): boolean {
     // the face (not across a passage's mouth or a stair's recess). A sign's own x runs out from the wall, its thin own z
     // along it, so it is read down the canyon; a unit lies flat on the wall, its own z out of it
     const CF = DC.cliffs;
-    const cliffs = { signs: 0, units: 0, banners: 0 };
+    const cliffs = { signs: 0, units: 0, banners: 0, balconies: 0 };
     // (each face's signs and units, [along, bottom, top, half their width along it], for the banners across the street)
     const onFaces: Array<{ axis: string; line: number; a0: number; a1: number; at: number[][] }> = [];
     if (CF) {
@@ -6348,12 +6763,47 @@ function onNode(o: OBox): boolean {
         banners.push({ text, at: axis === "z" ? [a, y, mid] : [mid, y, a], yaw: axis === "z" ? 90 : 0, w: BN!.w, h: BN!.h, colour: BN!.colour, back: BN!.back, span: +(l1 - l0).toFixed(2) });
         cliffs.banners++;
       }
+      // the balconies (`balconies`, Milestone 1086; the districts' thirteenth reviews, d20: "the cliffs stepped, balconies,
+      // ledges"): the pack's small balcony at a storey's sill on the white and the dark kits' fronts down the canyon's four
+      // faces, [x, y, z, yaw] its footprint's middle, its slab's top and its turn, each measured off version 139's walls clear of
+      // every blade sign, wall unit, cable bundle and banner (canyonworks7). Drawn only: the lowest is 6 m over a walkway and the
+      // highest 5.7 m under a roof's edge, so nobody stands on one
+      const BL = CF.balconies;
+      for (const [x, y, z, yaw] of BL?.at ?? []) {
+        placeTurned(DC.chunk, BL!.piece, x, z, yaw, "g", y);
+        cliffs.balconies++;
+      }
       cfg.banners = banners;
-      console.log(`THE CANYON's cliffs: ${cliffs.signs} blade signs, ${cliffs.units} wall units, ${cliffs.banners} banners across the street`);
+      console.log(`THE CANYON's cliffs: ${cliffs.signs} blade signs, ${cliffs.units} wall units, ${cliffs.banners} banners across the street, ${cliffs.balconies} balconies`);
+    }
+    // THE CANYON's service lane (`lane`, Milestone 1086; the districts' thirteenth reviews, whole map: "the orange strip between
+    // THE CANYON and the fence" empty): the strip past the outer blocks' faces to the map's ground's end wears the road's
+    // asphalt (rules.ground.districts.lanes); on it the road's dash down each line [x0, z0, x1, z1] every `every` metres,
+    // and `parked` [piece, x, z, yaw, y, mat]: vans on its outer half, lamps and bins against the faces. All drawn only: it is
+    // past the fence, where no one fights
+    const LN = DC.lane;
+    const laneLaid = { marks: 0, parked: 0 };
+    if (LN) {
+      const ml = piece(LN.marks.piece).row.size![0];
+      for (const [x0, z0, x1, z1] of LN.marks.at) {
+        const L = Math.hypot(x1 - x0, z1 - z0);
+        const [ux, uz] = [(x1 - x0) / L, (z1 - z0) / L];
+        // (the dash's own x is its length)
+        const yaw = Math.abs(ux) > Math.abs(uz) ? 0 : 90;
+        for (let s = ml / 2; s + ml / 2 <= L + 1e-6; s += LN.marks.every) {
+          placeTurned(DC.chunk, LN.marks.piece, x0 + ux * s, z0 + uz * s, yaw, "g", LN.marks.y, LN.marks.mat);
+          laneLaid.marks++;
+        }
+      }
+      for (const [name, x, z, yaw, y, mat] of LN.parked) {
+        placeTurned(DC.chunk, name, x, z, yaw, "g", y, mat ?? undefined);
+        laneLaid.parked++;
+      }
+      console.log(`THE CANYON's lane past the fence: ${laneLaid.marks} dashes, ${laneLaid.parked} pieces parked on it`);
     }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "canyon"), { district: "canyon", ...DC.name }];
     cfg.canyon = {
-      blocks: DC.blocks, fronts, edgeFronts, tiles, solids,
+      blocks: DC.blocks, fronts, edgeFronts, tiles, solids, segments: kitFronts, lane: laneLaid,
       ...(CF ? { cliffs } : {}),
       ...(WK ? { walkways: { y: WK.y, runs: WK.runs, crossings: WK.crossings ?? [], rails, handrails, signs } } : {}),
       // (each piece of cover with its half-extents as turned, for the check to find it standing on the roof)
@@ -6902,8 +7352,32 @@ function onNode(o: OBox): boolean {
         stacks.push({ at: [x, z], top: +(body + cr.size![1] * SK.capScale).toFixed(2), box });
       }
     }
+    // THE WORKS' hall floors (`floor`, Milestone 1086; the districts' thirteenth reviews, d23: "the hall oiled concrete"): each
+    // hall's floor the pack's flat ground tiles, the largest that fit first, worn `mat`, `y` over the ground's tile, drawn only
+    // on the ground's own collision: the district's oily ground under the halls' warm fill read as mud
+    const FL = (DW as unknown as { floor?: { tiles: string[]; mat: string; y: number } }).floor;
+    let floorTiles = 0;
+    const floorOf = (x0: number, x1: number, z0: number, z1: number, sizes: string[]): void => {
+      if (!FL || !sizes.length || x1 - x0 < 0.1 || z1 - z0 < 0.1) return;
+      const s = piece(sizes[0]).row.size![0];
+      const [nx, nz] = [Math.floor((x1 - x0) / s + 1e-6), Math.floor((z1 - z0) / s + 1e-6)];
+      for (let i = 0; i < nx; i++)
+        for (let j = 0; j < nz; j++) {
+          placeTurned(DW.chunk, sizes[0], x0 + s * (i + 0.5), z0 + s * (j + 0.5), 0, "g", FL.y, FL.mat);
+          floorTiles++;
+        }
+      floorOf(x0 + nx * s, x1, z0, z1, sizes.slice(1));
+      floorOf(x0, x0 + nx * s, z0 + nz * s, z1, sizes.slice(1));
+    };
+    for (const H of DW.halls) floorOf(H.box[0], H.box[1], H.box[2], H.box[3], FL?.tiles ?? []);
+    // THE WORKS' atrium pads' bases (`upper.padBase`, Milestone 1086; the districts' twelfth and thirteenth reviews, d23: "the
+    // pads flat rings"): the pack's round cap ring round each pad's ring of light, its rim lit in THE WORKS' teal, its grille
+    // left out (`without`) so the pad's own plate shows inside; [x, z] each pad's spot as the bake measures it. Drawn only: the
+    // bake measures each pad's floor and throw as before
+    const PBs = (DW.upper as unknown as { padBase?: { piece: string; scale: number; mat: string; without: string[]; at: number[][] } } | undefined)?.padBase;
+    for (const [x, z] of PBs?.at ?? []) add(DW.chunk, "c", [piece(PBs!.piece).key, x, 0, z, 0, "g", PBs!.mat, PBs!.without, PBs!.scale] as unknown as Place);
     if (DW.name) cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "works"), { district: "works", ...DW.name }];
-    cfg.works = { halls, panels, tiles, lamps, solids, strips: { lintels, facades, inside: insides }, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}), ...(RW ? { roofs } : {}), ...(LG ? { light } : {}), ...(SK ? { stacks } : {}) };
+    cfg.works = { halls, panels, tiles, lamps, solids, floorTiles, padBases: PBs?.at.length ?? 0, strips: { lintels, facades, inside: insides }, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}), ...(RW ? { roofs } : {}), ...(LG ? { light } : {}), ...(SK ? { stacks } : {}) };
     console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}${UP ? `; the works block's ground floor ${upper.ground.laid} of ${upper.ground.of} sets${upper.ground.left.length ? ` (left out: ${upper.ground.left.join("; ")})` : ""}, ${upper.pipes} pipe runs` : ""}`);
   }
 }

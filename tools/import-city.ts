@@ -1595,7 +1595,9 @@ export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Bak
     const stand = await tex.solidKtx2([128, 128, 255], 4, "normal");
     const m = doc.createMaterial(`${pack.name}/batch ${k}`).setBaseColorFactor([1, 1, 1, 1]).setMetallicFactor(1).setRoughnessFactor(1);
     m.setNormalTexture(doc.createTexture(`batch ${k} stand-in normal`).setImage(stand!).setMimeType("image/ktx2"));
-    batchLater.push({ m, layers, extras: { k, rows: part.length, width: 4, table: table.map((v) => +v.toFixed(5)) } });
+    // (and each row's material by name, Milestone 1081: the game finds a pack material's row by it, src/game/neonmap.ts
+    // lightTower, where the tower's window strips are one row of a batch)
+    batchLater.push({ m, layers, extras: { k, rows: part.length, width: 4, table: table.map((v) => +v.toFixed(5)), names: part.map((g) => mats.get(g.mat!)!.name) } });
     if (batch!.stats) {
       batch!.stats.batches.push(part.length);
       for (const [kind, list] of Object.entries(layers)) (batch!.stats.layers[kind] ??= []).push(list.length);

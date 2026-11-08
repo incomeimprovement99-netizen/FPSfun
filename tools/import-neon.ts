@@ -1162,6 +1162,14 @@ if (mode === "bake") {
       for (const [x0, x1, y0, y1, z0, z1] of c.boxes) boxInto(part, x0, x1, y0, y1, z0, z1, c.scale, { bottom: !c.under });
       tri += push(`tower-clad-${k}`, [{ part, mat: c.mat }], false);
     }
+    // (and the base's, rules.base.clad, Milestone 1083: the atrium's coffer and its rings, THE LOBBY's box and rods, the
+    // galleries' strips, the hall's and the court's beams and strips; drawn only, every one inside what already collides
+    // or over a void no body stands in, and in materials the city's file already draws)
+    for (const [k, c] of ((cfg.rules.base as { clad?: Array<{ mat: string; scale: number; boxes: number[][]; under?: boolean }> }).clad ?? []).entries()) {
+      const part = { pos: [] as number[], nrm: [] as number[], uv: [] as number[], idx: [] as number[] };
+      for (const [x0, x1, y0, y1, z0, z1] of c.boxes) boxInto(part, x0, x1, y0, y1, z0, z1, c.scale, { bottom: !c.under });
+      tri += push(`base-clad-${k}`, [{ part, mat: c.mat }], false);
+    }
     // The tower's storey lines (rules.tower.storeyBands, Milestone 1046; the centre's fifteenth reviews: "the tower's yellow edge
     // lines read as selection outlines", "lit bands a storey in place of the full-height gold edge lines"). game.outlines
     // stood a 0.3 m post at each corner of the tower's bounding square from 12 m to 109 m, up to a metre off its round
@@ -1171,10 +1179,22 @@ if (mode === "bake") {
     // the band's own height on a grid `pad` metres past the square (the upper half bulges 1.4 m east). Drawn only: 6 cm off
     // a facade no body stands against
     const SB = (cfg.rules.tower as { storeyBands?: { at: number[][]; out: number; mat: string } }).storeyBands;
+    // (each band in the light of the storey whose floor it is, or else of the one it caps, rules.tower.lit, Milestone 1081;
+    // a line no played storey touches is left dark: the nineteenth reviews' "each in its floor's colour, the dummy storeys
+    // dark". Without rules.tower.lit, every line in `mat` as before)
+    const LIT = (cfg.rules.tower as { lit?: { spans: Array<[number, number, string]> } }).lit;
+    const litAt = (h: number): string | null => {
+      if (!LIT) return SB!.mat;
+      const own = LIT.spans.find(([y0]) => Math.abs(y0 - h) < 0.01) ?? LIT.spans.find(([y0, y1]) => h > y0 + 0.01 && h <= y1 + 0.01);
+      return own ? own[2] : null;
+    };
     const storeyBands: Array<{ at: number; length: number; high: number }> = [];
     if (SB) {
-      const all = { pos: [] as number[], nrm: [] as number[], uv: [] as number[], idx: [] as number[] };
+      const byMat = new Map<string, { pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>();
       for (const [h, lo, hi, pad] of SB.at) {
+        const mat = litAt(h);
+        if (!mat) continue;
+        const all = byMat.get(mat) ?? byMat.set(mat, { pos: [] as number[], nrm: [] as number[], uv: [] as number[], idx: [] as number[] }).get(mat)!;
         const gB: Grid = { x0: sx0 - pad, z0: sz0 - pad, cell, nx: Math.ceil((sx1 - sx0 + 2 * pad) / cell), nz: Math.ceil((sz1 - sz0 + 2 * pad) / cell) };
         const band = bandAlong(gB, skinRegion(gB, standing(gB, towerTris(), h + lo, h + hi)), h + lo, h + hi, SB.out, TW.scale);
         const base = all.pos.length / 3;
@@ -1184,8 +1204,40 @@ if (mode === "bake") {
         all.idx.push(...band.part.idx.map((i) => i + base));
         storeyBands.push({ at: h, length: +band.length.toFixed(1), high: +(hi - lo).toFixed(2) });
       }
-      tri += push("tower-storey-bands", [{ part: all, mat: SB.mat }], false);
+      tri += push("tower-storey-bands", [...byMat].map(([mat, part]) => ({ part, mat })), false);
       console.log(`the tower's storey bands: ${storeyBands.map((b) => `${b.at} m ${b.length} m`).join(", ")}`);
+    }
+    // The base's facade (rules.base.facade, Milestone 1081; the centre's nineteenth reviews, B's fourth ask: "the base a facade:
+    // window frames, shutters, loading doors, ledges, lit bands", the eighteenth's "the base a landmark: a distinct facade"):
+    // round the base's outline (cfg.base.outline, the chamfers too) a lit band at each `bands` [y0, y1], `out` proud as the
+    // tower's are, and a cornice at each `ledges` [y0, y1, deep], a ring of slab from `tuck` inside the outline to `deep` out
+    // of it, its corners rounded round the chamfers; and the boxes it lists, each in its material (the windows' frames and
+    // sills, the canopies over the entrance bays and their lit edges). Drawn only: the canopies stand 2.9 m over the plaza,
+    // the rest 14 cm and less off the walls
+    const BF = (cfg.rules.base as { facade?: { out: number; scale: number; tuck: number; cell: number; ledges: Array<[number, number, number, string]>; bands: Array<[number, number, string]>; boxes: Array<{ mat: string; boxes: number[][] }> } }).facade;
+    if (BF && cfg.base?.outline) {
+      const O = cfg.base.outline as Pt[];
+      const xsF = O.map((p) => p[0]), zsF = O.map((p) => p[1]);
+      const gF: Grid = { x0: Math.min(...xsF) - 2, z0: Math.min(...zsF) - 2, cell: BF.cell, nx: Math.ceil((Math.max(...xsF) - Math.min(...xsF) + 4) / BF.cell), nz: Math.ceil((Math.max(...zsF) - Math.min(...zsF) + 4) / BF.cell) };
+      const facade: Array<{ part: { pos: number[]; nrm: number[]; uv: number[]; idx: number[] }; mat: string }> = [];
+      for (const [y0, y1, deep, mat] of BF.ledges) {
+        const ring = (x: number, z: number) => {
+          const d = sdPoly(O, x, z);
+          return Math.max(d - deep, -(d + BF.tuck));
+        };
+        const s = storeySlab(gF, ring, [], null, y1, y1 - y0, BF.scale);
+        facade.push({ part: s.top, mat }, { part: s.under, mat }, { part: s.edge, mat });
+      }
+      for (const [y0, y1, mat] of BF.bands) facade.push({ part: bandAlong(gF, (x, z) => sdPoly(O, x, z), y0, y1, BF.out, BF.scale).part, mat });
+      for (const c of BF.boxes) {
+        const part = { pos: [] as number[], nrm: [] as number[], uv: [] as number[], idx: [] as number[] };
+        // (every face: the canopies and the sills are seen from under them)
+        for (const [x0, x1, y0, y1, z0, z1] of c.boxes) boxInto(part, x0, x1, y0, y1, z0, z1, BF.scale);
+        facade.push({ part, mat: c.mat });
+      }
+      const n = push("base-facade", facade, false);
+      tri += n;
+      console.log(`the base's facade: ${BF.bands.length} bands, ${BF.ledges.length} cornices, ${BF.boxes.reduce((a, c) => a + c.boxes.length, 0)} boxes, ${n} triangles`);
     }
     // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);

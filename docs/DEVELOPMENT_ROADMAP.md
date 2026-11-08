@@ -19951,3 +19951,89 @@ lowest district in one review.
 - **The gap plan** (docs/PLAN_MAP_GAPS.md): every area of the centre and each district, what the reviewers keep naming, what
   stands there and why, the fix and its batch, toward 7 and then 8.
 - **Checked:** the map check 411 of 411 on the hi and max bakes (each converged, the layout's rerun 0 lines off the bake); the centre's draws 207 at lo, 209 at hi, 219 at max of 220; the cached bakes: lo 1,124 textures all from the cache, hi 717 of 1,124, max 404. verify, rules and tsc. Map files version 139: lo 223.7 MB, hi 307.9 MB, max 627.0 MB.
+
+## Milestones 1081 to 1094 — batch 7: the tower lit by its played storeys, the base's facade and lobby, the plaza, the High City roofs, the corner blocks' kits, THE TERRACES and THE STACKS, THE CANYON and THE WORKS, the gold chests, the lamp pools, THE WELL's rope frame, the tower floors' light and numbers, THE VAULT's prize room, THE CANYON's paving
+
+From the gap plan (docs/PLAN_MAP_GAPS.md, section 6.1) and the nineteenth and twentieth fresh reviews (2026-11-06 and
+2026-11-08, on versions 138 and 139: the centre 6.0 and 6.0 both rounds, the districts 6.2 and 6.2, then 6.2 and 6.3).
+Seven proposal agents measured the larger items as dry runs on version 139's files at once, each in its own area, each with
+its checks proven by putting the fault back; they were applied here one at a time (each anchor checked against the working
+tree first), then laid and baked as one version, with six items of the map agent's own.
+
+- **1081, the tower lit by its played storeys and the base's facade** ("the tower's bands and windows lit only on the
+  playable storeys, each in its floor's colour, the dummy storeys dark", "the base a facade: window frames, ledges, lit
+  bands", "its name large on four sides, a canopy over the hall's entrances"). Measured through the pack: the shell's window
+  light is Light02, 24.4 m2 lit a storey from 38.5 to 105.5 m, played or not. A shader patch (src/game/neonmap.ts
+  `lightTower`) gives it and the facade's two small lights their storey's colour where the storey is played and puts them
+  out where it is not; Light02 is a batch's row, so the bake now writes each batch row's material name (tools/import-city.ts,
+  one line). The storey bands drawn only at the lines a played storey touches (17 of 29), each in its storey's light
+  (rules.tower.lit.spans, every light one the city wears). The base: lit cyan bands at its three floor lines all round, a
+  concrete cornice over the colonnade, black frames and concrete sills round the 64 windows of its straight faces, 8
+  canopies with lit edges over the entrance bays (rules.base.facade, drawn only), THE LOBBY large on its four faces over the
+  roof's edge (game.boards). Not built: shutters (the pack's is one-sided: one-way cover at 64 firing positions) and loading
+  doors (each ground bay is the hall's way in).
+- **1082, the High City roofs and the lookout** ("the High City ring cut at two points into gaps with a pad", "chest-high
+  cover on the bare roof and the lookout's rim", "a low-walled raised centre on the lookout"). Two cells of the bridge ring
+  left out (rules.bridges.gaps: north-west and south-east), a pad either side of each (rules.pads.spine.across), the cover
+  rows on the cut cells moved; chest-high rows on the north, south and west decks and a mast on two; the lookout's raised
+  middle with three low walls and a gold-lidded chest. Picture 14's teal disc stays bare (inside the north deck's pad
+  landing); the pack has no skylight piece.
+- **1083, the base inside** ("the base hall a recognisable lobby", "a square atrium with galleries for the T-shaped hole and
+  its black dome", "beams, ducts and light strips on the flat dark ceilings", "the white open capsule unexplained"). The
+  atrium's T-shaped roof cut closed (its roof entry and rails out of rules.base.atrium.slabs); the "dome" is the tower's
+  13.5 m balcony, measured, so the void gets a concrete coffer its own size lit by two honeycomb panels, cyan light rings
+  round it, THE LOBBY on a dark box hung in it, the galleries' edges lit. The floating "capsule" is the 7 m storey's lamp over
+  the void's edge; lamps now keep off the coffer. A turnstile line at the north metro kiosk, a reception desk under a
+  RECEPTION board, a lounge under the coffer, a METRO sign beside each kiosk's door, a 5 m grid of concrete beams with warm
+  strips on the hall's ceiling and beams with cyan strips on the court's pillar rows. All drawn only, inside the collision.
+- **1084, the corner blocks each their own kit** ("MARKET themed: stall canopies, produce and cargo crates", "a two-storey
+  L-shaped motel with outside walkways at MOTEL HILL", "ledges and balconies on MARKET and NOODLE ROW"). A block of its own
+  laid before the street fill (rules.low.kits): MARKET three stalls under THE CANYON's cloths with a produce and cargo pile
+  and racks, awnings across both streets at its six lamp pairs, its crates worn wood, a balcony on its walk-in's face; MOTEL
+  HILL an L-shaped walkway 3 m up round its walk-in, railed, on columns, with a stair up from the ring road (its collision
+  typed boxes in cfg.stairs); NOODLE ROW bistro tables and stools by its stalls, the stalls in LANTERN ALLEYS' wood and red;
+  the street cover in both streets worn wood.
+- **1085, THE TERRACES and THE STACKS** ("slimmer pergolas", "terracotta pots for the yellow-black planters", "the name
+  larger, lamps on the dark approach", "a cover line across the court's middle", "its roof two or three sets, a pink rail").
+  All 95 garden pits lose their lit cross panel for terracotta, their cards for green sprigs; the pergolas' posts 0.25 m and
+  joists 0.155 m with the grain along each member, four benches; the gate's attic 6 m so the name is twice its size; four
+  lamps on the promenade. THE STACKS' roof tiles and hotel rails pink, three of its own cover sets on the roof, a line of
+  cars and cabinets across the court. Not done: hedge paths on the lawn (the bots' 5 m grid leaves no room), a gap with a
+  pad on the hotel roof.
+- **1086, THE CANYON and THE WORKS** ("a different facade every 20-30 m", "balconies, ledges", "the orange strip between
+  THE CANYON and the fence", "the hall oiled concrete, the light pool dimmed", "bolted plates on the flat rust L-walls",
+  "the pads flat rings"). THE CANYON's 152 fronts in runs of 20 to 30 m of three faces (the white offices, the pack's glass
+  front of the same box, a dark block), 31 balconies clear of every sign and cable, the strip past the fence an asphalt
+  service lane with vans, lamps and bins; THE WORKS' halls in concrete, their fill lights 5.5 m up for 3 (the bright disc's
+  peak 63% down), bolted rust plates on the L-walls, a teal-lit ring base under each atrium pad. One new material, batched.
+- **1088, the plaza a designed set** ("a flat kill bowl", "the plaza a place to fight: paving, a central feature, two cover
+  clusters"). A block of its own laid before the street fill (rules.dress.plaza, 30 sets at spots measured off version 139's
+  collision): a ring of 1.2 m lit low panels 2.5 m out from the base with a gap at every gate, planters on the chamfers, two
+  L cover clusters with crate stacks, two bay sets, a 6 m sign column on the east axis with THE SPIRE on its faces, four
+  pale court-flag fields in the faces' bands; the street fill keeps off it. Every part clear of 1081's canopies.
+- **1089, every chest gold-lidded** ("every chest gold-lidded and glowing", "the violet floor's one object white-grey not
+  gold"). Each cache set's chest (the pack's crate with a lit lid) wears THE VAULT's gold lid (rules.dress.caches.mats.CHEST)
+  in THE WELL's bottom, on the station's concourse, in the court and in the base, as in THE VAULT; the street fill's own
+  crates are cover and keep the pack's colours. The centre is one merged bake, so no new draw.
+- **1090, the lamp pools** ("the pools flat pastel discs", round 20: "smaller pools with softer falloff", "the coloured
+  pools read as paint spills"). A lamp's pool falls as a lamp over flat ground lights it, a bright middle under the lamp and
+  a long dim tail faded to nothing at its rim (src/game/lightpools.ts lampPool, game.pools.shape); the old falloff held near
+  full brightness to half the radius, so neighbouring pools merged into flat discs. The districts' washes keep the broad
+  falloff on a mesh of their own, in more of their district's colour (game.pools.wash.mix).
+- **1091, THE WELL's rope from a frame** ("the rope rising past the rim into empty sky"). A post on the rim outside the
+  rail, 2 m across from the rope's way out, a boom from its top at 4.75 m over the rope, a brace, and a block in the rope's
+  colour where it hangs, in the ropes' dark steel (src/game/neonmap.ts wellFrame, game.wellFrame), no bake; the post
+  collides, the rope is drawn up to the boom.
+- **1092, the tower floors' light and numbers** ("neutral white light with the floor colour as trim", "the floor number
+  facing each stair"; round 20: "every surface saturated green, a ship corridor", "the floor nearly black"). Each floor's
+  fill 30% of the way from the warm white to its colour, its colour carried by its lamps, walls, ceiling and rims; each
+  numbered floor's number in its colour on the core's west wall at its landing, facing the climber who comes back west
+  along the south flight (game.boards, 14).
+- **1093, THE VAULT's prize in one room** (round 20, both: "gold racks stand outside the strongroom as well as inside it,
+  which muddles which room is the prize", "the gold is flat orange paint"). The gold bars only on the strongroom's racks
+  (the halls' racks and crates held 152 of the 320), the halls' racks black shelving, and the storey's walls, gates, clad
+  and the shell's gold bands in the scratched gold its containers wear for the tinted yellow paint.
+- **1094, THE CANYON's street in worn paving** (round 20, both district reviews: "the cream polished marble floor reads as a
+  shopping mall, not a market street"). Its ground the pack's worn paving slabs, the tower's floors' own, for tinted marble.
+- **Checks that learned the new work:** fifteen new, 411 to 426, each failing on version 139's placements or with its fault put back: the tower lit exactly on its played storeys and the base a facade (1081); the bridge ring's gaps ridden from every spot in reach and the decks dressed (1082); the base's hall a lobby with its kiosks signed and its flat ceilings beamed and lit (1083); the corner blocks' kits (1084); THE TERRACES' and THE STACKS' eight parts (1085); THE CANYON's cliffs in segments with balconies and its lane, THE WORKS' halls (1086); the plaza's set (1088); every cache chest gold-lidded (1089); THE WELL's rope frame, its post clear of the way out and colliding (1091); each floor's number at its landing (1092); THE VAULT's gold in one room (1093). Changed: the storey band checks read the lines a played storey touches; the atrium's reads only the boards inside the base's walls; the cut bridges walked to their lips, the rail and cover checks skip the gap cells; the doors' awnings count the unworn ones; the pools' check finds the washes on their own mesh and the pools fading to nothing (half their middle by 35% of the radius), the decay's lit meshes five; the collision count holds THE WELL frame's post; the tower floors' lights near white (10 to 45 from the warm white, 12 apart). The proofs of 1089 to 1093: the six faults put back in one run (a bare chest, the pools' old plateau, the frame's post on the way out, a floor's number in white, a floor's light its old cyan, THE VAULT's walls in the yellow paint) each failed its own check, and the post on the way out failed THE WELL's ride too.
+- **Checked:** the map check 426 of 426 on the lo, hi and max bakes (each converged, the layout's rerun 0 lines off the bake); the centre's draws 207 at lo, 209 at hi, 219 at max of 220, unchanged; with the texture cache warm the hi bake took 4 minutes and the max 8 (one texture encoded of 1,126), for the first full pair's 75. verify, rules and tsc. Map files version 140: lo 226.8 MB, hi 310.8 MB, max 628.9 MB.
