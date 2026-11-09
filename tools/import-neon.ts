@@ -833,6 +833,21 @@ if (mode === "bake") {
     // (at the finer cell: at the half metre its inner edge stood over the last tread of each stair up to it)
     openFine.push({ d, m: I });
     console.log(`the Sky Ring: ${prims.reduce((a, p) => a + p.idx.length / 3, 0)} triangles`);
+    // (its brick edge lit, rules.skyring.band, Milestone 1097; the centre's twenty-first reviews, A rank 6: "the brick underside
+    // lit"): a strip of the base's own band light along the foot of the deck's outer edge, `h` tall and `out` proud of the
+    // brick, drawn only (no collision: not measured with the ring), in a light the centre's file draws already
+    // (rules.base.facade.bands'), so it adds no primitive
+    const SB = SR.band as { mat: string; h: number; out: number } | undefined;
+    if (SB) {
+      const strip = ringSlab(SR.r1, SR.r1 + SB.out, SR.deck - SR.thick + SB.h, SB.h, SR.segments, SR.scale);
+      const bprims = (["top", "edge", "under"] as const).map((k) => ({ pos: new Float32Array(strip[k].pos), nrm: new Float32Array(strip[k].nrm), uv: new Float32Array(strip[k].uv), idx: new Uint32Array(strip[k].idx), material: SB.mat }));
+      const bmat = derivedMat(SB.mat) ?? pack.matFor(SB.mat);
+      if (!bmat) throw new Error(`no material ${SB.mat}`);
+      const bmodel = { meshes: [{ name: "skyring-band", prims: bprims }], nodes: [], roots: [] } as unknown as Draw["model"];
+      const bd: Draw = { model: bmodel, mesh: 0, pre: null, mats: bprims.map(() => bmat), modelGuid: "", on: true, go: null };
+      (groups.get(groupOf("c-skyring")) ?? groups.set(groupOf("c-skyring"), []).get(groupOf("c-skyring"))!).push({ d: bd, m: I });
+      console.log(`the Sky Ring's band: ${bprims.reduce((a, p) => a + p.idx.length / 3, 0)} triangles in ${SB.mat}`);
+    }
   }
   // the base's floors (cfg.base, tools/neon-base.ts): each storey's slab from the base's outline (on the ground storey,
   // the court's opening, the plaza's tiles being the floor elsewhere) in to what already stands there, measured off its
@@ -1435,7 +1450,8 @@ if (mode === "bake") {
   // THE TERRACES' tiers and ramps (cfg.terraces, neon-layout.ts rules.districts.terraces): the pack's terrain kit is
   // faces with nothing behind them, so the layout writes each tier as a box solid to its top and each ramp as steps;
   // and THE STACKS' plugs (cfg.stacks), filling shut rooms the bots' street grid fell into
-  const typed = [cfg.terraces, cfg.stacks, cfg.strip, cfg.stairs, cfg.canyon, cfg.works, cfg.shops].flatMap((d) => ((d as { solids?: number[][] } | undefined)?.solids ?? []).map((q) => [...q]));
+  // (and GLASS HEIGHTS' shops' jambs, glazing and lids, Milestone 1099: their openings cut out of its blocks' skins)
+  const typed = [cfg.terraces, cfg.stacks, cfg.strip, cfg.stairs, cfg.canyon, cfg.works, cfg.shops, cfg.glass].flatMap((d) => ((d as { solids?: number[][] } | undefined)?.solids ?? []).map((q) => [...q]));
   const solids = [...cutBack(carve(coarse)), ...cutBack(carve(fine)), ...exactBoxes, ...windowBoxes, ...typed];
   if (carved) console.log(`the windows cut out of ${carved} collision boxes`);
   if (trimmed) console.log(`${trimmed} collision boxes of the rest cut back out of the fire escapes' rooms`);

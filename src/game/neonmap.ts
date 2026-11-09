@@ -81,7 +81,40 @@ export function addNeonSolids(boxes: number[][]): void {
 
 const G = neonCfg.game;
 
-type WellFrameCfg = { side: number; out: number; top: number; thick: number; over: number; brace: number; block: number };
+type WellFrameCfg = { side: number; out: number; top: number; thick: number; over: number; brace: number; block: number; colour?: string; rough?: number; metal?: number };
+type RopeFrameCfg = { rise: number; thick: number; at: Record<string, [number, number, number]> };
+/**
+ * Every other rope's end over a floor carried by a post and a short boom (game.ropeFrames, Milestone 1105; the centre's
+ * twentieth reviews, A, 04 and 14: "a vertical rope hangs from the sky with no visible anchor", "a thick rope segment with
+ * collars seems to end in mid-air near the tower"; the twenty-first, B, 14: "a thick black rod ... ends in mid-air"): the
+ * glass lifts' tops and both ends of every zip line. A rider leaves a rope's end along it (a lift's top along its `out`, a
+ * zip's end away from its other end), so each post stands `at[id]` [along, across, floor]: `along` metres on along that
+ * line and `across` metres to its side, on the floor there (all three measured off the collision, a lift's top hanging
+ * over its car and a zip's end over a roof's edge), its top `rise` over the end, a boom from it over the end and a hanger
+ * down to the rope. An end with no `at` has no frame. Map-local.
+ */
+export function ropeFrames(): Array<{ id: string; post: [number, number]; base: number; top: number; end: [number, number, number]; box: number[]; lift: boolean }> {
+  const F = (G as unknown as { ropeFrames?: RopeFrameCfg }).ropeFrames;
+  if (!F) return [];
+  const C = neonCfg as unknown as { lifts?: Array<{ id: string; rope: number[][]; out: number[] }>; glass?: { lift?: { id: string; rope: number[][]; out: number[] } }; zips?: Array<{ a: number[]; b: number[] }> };
+  const ends: Array<{ id: string; e: number[]; dir: [number, number]; lift: boolean }> = [];
+  for (const L of [...(C.lifts ?? []), ...(C.glass?.lift ? [C.glass.lift] : [])]) ends.push({ id: `lift-${L.id}`, e: L.rope[1], dir: [L.out[0], L.out[1]], lift: true });
+  (C.zips ?? []).forEach((z, i) => {
+    for (const [k, e, o] of [["a", z.a, z.b], ["b", z.b, z.a]] as const) {
+      const l = Math.hypot(e[0] - o[0], e[2] - o[2]) || 1;
+      ends.push({ id: `zip-${i}-${k}`, e, dir: [(e[0] - o[0]) / l, (e[2] - o[2]) / l], lift: false });
+    }
+  });
+  const h = F.thick / 2;
+  return ends
+    .filter((q) => !!F.at[q.id])
+    .map(({ id, e, dir, lift }) => {
+      const [along, s, base] = F.at[id];
+      const post: [number, number] = [e[0] + dir[0] * along - dir[1] * s, e[2] + dir[1] * along + dir[0] * s];
+      const top = e[1] + F.rise;
+      return { id, post, base, top, end: [e[0], e[1], e[2]] as [number, number, number], box: [post[0] - h, post[0] + h, post[1] - h, post[1] + h, base, top], lift };
+    });
+}
 /**
  * THE WELL's rope's frame (game.wellFrame, Milestone 1091; the centre's nineteenth reviews, A, 19b: "the rope rising past
  * the rim into empty sky"): a post on the rim outside its rail, `side` metres across from the rope's way out so a rider
@@ -294,10 +327,8 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   for (const [x0, x1, z0, z1] of UG.slabs) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
   // (and THE WELL's frame's post, wellFrame: it stands on the rim's paving, so it collides as the street's pieces do)
   const WF = wellFrame();
-  if (WF) {
-    const [x0, x1, z0, z1, y0, y1] = WF.box;
-    RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
-  }
+  // (and every rope frame's post, ropeFrames, Milestone 1105)
+  for (const [x0, x1, z0, z1, y0, y1] of [...(WF ? [WF.box] : []), ...ropeFrames().map((f) => f.box)]) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
   const slabs = RANGE_SOLIDS.slice(first);
   // (and the boxes the bake measured, when they are in: addNeonSolids)
   rebuildSolidGrid();
@@ -525,16 +556,24 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   // (THE WELL's rope drawn up to its frame's boom, wellFrame, not ending in the air over the rim)
   const WFr = wellFrame();
   const wellRope = ropeCfg.well?.ropes?.[0];
+  // (and a lift's rope up to its frame's boom, ropeFrames, Milestone 1105)
+  const RF = ropeFrames();
+  const RFc = (G as unknown as { ropeFrames?: RopeFrameCfg }).ropeFrames;
+  const liftTop = (b: number[]) => RF.find((f) => f.lift && Math.hypot(f.end[0] - b[0], f.end[2] - b[2]) < 0.01);
   for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? []), ...(ropeCfg.express ?? []), ...(ropeCfg.glass?.lift ? [ropeCfg.glass.lift] : [])]) {
     const [a, b] = q.rope;
-    const top = WFr && q === wellRope ? WFr.top - WFr.cfg.thick / 2 : b[1] + 0.3;
+    const lf = liftTop(b);
+    const top = WFr && q === wellRope ? WFr.top - WFr.cfg.thick / 2 : lf && RFc ? lf.top - RFc.thick / 2 : b[1] + 0.3;
     cable(new THREE.Vector3(a[0], q.floor, a[2]), new THREE.Vector3(a[0], top, a[2]), G.liftRope, q.colour);
     ZIPLINES.push({ a: new THREE.Vector3(a[0] + BR_X, a[1], a[2] + BR_Z), b: new THREE.Vector3(b[0] + BR_X, b[1], b[2] + BR_Z) });
   }
   // the frame itself: post, boom and brace in the ropes' dark steel, the block where the rope hangs lit as their collars
   if (WFr && wellRope) {
     const FR = WFr.cfg;
-    const steel = cableMat ?? emissive(new THREE.Color(wellRope.colour).getHex(), G.zipGlow);
+    // (in its own steel where game.wellFrame gives one, `colour`, Milestone 1098: in the ropes' near-black cable its post, 2 m
+    // beside the rope's step-off, read as "a hard black rectangle on the concrete with no caster" to both centre reviewers of
+    // round 21 (19). Its glow the cable's own, so the ropes' check still reads it as a cable)
+    const steel = FR.colour && G.zipCable ? new THREE.MeshStandardMaterial({ color: new THREE.Color(FR.colour), emissive: new THREE.Color(G.zipCable), emissiveIntensity: G.zipGlow, roughness: FR.rough ?? 1, metalness: FR.metal ?? 0 }) : cableMat ?? emissive(new THREE.Color(wellRope.colour).getHex(), G.zipGlow);
     const bar = (a: THREE.Vector3, b: THREE.Vector3) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(FR.thick, a.distanceTo(b), FR.thick), steel);
       m.position.copy(a).add(b).multiplyScalar(0.5);
@@ -550,6 +589,25 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     const block = new THREE.Mesh(new THREE.BoxGeometry(FR.block, FR.block, FR.block), emissive(new THREE.Color(wellRope.colour).getHex(), G.zipCollar.glow));
     block.position.set(WFr.rope[0], WFr.top - FR.thick / 2 - FR.block / 2, WFr.rope[1]);
     ropes.push(block);
+  }
+  // every other rope's end: a post, a boom over the end and, for a zip's end, a hanger down to it, in the same dark steel
+  if (RFc && RF.length) {
+    const steel = cableMat ?? emissive(0x222222, G.zipGlow);
+    const bar = (p: THREE.Vector3, q2: THREE.Vector3, t: number) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(t, p.distanceTo(q2), t), steel);
+      m.position.copy(p).add(q2).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), q2.clone().sub(p).normalize());
+      ropes.push(m);
+    };
+    for (const f of RF) {
+      const [px, pz] = f.post;
+      const [ex, ey, ez] = f.end;
+      const t = RFc.thick;
+      bar(new THREE.Vector3(px, f.base, pz), new THREE.Vector3(px, f.top + t / 2, pz), t);
+      const away = new THREE.Vector3(ex - px, 0, ez - pz).normalize().multiplyScalar(t / 2);
+      bar(new THREE.Vector3(px, f.top, pz).sub(away), new THREE.Vector3(ex, f.top, ez).add(away), t);
+      if (!f.lift) bar(new THREE.Vector3(ex, ey, ez), new THREE.Vector3(ex, f.top - t / 2, ez), G.liftRope * 2);
+    }
   }
   // the zip lines (neon-layout.ts rules.low.zip): from each rooms building's roof yard up to a High City deck, a rope
   // between its ends lit in its block's colour, ridden up or down

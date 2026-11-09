@@ -102,15 +102,16 @@
   },
   "storey": 3.6,
   "bay": 2.4,
-  "lit": 0.32,
+  "lit": 0.24,
   "glow": {
    "day": 0.1,
-   "night": 0.3
+   "night": 0.18
   },
   "haze": {
    "day": 0.6,
    "night": 0.3
   },
+  "_dim1102": "Milestone 1102 (the districts' fifteenth reviews, both: 'the outer city fills most of the frame and is brighter and cleaner than the play area, the eye drifts outward; darken, desaturate and haze the pale office blocks so the play area is the richest, brightest thing in frame', 'at night the outer city's window grid is brighter than the playable districts; dim the outer city's windows'): its walls by day at `facade.body.day` 0.45 of the pack's colours (1 since Milestone 1076; measured off d00-aerial-sw at the review's settings, the near towers' mean luma 117 to 90 of 255; with the haze raised to 0.75 as well the haze's light colour gave back most of it, 100), its windows by night at `glow.night` 0.18 (0.3) with `lit` 0.24 of them on (0.32).",
   "warm": "#ffc98a",
   "cool": "#8fd3ff",
   "bodies": [
@@ -204,7 +205,7 @@
    "rim": 0.6,
    "rimK": 1.25,
    "body": {
-    "day": 1,
+    "day": 0.45,
     "night": 0.113
    }
   },

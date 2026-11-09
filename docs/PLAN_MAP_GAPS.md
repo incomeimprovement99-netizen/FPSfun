@@ -378,7 +378,7 @@ pools (1090), THE WELL's rope frame (1091), the tower floors' light and numbers 
 one room with its walls scratched gold (1093) and THE CANYON's worn paving (1094). Left for batch 8: the desks on the 26 m
 floor, the districts' night colours, the finish list's hover car and picture 24's dark facade.
 
-### 6.2 Batch 8 (then round 22)
+### 6.2 Batch 8 (built 2026-11-09 as version 141, Milestones 1095 to 1108; then round 22)
 
 From round 20, new and named twice or first:
 - **GLASS HEIGHTS' street storeys as real shopfronts** (district B's first ask): mullioned glazing, lit interiors,
@@ -399,6 +399,31 @@ And from before:
 - The best loot as a route (4.6) and one tower floor in rooms (4.5).
 - LANTERN ALLEYS, THE STRIP and THE TERMINAL (5.6 to 5.8), and GLASS HEIGHTS' court (5.2).
 - The transitions between districts (5.9).
+
+**What round 21 showed** (version 140): every score rose for the first time since round 14 (the centre 6.2 and 6.3, the
+districts 6.4 and 6.3); its asks moved up a level, to the strongroom as a room, the High City blocks' shapes and faces you
+can climb, the bare high slabs, denser streets, GLASS HEIGHTS' street storey, THE WORKS' yard, LANTERN ALLEYS dense, the city
+past the fence dimmer. **Built as version 141:** eight proposal agents' items, THE VAULT's strongroom a room with five ways
+in (1095), ledge stacks up three High City blocks (1096), the base's roof furnished and the Sky Ring's underside lit (1097),
+the streets' second stations and four of the street faults (1098), GLASS HEIGHTS' seven shopfronts and clear lift (1099),
+THE WORKS' yard in set pieces on slabs (1100), LANTERN ALLEYS' mouths and pavilion, THE TERRACES' rooms, THE STACKS' pink
+(1101), the ceilings in plain plaster (1106); and of mine the city past the fence quieter (1102), the awning over picture
+18 (1103), THE LOBBY's box on rods (1104), every rope's end on a frame (1105), NIGHT MARKET over the crossing's fence (1107),
+THE STRIP's crown banded (1108).
+
+**Left for batch 9** (the agents' "not done", each measured in its report in T/proposals8):
+- THE VAULT reached from outside: a ledge along its gold window row with zips onto it (vault8.md).
+- The High City blocks' crowns (the largest free rectangle on a deck is 2 to 3 m: perches or cover move), the east block's
+  climb, the tower's balconies on the played storeys (highcity8.md has the spec).
+- Cover on the lookout (10) and the north deck (14): both review cameras stand on arrivals, so the cover goes past their
+  keep-off or the arrivals move (slabs8.md).
+- Kiosks and stair towers from the plaza to the Sky Ring: a 45 degree stair cuts the base's corner door (slabs8.md).
+- GLASS HEIGHTS' plaza: solid cover, a centrepiece (glass8.md has a plan).
+- THE CANYON's walkways broken every 12 to 15 m (needs new bays: the walkway is 2.0 m clear and walked down its middle) and
+  its roofs: stair houses, plant rooms, a gap and a zip (yards8.md).
+- LANTERN ALLEYS' roof routes and facades, THE STACKS' court and roof tanks, THE TERRACES' garden rooms (gardens8.md).
+- Mine: the desks on the 26 m floor, the centre's white lit street boxes, the facades lit from below at night, the
+  transitions between districts, the pyramid's edge at a grazing angle (the renderer's aliasing, seen at d17).
 
 ### 6.3 Reaching 7, and then 8
 

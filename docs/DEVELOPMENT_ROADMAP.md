@@ -20037,3 +20037,125 @@ tree first), then laid and baked as one version, with six items of the map agent
   shopping mall, not a market street"). Its ground the pack's worn paving slabs, the tower's floors' own, for tinted marble.
 - **Checks that learned the new work:** fifteen new, 411 to 426, each failing on version 139's placements or with its fault put back: the tower lit exactly on its played storeys and the base a facade (1081); the bridge ring's gaps ridden from every spot in reach and the decks dressed (1082); the base's hall a lobby with its kiosks signed and its flat ceilings beamed and lit (1083); the corner blocks' kits (1084); THE TERRACES' and THE STACKS' eight parts (1085); THE CANYON's cliffs in segments with balconies and its lane, THE WORKS' halls (1086); the plaza's set (1088); every cache chest gold-lidded (1089); THE WELL's rope frame, its post clear of the way out and colliding (1091); each floor's number at its landing (1092); THE VAULT's gold in one room (1093). Changed: the storey band checks read the lines a played storey touches; the atrium's reads only the boards inside the base's walls; the cut bridges walked to their lips, the rail and cover checks skip the gap cells; the doors' awnings count the unworn ones; the pools' check finds the washes on their own mesh and the pools fading to nothing (half their middle by 35% of the radius), the decay's lit meshes five; the collision count holds THE WELL frame's post; the tower floors' lights near white (10 to 45 from the warm white, 12 apart). The proofs of 1089 to 1093: the six faults put back in one run (a bare chest, the pools' old plateau, the frame's post on the way out, a floor's number in white, a floor's light its old cyan, THE VAULT's walls in the yellow paint) each failed its own check, and the post on the way out failed THE WELL's ride too.
 - **Checked:** the map check 426 of 426 on the lo, hi and max bakes (each converged, the layout's rerun 0 lines off the bake); the centre's draws 207 at lo, 209 at hi, 219 at max of 220, unchanged; with the texture cache warm the hi bake took 4 minutes and the max 8 (one texture encoded of 1,126), for the first full pair's 75. verify, rules and tsc. Map files version 140: lo 226.8 MB, hi 310.8 MB, max 628.9 MB.
+
+## Milestones 1095 to 1108 — batch 8: THE VAULT's strongroom a room, ledges up the High City, the base's roof and the Sky Ring's underside, the streets denser, GLASS HEIGHTS' shopfronts, THE WORKS' yard, LANTERN ALLEYS, THE TERRACES and THE STACKS, the city past the fence quieter, the rope frames, THE LOBBY's hung box, NIGHT MARKET, THE STRIP's crown, the ceilings
+
+From the twenty-first fresh reviews (2026-11-08, on version 140: the centre 6.2 and 6.3, the districts 6.4 and 6.3, the first
+round since the fourteenth in which every score rose) and the gap plan's batch 8 (docs/PLAN_MAP_GAPS.md). Eight proposal
+agents measured the larger items as dry runs on version 140's files at once, each in its own area, each with its checks
+proven by putting the fault back on a predicted map; they were applied here one at a time (each anchor checked against the
+working tree first, the working tree by then version 141 with the map agent's own items), then laid and baked as one version.
+
+- **1095, THE VAULT's strongroom a room with five ways in** (round 21, both centre reviewers: "the strongroom built into the
+  structure: in 30 the door sits in a free-standing gold box with open floor and windows past it; run its walls to the slab
+  and ceiling, and add a second way in"; A: "close the strongroom up to the ceiling in dark steel with gold trim"). Its
+  doorway wall and all on it 0.6 m nearer the core (the room 2.2 m deep), its own ceiling gone so the room runs the storey's
+  6 m to the 38 m slab; each gate's south half opens into it, a 1.26 m side door from the west and east halls at 32 m and an
+  unrailed drop from each hall at 35 m (a body run at the old 1.17 m rails with a jump tapped never cleared them), the gates'
+  north halves filled so the vestibule is shut at its sides; the wall in dark steel trimmed gold, both drawn already. Five ways
+  in for one. The hero door's distance in the check from 3 m to 2.4 m; review spot 30 to (-9.975, 33.7, 2.4) so the ring keeps
+  its frame (at 2.0, the agent's pick, the camera stood in the core's doorway and saw only metal; 2.4 photographed best of 2.4,
+  2.7 and 3.0). Measured, left for later: a ledge outside the gold window row with zips onto it.
+- **1096, ledges up three High City blocks** (round 21 centre A, rank 1: "a balcony stack or ledge band per block"; B, rank
+  5: "ledges, AC units and balconies a mantle apart on the High City towers"): `rules.blocks.ledges`, a stack up the outer face
+  of the north, west and south blocks, each eight of the High City's platform-border ledges 3 m apart from 3 to 24 m,
+  alternating either side of its middle, in its block's colour, laid in the climbs' chunk; a map check climbs each with the
+  game's own player, no double jump, 9 of 9 legs street to deck. The east block keeps its fire escape (its faces all taken by
+  frames, a sign, a pad and the escape). Not done: the blocks' crowns (the largest free rectangle on any deck is 2 to 3 m
+  wide, so a crown moves perches or cover) and the tower's balconies.
+- **1097, the base's roof furnished and the Sky Ring lit beneath** (round 21 A, rank 2: "furnish the bare high slabs: the base
+  roof (09)"; rank 6: "light the brick underside"; B, rank 9: "the hall's light spilling out from under the Sky Ring"): 29 rows
+  in `rules.highCover.at` (groups baseroof-n and baseroof-s): three roof stair houses (the decks' 4.25 m hut, one in picture
+  09's view), seven chest-high walls, seven crate stacks two high and five single crates, a body's lane between every piece's
+  collision, the crates in the plaza's olive and rust; 48 of the base's own ceiling lights hung under the Sky Ring's deck and
+  the base's cyan band along its outer brick edge, drawn only. No cover in pictures 10 and 14: both cameras stand on arrivals
+  (a pad's landing, a rope's foot, a lift's top) and every spot in their frames is inside those arrivals' keep-off.
+- **1098, the centre's streets denser, and four of the street's faults** (round 21 A, rank 5: "break the long sightlines down
+  the carriageways with cover 2 to 3 m high"; B, rank 4: "denser clusters, about 8 m apart"; broken, both, 16, 19; A 20b; B
+  27): a second pass of the carriageway stations lays 17 more in the gaps between (`rules.dress.carriage.between`, the station
+  loop's body moved into `stationAt()` unchanged, the 39 stations as they were): low barrier Ls 8 to 10 m apart on the Loop and
+  seven corner streets; the share of standing sight lines past 35 m down a street from 19.3% to 16.3% on the Loop, 30.9% to
+  24.0% on the worst corner street. 16: the double bench lying on the paving for the single bench. 19: the "hard black
+  rectangle with no caster" was THE WELL frame's near-black post, now steel grey and 1.2 m back out of that view. 20b: LOWER
+  COURT 1.5 m west and 4.4 m wide, clear of the pillar. 27: the two fire-escape frames at the stair foot out ("a free-standing
+  portal"), their first flights lit on the treads.
+- **1099, GLASS HEIGHTS' street storey in shopfronts** (round 21 districts B, rank 2: "replace the blank grey lower panels with
+  glazed lobbies, lit interiors, canopies and recessed doors"; broken: "the slabs inside the lift shaft read as floating
+  shelves", "cyan crystal shapes on the left facade like stray decals"): seven openings cut out of the blocks' hollow lower
+  storey by the bake's `without` boxes, each a shop: white side walls, clear glass 0.4 m back for a recessed door, a lit room
+  behind with a floor, back wall, ceiling light and furniture, a canopy with a lit strip under the signs and a new TECH sign.
+  The lift shaft one clear glass tube (the "shelves" were its white frame rings), a canopy round the car at its foot, the
+  tower's cyan Light03 chevrons white. One material fewer (a cyan glow gone). Not done: solid cover on its plaza.
+- **1100, THE WORKS' yard in set pieces, its ground in slabs, its pads plain** (round 21 districts B, rank 3: "3 or 4 deliberate
+  container and pipe-rack positions with lanes between, plus a crane or forklift; drop the evenly scattered crate piles; the
+  crates a rust texture"; rank 4: "concrete slabs, oil stains, bay lines, drains"; broken, both: "the pad rings irregular
+  decals"). Measured off version 140's collision: with THE WORKS' 69 fill piles out and two set pieces in, no spot on its
+  ground is more than 6.9 m from cover, so `farBy.works` 8 for 6 and the fill lays none there. A pipe rack and a gantry crane
+  over the container row from the pack's own pieces, their legs 1.05 m and more off the bots' grid, the name seen on all nine
+  of its sight lines; the crates in rust plates, the containers' olive course plain yellow; the ground ConcreteTiles00 slabs
+  with oily aprons and drains at the doors and bay stubs (a primitive more in each of three ground chunks, none in the centre's
+  file); the pads' rim, a crenellated cap lit flat teal that read as one ragged white ring, a plain yellow collar round a dark
+  plate. THE CANYON measured, not changed (its walkway 2.0 m clear and walked down its middle: a booth needs new bays).
+- **1101, LANTERN ALLEYS' mouths and court, THE TERRACES' rooms, THE STACKS' pink** (round 20 both: "a pale slab floats across
+  LANTERN ALLEYS' mouth (d01)"; round 21 A: "d02 the brick box with a red sliding door like a lift door", B: "a court
+  centrepiece such as a lantern gate or shrine", "THE TERRACES' interiors plaster and timber instead of a green container (d06)",
+  A: "the yellow sci-fi bench timber or stone (it runs into the pergola post)", "THE STACKS' cypresses in pink planters"): d01's
+  slab was the ring road's kerb standing on flat ground, now dropped at both alley mouths to 2 cm over it; the stall by the
+  court's way in turned half round so d02 sees its awning and stools, every court stall's door timber; a lantern pavilion round
+  the court's mast, the shophouses' own roof module on four red posts 3.2 m from the mast either way, the mast through its apex. THE TERRACES' rooms plaster
+  with a timber dado (d06's green panel and glowing window gone), its benches timber 0.3 m clear of the pergola posts, its
+  raised beds terracotta. THE STACKS' garden pits all pink, its parapet's panel in the frame's pink paint. No material new
+  (484). Not done: LANTERN's roof routes and facades, THE STACKS' court and roof, THE TERRACES' garden rooms.
+- **1102, the city past the fence quieter than the play area** (the districts' fifteenth reviews, both: "the outer city
+  fills most of the frame and is brighter and cleaner than the play area, the eye drifts outward", "at night the outer
+  city's window grid is brighter than the playable districts"). Its towers' walls by day at 0.45 of the pack's colours
+  (measured off d00-aerial-sw at the review's settings: the near towers' mean luma 117 to 90 of 255; with the haze raised
+  as well the haze's light colour gave most of it back, 100), its windows by night at 0.18 for 0.3 with 0.24 of them lit
+  for 0.32, and each district's night wash twice as strong over 40 m for 34 (THE STRIP's 0.45). The lamp pools 6.5 m round
+  for 9, at 0.6 for 0.8, in 0.3 of their place's colour for 0.55 (round 21 B: "the night lamp pools read from above as flat
+  pink discs": at 9 m the pools of lamps 16 m apart overlapped into one disc of the sector's colour).
+- **1103, MARKET's awning over picture 18's camera** (round 21 A: "the cloth awnings look like thick flat boards"): the
+  canopy at 22.5 m down sw-s left out, the one corners7's report named first to look at; up close its cloths' undersides
+  read as boards, and the five others stand down the streets where they read as awnings.
+- **1104, THE LOBBY's box hung visibly** (round 21, both: "a lit box hangs at an angle in front of the coffer with no visible
+  support"): four rods 10 cm square from its top's corners to the coffer's frame for two of 4 cm on its middle line.
+- **1105, every rope's end on a frame** (round 20 A, 04 and 14: "a vertical rope hangs from the sky with no visible anchor";
+  round 21 B, 14: "a thick black rod ... ends in mid-air"): every glass lift's top and both ends of every zip line carried by
+  a post and a short boom as THE WELL's rope is (game.ropeFrames, src/game/neonmap.ts ropeFrames), each post's spot and
+  floor measured off version 140's collision (a lift's top hangs over its glass car, so its post stands 0.9 to 1.2 m on,
+  on the landing deck at 26.9 m; a High City zip's top hangs 2.2 to 3.8 m over the roof's edge), 1.2 m across the rider's
+  line (1.6 where 1.2 stood in a fence); the posts collide, drawn by the game, no bake. Fifteen frames.
+- **1106, the ceilings' "crease"** (round 21 centre A, rank 8: "a diagonal crease across every ceiling tile (07, 11, 29c)"):
+  measured on version 140's files, not a fault in them or in the renderer: every normal on the plaster ceilings straight down,
+  one UV gradient a surface with whole offsets, nothing else flat in their planes, no diagonal in any mip of the texture; the
+  lines are PlasterPannelsDirt00's own double border round each panel, which the review camera (92.3 degrees vertical, 121
+  across) sees at about 45 degrees across the grid as diagonals (the panel grid drawn through each shot's camera sits on every
+  line in 11, 20b and 29c). The reviewers' own second fix taken, "a seamless texture": the base's, the tower's and the 26 m
+  floor's ceilings in plain PlasterDirt00, which the centre draws already.
+- **1107, THE CANYON's NIGHT MARKET over the crossing's fence** (round 21 districts A, d19: "a railing post hides the M of
+  NIGHT MARKET"): a banner's own fourth number is its height in place of `y` (the layout's search for a clear band starts
+  there). At 11 m the banner showed through the glass fence of the walkway crossing at x -47.5 to -50 from the canyon's south
+  mouth, its letters behind the fence's posts; from the review's eye there (-44, 1.7, 125) the crossing's near fence (its typed
+  rail 3.5 to 4.5 m at x -47.5) stands 38.7 degrees up, and the banner at 14.5 m, 14 m on, clears it by 2.2 degrees and still
+  hangs in the view walking in. A check: the banner's foot 2 degrees and more over every fence top between that eye and it.
+- **1108, THE STRIP's crown a dark cap with a lit band** (round 21 districts, both, d00: "a glowing pink disc outside the east
+  fence (THE STRIP's crown)", "THE STRIP's pink crown a stray sphere at the fence"): traced through version 141's file (every
+  triangle over 84 m on the tower: 1,512 of Light06 magenta, the pack's round lift cap at 3 times, Milestone 987, worn whole in
+  the strip lights' colour), so from over the city it drew as one flat glowing disc 15 m across. Its body now wears the black
+  cracked paint and only its own light band the magenta, as GLASS HEIGHTS' lift cap wears its cyan; both drawn in the file
+  already.
+- **Proofs of 1102 and 1105's checks** (T/mine8/plant59.py, skn59proof.log, the config restored from a copy and compared):
+  the city past the fence's walls back at the pack's full colours by day failed "the city past the fence quieter" (walls by
+  day 1); one lift top's post put back on the rope's end failed the frame check (14 of 15 frames, lift-n-in over no floor) and
+  both glass lift rides with it (n-in put off 0.0 m past the rope): the posts collide.
+- **Checks that learned the new work:** sixteen new, 426 to 442, each failing on version 140's placements or with its fault
+  put back: the city past the fence quieter (1102); every rope's end on a frame (1105); NIGHT MARKET over the crossing's fence
+  (1107); THE WORKS' yard, ground and pads (1100); LANTERN ALLEYS, THE TERRACES and THE STACKS (1101); the base's roof cover and
+  the Sky Ring's lights (1097, two); the strongroom a room with five ways in (1095); the streets' second stations, the bench,
+  the frame's post, LOWER COURT and the stair foot (1098, five); the ledge stacks climbed (1096); GLASS HEIGHTS' shopfronts, its
+  clear shaft and white tower (1099); the ceilings in plain plaster (1106). Changed: THE STRIP's crown lit by its band alone
+  (1108); the facade check reads the city's walls at 0.4 and more of the pack's colours; the collision count holds the rope
+  frames' posts; the vault door's distance 2.4 m; the frames counted at the climbs' feet 10 for 12; the pavilion's posts read at
+  the bake's half-metre cells (at the first bake a post typed 0.5 m square, 0.5 m off the court's street line, cost the court's
+  middle node a link: the posts moved from 2.7 to 3.2 m off the mast).
+- **Checked:** 442 map checks pass at every texture size (lo, hi, max), the centre's draws 207, 209 and 219 of 220. verify, rules and tsc. Map files version 141: lo 227.2 MB, hi 311.1 MB, max 627.3 MB.
