@@ -975,3 +975,46 @@ carriageway (both centre); a centrepiece or pavilions on the plaza (B) and the H
 billboards (A); the courts' middle cover at THE STACKS, GLASS HEIGHTS and LANTERN ALLEYS (both districts); the roof routes
 made visible (both districts); GLASS HEIGHTS' screens and lift glass (both districts); THE WORKS' yard as container groups
 and its jet (both districts); the night's districts dark (both districts); roof colours from the drop (both districts).
+
+## Round 24 (the centre) and the districts' round 18, 2026-11-10 (map version 143)
+
+The same spots as round 23 on map version 143's high bake. Since version 142: batch 10 (Milestones 1125 to 1135): the north deck's
+lobe in cover and the lookout's stray crates out, offices in two High City blocks, MARKET's stall line and each corner
+block's paving, THE STACKS' deep pink deck, GLASS HEIGHTS' frosted screens and smoked shaft, LANTERN ALLEYS' name over its
+mouth and second fire escape, THE TERMINAL's pale vaults and railed catwalks, THE CANYON's banded gaps and yellow-green roofs,
+THE WORKS' container groups, THE STRIP club's red front and stage, THE TERRACES' striped lawn, each district's roof edges lit
+by night, the ceilings lit a light grey, the crown's billboards, the clover glass worn clear. Two fresh agents reviewed each, reading the brief from its file, seeing nothing but the pictures. In
+their words cut short:
+
+CENTRE ROUND 24 reviewer A (2026-11-10, map version 143): overall 6.4 (round 23 A: 6.3).
+Scores: visual 6.5, readability 6.5, flow 7.0, play-style 6.5, finish 5.8, fun 6.7, overall 6.4.
+Ten: 1 the plaza a shape (01, 02, 03): three or four roofed pavilions or kiosk clusters round a centrepiece, half the loose pieces gone; 2 the lookout (10) furnished: a raised block in the middle, crate stacks off the rim, a marked floor, a name board; 3 the rope frames (14) a dark steel A-frame with a winch housing; 4 the shadows (08, 19, 25); 5 the tower's playable windows read from outside (25, 02); 6 MARKET tighter (18): stalls every 4 to 6 m, awnings across the street; 7 loot shown: pickups on floors, the chests' gold lids emissive (dark in 20b); 8 the tower floors an office identity (13, 12); 9 the toy-wheeled green bins rescaled or replaced (04, 22); 10 a crisp sun disc (14), the court's ceiling hole edge (20), varied night pools (23).
+Broken: 10 a thick white diagonal bar across the left; 14 the smeared sun, a pink cube on a white boom; 20 a wavy torn-paper ceiling edge; 08 jagged shadow, the base's "m" cut off, the base's upper rooms bare; 19 pixel banding; 25 a blue shadow halo; 05 a blank black board over a door; 30 a triangular gold piece at the frame's top right; 28 the gold reads as grime; 01 long black tubes across the ring road.
+
+CENTRE ROUND 24 reviewer B (2026-11-10, map version 143): overall 6.4 (round 23 B: 6.3).
+Scores: visual 6.5, readability 6.5, flow 6.5, play-style 6.0, finish 5.5, fun 6.5, overall 6.4.
+Ten: 1 the lookout (10): two chest-high wall sets and a crate stack inside the rim, the floor textured, a clean rim cap; 2 the plaza (01, 02, 06): 8 to 12 larger named cover pockets with lit edges; 3 the shadows; 4 the High City decks (14, 15): a kit wall with a lit edge for the grey slab, stair houses, raised platforms, jump gaps in the ring; 5 THE VAULT's 32 m band lit gold from outside (02, 03, 09); 6 the glass rails clean tinted glass (04, 08: "speckled noise"); 7 the base's first floor furnished (08); 8 tall cover in the near lanes (18, 04), the rock-like van (16) a lit vehicle; 9 the tower floors' glowing white panels real openings or screens (12, 13); 10 night (23): fewer, stronger pools, the base's bands and the Sky Ring's rail lit.
+Broken: 10 the white bar, the rim's speckled black top; 14 the grey slab placeholder, the post-and-boom a goalpost or gallows; 05, night 24 a flat white door; 04, 22 the bins oversized; 16 the van a boulder; 17 a tilted white crate; 29 the box blank below; 06 the grey slab stack; 21 no platform or track; 12 the stair a plank; 01 a black cylinder east. Not seen in any image: the High City offices, cover on the lookout.
+Positive: "the interior ceilings are now neutral grey, so the olive is gone"; MARKET's stall line, NOODLE ROW, MOTEL HILL read as places.
+
+DISTRICTS ROUND 18 reviewer A (2026-11-10, map version 143): overall 6.2 (round 17 A: 6.3).
+Scores: LANTERN 6.5, TERRACES 6.0, TERMINAL 6.2, STACKS 6.1, GLASS 6.4, STRIP 6.7, CANYON 6.5, WORKS 6.2. Together: visual 6.6, readability 6.0, flow 6.2, play-style 5.9, finish 5.6, fun 6.3, overall 6.2.
+Ten: 1 THE CANYON's roofs darker with green on the edges only, each gap a true gap with the lit street below; 2 THE WORKS' containers real container shapes in four or five colours; 3 GLASS HEIGHTS' screens solid white in their lower 1.2 m, planter walls, three more clusters on the 27 m deck; 4 THE STACKS' deck in view in front of the hotel, stairs at both ends, two cover lines under it; 5 THE TERRACES' approach a lit promenade, its gate twice as tall; 6 THE TERMINAL's hall a platform and wagon in view, the streaks fixed; 7 the pads in THE WORKS' hall and the rings on THE CANYON's walls lit with rims; 8 one planting per district, varied ads, real words on posters; 9 THE WORKS' hall ceiling a steel deck; 10 night: thinner fog, stronger roof edges on LANTERN, STACKS, GLASS, TERRACES.
+Positive: LANTERN ALLEYS' fire escapes with ROOFS boards "finally say you can go up", its roofs "a joined terrace route"; THE TERMINAL's railed catwalks "a clear roof route"; GLASS HEIGHTS "the most designed district".
+
+DISTRICTS ROUND 18 reviewer B (2026-11-10, map version 143): overall 6.3 (round 17 B: 6.3).
+Scores: LANTERN 6.6, TERRACES 6.3, TERMINAL 6.4, STACKS 6.3, GLASS 6.5, STRIP 6.8, CANYON 6.6, WORKS 6.3. Together: visual 6.7, readability 6.6, flow 6.2, play-style 6.2, finish 5.8, fun 6.4, overall 6.3.
+Ten: 1 THE CANYON's gaps read as jumps (a lit floor below, lips), the islands stepped 2 to 4 m; 2 THE WORKS' container faces in three colours, steel barricades at the ring road; 3 GLASS HEIGHTS' cover opaque chest-high planters with glass on top, the 27 m deck dressed; 4 THE TERRACES' plaza beds, a fountain, lamps, its rooms deeper; 5 THE STACKS' court a stair up to the deck in view, two barrier lines, the car out; 6 THE STRIP's ads not repeated; 7 streets past the fence; 8 cars out of walking spaces (d03, d06, d11); 9 THE TERMINAL's hall; 10 LANTERN ALLEYS' bridges lit to read from the roofs, the name clear of the pavilion (d02), timber for the brick blocks at the mouth.
+Positive: LANTERN ALLEYS "the warmest, most place-like district"; THE TERMINAL's vaults and catwalks "a clean roof lane"; GLASS HEIGHTS' lift "now reads as a lift"; THE CANYON at street level "the best district".
+
+What the map agent read besides: the centre rose for the first time in three rounds (6.4 and 6.4 from 6.3 and 6.3), the
+districts held (6.2 and 6.3 from 6.3 and 6.3). Batch 10's items were read where the pictures show them: the ceilings
+"neutral grey, the olive gone", MARKET's stall line, the corner blocks as places, LANTERN ALLEYS' fire escapes and ROOFS
+boards, THE TERMINAL's railed catwalks, GLASS HEIGHTS' lift. Not seen: the High City offices (B: "not seen in any image") and
+the lookout's cover, which deck10 kept off picture 10's floor. Said wrong by batch 10's own items: THE CANYON's roofs (even
+halved, "olive slabs like turf", and at night "acid lime"), its banded gaps "black pits", THE WORKS' containers "plain brown
+blocks", GLASS HEIGHTS' frosted screens "hospital beds" that hide nobody. The asks, by how many named them: the lookout
+furnished (both centre, first and second); the plaza given a shape (both centre); the rope frames (both centre); the shadows
+(both centre); THE CANYON's roofs and gaps (both districts, first); THE WORKS' containers (both districts, second); GLASS
+HEIGHTS' cover solid (both districts); THE STACKS' deck in view with stairs (both districts); THE TERRACES' approach (both
+districts); THE TERMINAL's hall platform (both districts).
