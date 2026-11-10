@@ -82,7 +82,7 @@ export function addNeonSolids(boxes: number[][]): void {
 const G = neonCfg.game;
 
 type WellFrameCfg = { side: number; out: number; top: number; thick: number; over: number; brace: number; block: number; colour?: string; rough?: number; metal?: number };
-type RopeFrameCfg = { rise: number; thick: number; at: Record<string, [number, number, number]> };
+type RopeFrameCfg = { rise: number; thick: number; colour?: string; rough?: number; metal?: number; collar?: number; at: Record<string, [number, number, number]> };
 /**
  * Every other rope's end over a floor carried by a post and a short boom (game.ropeFrames, Milestone 1105; the centre's
  * twentieth reviews, A, 04 and 14: "a vertical rope hangs from the sky with no visible anchor", "a thick rope segment with
@@ -91,28 +91,28 @@ type RopeFrameCfg = { rise: number; thick: number; at: Record<string, [number, n
  * zip's end away from its other end), so each post stands `at[id]` [along, across, floor]: `along` metres on along that
  * line and `across` metres to its side, on the floor there (all three measured off the collision, a lift's top hanging
  * over its car and a zip's end over a roof's edge), its top `rise` over the end, a boom from it over the end and a hanger
- * down to the rope. An end with no `at` has no frame. Map-local.
+ * down to the rope. An end with no `at` has no frame. Map-local. `colour` is its rope's, for the collar at the boom's tip.
  */
-export function ropeFrames(): Array<{ id: string; post: [number, number]; base: number; top: number; end: [number, number, number]; box: number[]; lift: boolean }> {
+export function ropeFrames(): Array<{ id: string; post: [number, number]; base: number; top: number; end: [number, number, number]; box: number[]; lift: boolean; colour?: string }> {
   const F = (G as unknown as { ropeFrames?: RopeFrameCfg }).ropeFrames;
   if (!F) return [];
-  const C = neonCfg as unknown as { lifts?: Array<{ id: string; rope: number[][]; out: number[] }>; glass?: { lift?: { id: string; rope: number[][]; out: number[] } }; zips?: Array<{ a: number[]; b: number[] }> };
-  const ends: Array<{ id: string; e: number[]; dir: [number, number]; lift: boolean }> = [];
-  for (const L of [...(C.lifts ?? []), ...(C.glass?.lift ? [C.glass.lift] : [])]) ends.push({ id: `lift-${L.id}`, e: L.rope[1], dir: [L.out[0], L.out[1]], lift: true });
+  const C = neonCfg as unknown as { lifts?: Array<{ id: string; rope: number[][]; out: number[]; colour?: string }>; glass?: { lift?: { id: string; rope: number[][]; out: number[]; colour?: string } }; zips?: Array<{ a: number[]; b: number[]; colour?: string }> };
+  const ends: Array<{ id: string; e: number[]; dir: [number, number]; lift: boolean; colour?: string }> = [];
+  for (const L of [...(C.lifts ?? []), ...(C.glass?.lift ? [C.glass.lift] : [])]) ends.push({ id: `lift-${L.id}`, e: L.rope[1], dir: [L.out[0], L.out[1]], lift: true, colour: L.colour });
   (C.zips ?? []).forEach((z, i) => {
     for (const [k, e, o] of [["a", z.a, z.b], ["b", z.b, z.a]] as const) {
       const l = Math.hypot(e[0] - o[0], e[2] - o[2]) || 1;
-      ends.push({ id: `zip-${i}-${k}`, e, dir: [(e[0] - o[0]) / l, (e[2] - o[2]) / l], lift: false });
+      ends.push({ id: `zip-${i}-${k}`, e, dir: [(e[0] - o[0]) / l, (e[2] - o[2]) / l], lift: false, colour: z.colour });
     }
   });
   const h = F.thick / 2;
   return ends
     .filter((q) => !!F.at[q.id])
-    .map(({ id, e, dir, lift }) => {
+    .map(({ id, e, dir, lift, colour }) => {
       const [along, s, base] = F.at[id];
       const post: [number, number] = [e[0] + dir[0] * along - dir[1] * s, e[2] + dir[1] * along + dir[0] * s];
       const top = e[1] + F.rise;
-      return { id, post, base, top, end: [e[0], e[1], e[2]] as [number, number, number], box: [post[0] - h, post[0] + h, post[1] - h, post[1] + h, base, top], lift };
+      return { id, post, base, top, end: [e[0], e[1], e[2]] as [number, number, number], box: [post[0] - h, post[0] + h, post[1] - h, post[1] + h, base, top], lift, colour };
     });
 }
 /**
@@ -590,9 +590,13 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     block.position.set(WFr.rope[0], WFr.top - FR.thick / 2 - FR.block / 2, WFr.rope[1]);
     ropes.push(block);
   }
-  // every other rope's end: a post, a boom over the end and, for a zip's end, a hanger down to it, in the same dark steel
+  // every other rope's end: a post, a boom over the end and, for a zip's end, a hanger down to it; in the cable's near-black
+  // they read from the High City decks as "black untextured gallows" (round 22, both centre reviews), so since Milestone 1119
+  // in the well frame's grey steel where game.ropeFrames gives a `colour`, and a lit collar in the rope's colour at the
+  // boom's tip, over the rope, as the ropes' own collars are lit
   if (RFc && RF.length) {
-    const steel = cableMat ?? emissive(0x222222, G.zipGlow);
+    // (its glow the cable's own, so the ropes' check reads it as a cable, as THE WELL frame's steel does)
+    const steel = RFc.colour && G.zipCable ? new THREE.MeshStandardMaterial({ color: new THREE.Color(RFc.colour), emissive: new THREE.Color(G.zipCable), emissiveIntensity: G.zipGlow, roughness: RFc.rough ?? 1, metalness: RFc.metal ?? 0 }) : cableMat ?? emissive(0x222222, G.zipGlow);
     const bar = (p: THREE.Vector3, q2: THREE.Vector3, t: number) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(t, p.distanceTo(q2), t), steel);
       m.position.copy(p).add(q2).multiplyScalar(0.5);
@@ -607,6 +611,11 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       const away = new THREE.Vector3(ex - px, 0, ez - pz).normalize().multiplyScalar(t / 2);
       bar(new THREE.Vector3(px, f.top, pz).sub(away), new THREE.Vector3(ex, f.top, ez).add(away), t);
       if (!f.lift) bar(new THREE.Vector3(ex, ey, ez), new THREE.Vector3(ex, f.top - t / 2, ez), G.liftRope * 2);
+      if (RFc.collar && f.colour) {
+        const c = new THREE.Mesh(new THREE.BoxGeometry(RFc.collar, RFc.collar, RFc.collar), emissive(new THREE.Color(f.colour).getHex(), G.zipCollar.glow));
+        c.position.set(ex, f.top - t / 2 - RFc.collar / 2, ez);
+        ropes.push(c);
+      }
     }
   }
   // the zip lines (neon-layout.ts rules.low.zip): from each rooms building's roof yard up to a High City deck, a rope
@@ -720,7 +729,10 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   {
     const F = G.fill;
     FILL.spots.length = 0;
-    const lamps = [neonCfg.rules.base.inside.lamps.piece, neonCfg.rules.tower.floors.lamp.piece].map((k: string) => "/" + k.split("/").pop()!);
+    // (and the club's balcony lamps and THE TERRACES' room lamps, by their own keys since Milestones 1122 and 1123 made them
+    // the pack's small square panel: they were the base's and the tower's pieces until then and lit as fill by that)
+    const DL = (neonCfg.rules as unknown as { districts: { strip?: { light?: { lamp?: string } }; terraces?: { rooms?: { lamp?: string } } } }).districts;
+    const lamps = [...new Set([neonCfg.rules.base.inside.lamps.piece, neonCfg.rules.tower.floors.lamp.piece, DL.strip?.light?.lamp, DL.terraces?.rooms?.lamp].filter((k): k is string => !!k).map((k: string) => "/" + k.split("/").pop()!))];
     for (const ch of Object.values(neonCfg.chunks as Record<string, { place: unknown[][] }>))
       for (const q of ch.place as Array<[string, number, number, number]>) if (lamps.some((k) => q[0].endsWith(k))) FILL.spots.push(new THREE.Vector3(q[1] + BR_X, q[2] - F.under, q[3] + BR_Z));
     const over = (x0: number, x1: number, z0: number, z1: number, y: number) => {

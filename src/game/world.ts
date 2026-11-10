@@ -158,7 +158,10 @@ export function buildEdgeFence(root: THREE.Group): void {
   const postMat = emissive(parseInt(F.color.slice(1), 16), worldCfg.neonGlow).clone();
   postMat.userData.decay = true;
   const per = Math.round((BR_HALF * 2) / F.postGap);
-  const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, F.height, 0.3), postMat, per * 4);
+  // (the posts `postHeight` tall, Milestone 1115: at the fence's full height they stood over its foot band as lit sticks from
+  // a roof or across a district, "debug markers", the districts' sixteenth reviews, d09)
+  const postH = (F as { postHeight?: number }).postHeight ?? F.height;
+  const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, postH, 0.3), postMat, per * 4);
   const m4 = new THREE.Matrix4();
   let n = 0;
   for (let i = 0; i < per; i++) {
@@ -168,7 +171,7 @@ export function buildEdgeFence(root: THREE.Group): void {
       [BR_HALF, t],
       [-t, BR_HALF],
       [-BR_HALF, -t],
-    ] as const) posts.setMatrixAt(n++, m4.makeTranslation(x, F.height / 2, z));
+    ] as const) posts.setMatrixAt(n++, m4.makeTranslation(x, postH / 2, z));
   }
   posts.name = "edgePosts";
   root.add(posts);

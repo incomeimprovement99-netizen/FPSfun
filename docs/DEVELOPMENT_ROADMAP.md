@@ -20159,3 +20159,138 @@ working tree first, the working tree by then version 141 with the map agent's ow
   the bake's half-metre cells (at the first bake a post typed 0.5 m square, 0.5 m off the court's street line, cost the court's
   middle node a link: the posts moved from 2.7 to 3.2 m off the mast).
 - **Checked:** 442 map checks pass at every texture size (lo, hi, max), the centre's draws 207, 209 and 219 of 220. verify, rules and tsc. Map files version 141: lo 227.2 MB, hi 311.1 MB, max 627.3 MB.
+
+## Milestones 1110 to 1124 — batch 9: the plaza paved and THE SPIRE lit, the High City's crowns, the corner blocks' streets in their own kit, the underground's lanes broken, THE STACKS' court tower and THE WORKS' paint, THE CANYON's walkways and roofs, LANTERN ALLEYS' roofs a route, GLASS HEIGHTS' lift a cab, the ceilings clean grey, the rope frames in steel
+
+From the twenty-second fresh reviews (2026-11-09, on version 141: the centre 6.3 and 6.3, the districts 6.2 and 6.4, flat;
+two of batch 8's items named as faults of their own, the plain plaster ceilings as olive mould and the rope frames' black
+posts as gallows) and the gap plan's batch 9 (docs/PLAN_MAP_GAPS.md). Eight proposal agents measured the larger items as dry
+runs on version 141's files at once, each in its own area, each with its checks proven by putting the fault back on a
+predicted map; they were applied here one at a time (each anchor checked against the working tree first: plaza9's carriage
+station line rewritten onto the one corners9 had left, a part's own material first), then laid and baked as one version with
+the map agent's own items, 1118 to 1124.
+
+- **1110, the Loop round the plaza paved and THE SPIRE lit** (round 22, both centre reviewers: "the plaza floor smeared, the
+  foreground empty", "a paving pattern with inlaid light lines, a centrepiece under the tower"; "06 stretched crack texture on
+  the tan block at right"). Projected through the game's own field of view (92.3 degrees vertical), picture 06's "smeared plaza
+  floor" is the Loop's asphalt carriageway and its "tan block" a carriage station's low panel, the camera standing in that
+  station. The carriageway round the plaza paved kerb to kerb in the plaza's pavers with a pale flag band round its middle, 32
+  radial pale bands kept off the crossings and cyan light strips beside each (tools/neon-apron.ts, shared by the bake and the
+  check); every station panel and plaza panel worn in the roofs' shield concrete for the cracked plaster (as Milestone 1049
+  fixed the same fault; `rules.dress.carriage.wear`); plaza7's THE SPIRE column lit at its corners and framed at its foot
+  (game.outlines). Materials all drawn already. Not done: more cover clusters (no free 1.5 by 2 m spot on the north and south
+  bands).
+- **1111, the High City blocks' crowns, the lookout's rim, balconies on the tower** (round 22, A rank 2: "give each High City
+  block its own silhouette ... a stepped crown, a hanging garden, a billboard wrap or a crane"; B rank 7: "a different crown
+  outline for each block"; A rank 10: "a landmark prop on the lookout's rim"; A rank 3: "balconies ... on each played tower
+  storey"). `rules.blocks.crowns`, drawn only, none on a deck (the decks are full): the north block a stepped tank and a spike on
+  its landmark tank's cap at 43.2 m, the east two 23.5 m billboards on its frames, the west a crane tied to its north-west lobe
+  with its jib over the deck at 45 m, the south planter balconies with cypresses under its cornice in two tiers. The lookout's
+  rim a crate stack on its north tip past the top pad's throw (in picture 10) and a 29.6 m lattice mast on its east rim. Three
+  balconies on the 14, 17 and 20 m storeys of the tower's north face (higher, the game's 8.6 m climb would reach THE VAULT's
+  sills at 32.44 m). Not done: cover in picture 14's frame (inside the arrivals' keep-off; the n-in pad would have to move).
+- **1112, the corner blocks' streets in their own kit, rooms open to them** (round 22, A rank 7: "stall clusters and crate
+  stacks on MARKET, food carts on NOODLE ROW, in place of generic concrete slabs"; B rank 6: "MARKET continuous stall fronts";
+  B rank 5: "open the upper floors of two buildings per corner block"; B: "22 green cylinders with brown discs"). The concrete
+  slabs in 18, 16 and 05 were the carriage stations' barriers: every station in MARKET's and NOODLE ROW's streets keeps its spot
+  and takes its block's set (`attempt()` in the station loop): MARKET's seven a food stall in wood and blue, a crate stack two
+  high and a drum crate, NOODLE ROW's four a stall in wood and red with a drinks machine; 63 upper-floor windows of the walk-ins
+  and the rooms buildings, two buildings a block and one in THE WELL's, open without glass or blind onto rooms reached from the
+  street; picture 22's cylinders were wheelie bins with their lids leaning on their sides, 35 laid without the lid
+  (`rules.low.kits.leave`; the bake now counts a material on a left-out part as one a remap may name). Spots 05 and 16 show the
+  same street, so "05 its own theme" stays a street's one theme.
+- **1113, the underground's lanes broken and the hall's pieces read** (round 22, B rank 8: "the court lane (20c) and the station
+  arcade (21) are 30-40 m rifle corridors: a staggered kiosk or pair of pillars halfway"; A rank 6: "furnish the station";
+  B: "07 the white capsule reads as a train parked in the hall"; A: "29c two hover cars parked inside the hall", "11 black
+  shapes at floor level"). Two staggered islands of back-to-back vending machines in the court lane, each on a court pillar and
+  ended by a lit map board; in the station three street kiosks on its north side, two machine islands on its south piers, a
+  chest with a crate stack and three benches (the longest clear lines 32.7 to 18.7 m in the court, 40.6 to 23.4 m in the
+  station's hall and concourse). The metro kiosk's white shell in the base's concrete with its blue trim the METRO amber;
+  every couch's green-glowing back and blue strip pale leather and black; the 26 m floor's black plinths in the walls' plaster.
+- **1114, THE STACKS' court tower and THE WORKS' hazard paint** (round 22 districts, both: "one structure in the middle of THE
+  STACKS' court, bridged to the hotel galleries"; "hazard stripes and rivets on the flat yellow panels"; "d10 black curled hoses
+  look like snakes", "d12 the blotchy pink parapet"). An L of decks at the first gallery's 3.5 m round the far side of the
+  court's kiosk on six pink pillars (typed, given to the bots' street model), a 2.5 m bridge from each arm to its wing's gallery,
+  the kiosk's lit pod on its south arm with a second pod on its roof (7.4 m); 90 diagonal dark stripes along the 18 open faces
+  of THE WORKS' five yellow containers and the pack's warning label on each long face; THE WORKS' band kit in full containers
+  and a tank; the cooling unit's curled hose left out everywhere (`rules.partsOut`); the hotel rails in the roof's plain pink.
+- **1115, THE CANYON's walkways and roof, THE TERMINAL's vault roofs** (round 22 districts, both: "a booth every 15 to 20 m along
+  each walkway"; "THE CANYON's roofs split into 15 to 20 m pads with jumpable gaps"; "THE TERMINAL's vaults a flat catwalk along
+  each ridge"; "ribbed station glass, not green hexes"; "d20 stretched window texture"; "d09 the pink posts like debug
+  markers"). 14 walkway bays with booths for 6, alternating between each arm's two walkways (no bare stretch past 21.25 m);
+  the outer roof cut into pads by 7 walled gaps 2.5 m wide, crate stacks on their lips, each jumped both ways by the game's
+  player; THE TERMINAL's vault glass ribbed polycarbonate on steel frames and two flat steel catwalks along its vault rows with
+  lit ends and cover, the two pads landing at the north deck's ends; d20's near wall's two lowest storeys in a window texture
+  made for one storey (a tower's whole grid had been blown up onto one window); the edge fence's 14 m posts 2.5 m at its foot.
+- **1116, LANTERN ALLEYS' roofs a route** (round 22 districts, both: "flat roof terraces on half the shophouses joined by plank
+  bridges hung with lanterns"; "vary the fronts"). Eight houses without their tiled roof module, each a terracotta deck on its
+  9.5 m slab inside a 1 m kerb parapet open where a bridge or the fire escape arrives (12 of the 27 flat-roofed); six timber
+  plank bridges with 40 lanterns, an east chain of three and a north ring of four, every one walked both ways; a fire escape up
+  A1's back in d01's view; cover on each terrace; the twelve narrow shophouses in three wall finishes, d01's three backs a
+  balcony and the lit boards TEA HOUSE, DUMPLINGS, HERBS. At the bake: pad lantern-d's spot checked 1.2 m round for 1.4 (D1's
+  lost roof edge moved its face 0.5 m in, its spot onto a shop front's canopy's reach); the perches lantern-e and lantern-n on
+  roofs 10 m and up (their pieces on the new terraces moved every run, by turns).
+- **1117, GLASS HEIGHTS' lift a lift, its grey panels glazed** (round 22 districts, both: "the lift is four lines and a grey
+  box", "the blank grey lower panels", "the cover solid, not see-through glass"; "d14 jagged white panel edge"). The shaft in
+  the pane's own smoked glass with eight lit cyan rims at its tiers, the cab lit in the decks' tinted glass, a lit frame at the
+  landing; the blocks' grey panels in the pack's glass with lit rooms, the tower's corner fins dark, a pinnacle to 87 m; every
+  screen pale white-washed timber, the deck planters palm fronds, the deck kiosk solid white; d13b's car kept off the lane.
+  One material fewer.
+- **1118, the ceilings in a clean neutral grey** (round 22, both centre reviewers, first: "every interior ceiling carries an
+  olive, mouldy mottle (07, 11, 12, 29c)", "a mottled olive texture that reads as dirt or moss"; asked for "neutral light-grey
+  plaster or acoustic tile"): the base's and the tower's slab undersides and the 26 m floor's ceiling in the pack's even grey
+  concrete panel (ConcretePanels00) for Milestone 1106's plain plaster. Measured off the pack's base maps: PlasterDirt00 a mean
+  of 150,148,135 with a spread of 27 (warm and blotched, olive under the warm fill), ConcretePanels00 151,150,146 with a
+  spread of 6. Drawn by the map already.
+- **1119, the rope frames in steel with lit collars** (round 22, both centre reviewers: "black untextured gallows frames on
+  the deck", "steel ..., a lit collar, ... half the section: they now dominate the roofs"; 10: "the grey boom reads as a beam
+  clipping the view"): the posts and booms 0.08 m square for 0.12, in THE WELL frame's grey steel (#7a7f87) for the cables'
+  near-black, glowing the cable's own so the ropes' check reads it as one (as THE WELL frame's steel), and a lit collar in the
+  rope's own colour at the boom's tip over the rope (src/game/neonmap.ts ropeFrames now carries each rope's colour).
+- **1120, the street benches' strip unlit** (round 21, both, and round 22, A, picture 16: "a lit panel lying tilted on the
+  paving"): the benches' lit strip (Concrete_Lgt) worn in their own concrete through rules.wear: seen low and end-on, the 0.72 m
+  bench read by its glow as a lit panel lying on the ground.
+- **1121, THE VAULT's threshold gold** (round 22, B, 30: "a black block fills the bottom of the round doorway; turn it into a
+  gold threshold step"): the doorway's 0.45 m step in the vault's scratched gold for black paint.
+- **1122, THE TERRACES' room lamps small** (the districts' sixteenth reviews, both, d06: "the ceiling light hangs at head
+  height", "reads as a floating shelf"): each room's lamp the pack's small square ceiling panel (0.81 by 0.89 m, flush) for its
+  2.41 m strip, in a room 2.6 m high.
+- **1123, THE STRIP club's stairs and balcony lamps** (the districts' sixteenth reviews, both, d18: "an untextured grey slab,
+  and a floating stack of white beams"): the two double stairs' grey faces (MetalPaintGreyCracked00, MetalPanels01b, left grey
+  by the stairs' black wear) in the black cracked paint; the lamp under each balcony cell the small square panel for the 3.14 m
+  one, whose eight white planes flush under the balcony's edge read edge-on as stacked beams.
+  Both new lamps are fill-light spots by their own keys (src/game/neonmap.ts: the fill took only the base's and the tower's
+  lamp pieces, which the club's and the rooms' lamps had been).
+- **1124, THE VAULT's vestibule kept clear** of the 32 m and 35 m floors' cover, wall to wall between the core's south door and
+  the strongroom's doorway wall: a changed piece list on the 26 m floor (desks, tried for Milestone 1109 and taken out: the pack's desks are 0.85 m, under
+  the floor's chest-high cover, and its cover check failed with them) moved the random cover on the floors over it and a 1 m
+  crate came to stand in the vestibule, two of the strongroom's ten walks stuck on it. Nothing but chance had kept it clear.
+- **Not map work, handed on:** the horizontal stripes across THE TERMINAL hall's floor (d08, both district reviews) lie only
+  inside the arch's shadow: shadow acne, the renderer's, with the near shadows (every review).
+- **The proofs** (T/mine9/plant60.py, skn60mine-proof.log, the config restored from a copy and compared): with the six faults
+  put back in one run (the frames' colour gone, the bench's strip lit, the threshold black, the rooms' 2.4 m strip, the stairs'
+  old wear, the base's undersides in the plain plaster) the round 22 finish check failed on every one of its parts and the
+  ceilings' check on the plaster.
+- **What the bake and the loop found, fixed** (version 142 took six layout loops to settle):
+  - the remap guard (tools/import-neon.ts) threw on a wheelie bin laid without its lid ("no MetalBare01 to wear another
+    material"): a material on a part left out (`without`) now counts as one a remap may name;
+  - the carriage stations' overhead test read the last run's own stations in the bake's collision, and a corner kit's food
+    stall carries its awning over a standing head: each run's stall found itself "under" and moved, by turns. The test now
+    leaves out the last run's station parts (tools/neon-layout.ts);
+  - the perches' roof test read the roof under a piece that stood there at the middle of its perch's height range, which for
+    LANTERN ALLEYS' new 10 to 12.6 m range was 11.3 m on a 10.55 m roof: a step in the roof under each crate, which moved
+    every run, by turns. It now reads the height the piece itself stood at (the same for every other perch, whose ranges are
+    0.2 m wide);
+  - the streets' median fell to 26 pieces (the check wants 30): MARKET's and NOODLE ROW's stations took three islands and
+    their wider sets made three median blocks give way. Their crate stacks and drinks machines stand on the middle line
+    where the islands stood, and the check now counts a corner kit's part on the ground within half a metre of a street's
+    middle line, solid past a crouched head through a stack of boxes (36: 8 blocks, 18 island pieces, 10 kit pieces).
+- **Checks that learned the new work:** eighteen new, 443 to 460, each failing on version 141's placements or with its
+  fault put back (the agents' proofs in T/proposals9/*/out, the map agent's in T/mine9): the plaza's apron paved, the low
+  panels in clean concrete and THE SPIRE's column lit (1110); the High City crowns, the lookout's rim and the tower's
+  balconies (1111); the corner blocks' streets in their own kit (1112); the underground lanes broken and the base hall's
+  kiosks and couches (1113); THE STACKS' court tower and THE WORKS' yard (1114); THE CANYON's walkways broken by booths, its
+  roofs in pads, THE TERMINAL's catwalks and the round's finish there (1115); LANTERN ALLEYS' roofs a route and the climb of
+  its fire escape (1116); GLASS HEIGHTS' lift (1117); the round 22 finish (1119 to 1123). Changed: the ceilings read in the
+  even grey concrete (1118, for 1106's plaster); the streets' median counts the corner kits on the middle line.
+- **Checked:** 460 map checks pass at every texture size (lo, hi, max; each bake converged, the layout's rerun 0 lines off it), the centre's draws 205, 207 and 217 of 220 (two fewer at each than version 141). verify, rules and tsc. Map files version 142: lo 239.4 MB, hi 323.5 MB, max 639.8 MB.

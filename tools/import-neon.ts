@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, dirname, join } from "node:path";
 import { padOff, padStandOff } from "../src/game/padsolve";
 import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-streets";
+import { apronOf, apronStrips, apronSurface } from "./neon-apron";
 import { bandAlong, fillTo, flatAt, inside, sdPoly, skinRegion, skirtAlong, standing, storeySlab, type Grid } from "./neon-base";
 import { backFaces, boxInto, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
 import { wellFlight, type Flight } from "./neon-well";
@@ -501,6 +502,16 @@ if (mode === "bake") {
       };
       const shaped = cuts.length ? kept.map(({ d, m }) => (cuts.some((b) => reaches(b, d, m)) ? cutPart(d, m) : { d, m })) : kept;
       const mine = shaped.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : remap && d.mats ? { ...laidFlat(d, m), mats: d.mats.map(remapped) } : d, m: mul(W, m) }));
+      // (a remap's material may be only on a part the placement leaves out, Milestone 1112: the corner streets' bins laid
+      // without their lid keep the street cover's wood wear, whose MetalBare01 is the lid's alone; still refused when no part
+      // of the piece has it at all)
+      if (without && remap)
+        for (const { d, m } of draws(key))
+          if (without.some((w) => leftOut(w, d, m)))
+            for (const g of d.mats ?? []) {
+              const n = g ? readMaterial(pack, g)?.name : undefined;
+              if (n && remap.has(n)) used.add(n);
+            }
       for (const name of remap?.keys() ?? []) if (!used.has(name)) throw new Error(`${key}: no ${name} to wear another material`);
       // the tower's one-sided shell pieces (rules.tower.backs) drawn from inside too, their triangles turned over: from
       // inside its floors the pack's "fake" walls, faced only toward the street, showed the sky through the building.
@@ -1451,7 +1462,8 @@ if (mode === "bake") {
   // faces with nothing behind them, so the layout writes each tier as a box solid to its top and each ramp as steps;
   // and THE STACKS' plugs (cfg.stacks), filling shut rooms the bots' street grid fell into
   // (and GLASS HEIGHTS' shops' jambs, glazing and lids, Milestone 1099: their openings cut out of its blocks' skins)
-  const typed = [cfg.terraces, cfg.stacks, cfg.strip, cfg.stairs, cfg.canyon, cfg.works, cfg.shops, cfg.glass].flatMap((d) => ((d as { solids?: number[][] } | undefined)?.solids ?? []).map((q) => [...q]));
+  // (and THE TERMINAL's since Milestone 1115: its catwalks' decks and crate stacks)
+  const typed = [cfg.terraces, cfg.stacks, cfg.strip, cfg.stairs, cfg.canyon, cfg.works, cfg.shops, cfg.glass, cfg.terminal].flatMap((d) => ((d as { solids?: number[][] } | undefined)?.solids ?? []).map((q) => [...q]));
   const solids = [...cutBack(carve(coarse)), ...cutBack(carve(fine)), ...exactBoxes, ...windowBoxes, ...typed];
   if (carved) console.log(`the windows cut out of ${carved} collision boxes`);
   if (trimmed) console.log(`${trimmed} collision boxes of the rest cut back out of the fire escapes' rooms`);
@@ -1482,17 +1494,30 @@ if (mode === "bake") {
     const inside = CV.inside;
     const value = (x: number, z: number) => Math.max(SF.surface(x, z, CV.round), Math.max(Math.abs(x), Math.abs(z)) - inside);
     const { pos, idx } = fieldSurface(value, -inside, inside, -inside, inside, CV.surface.cell, CV.surface.y);
-    const uv = new Float32Array((pos.length / 3) * 2);
-    for (let k = 0; k < pos.length / 3; k++) [uv[k * 2], uv[k * 2 + 1]] = [pos[k * 3] / (cfg.rules.ground.roadEvery ?? 10), pos[k * 3 + 2] / (cfg.rules.ground.roadEvery ?? 10)];
-    const nrm = new Float32Array(pos.length);
-    for (let k = 0; k < pos.length / 3; k++) nrm[k * 3 + 1] = 1;
-    // (a derived one too, Milestone 1058: the asphalt worn matt, "Asphalt00*#ffffff%k", as the ring road's tiles wear it)
-    const matGuid = derivedMat(cfg.rules.ground.road) ?? pack.matFor(cfg.rules.ground.road);
-    if (!matGuid) throw new Error(`no material ${cfg.rules.ground.road}`);
-    const model = { meshes: [{ name: "streets", prims: [{ pos: new Float32Array(pos), nrm, uv, idx: new Uint32Array(idx), material: cfg.rules.ground.road }] }], nodes: [], roots: [] } as unknown as Draw["model"];
-    const d: Draw = { model, mesh: 0, pre: null, mats: [matGuid], modelGuid: "", on: true, go: null };
+    // (the Loop's carriageway paved as the plaza's apron, rules.dress.plaza.apron, Milestone 1110: the surface cut along the
+    // apron's edges and its pattern's into a prim a material, and its light strips beside it, by tools/neon-apron.ts, which the
+    // map check runs too; with no apron the surface is the road's asphalt whole, as it was)
+    const AP = apronOf(cfg.rules);
+    let sprims: Array<{ pos: Float32Array; nrm: Float32Array; uv: Float32Array; idx: Uint32Array; material: string }>;
+    if (AP) sprims = [...apronSurface(pos, idx, AP, cfg.rules.ground.road, cfg.rules.ground.roadEvery ?? 10), apronStrips(AP, CV.surface.y)];
+    else {
+      const uv = new Float32Array((pos.length / 3) * 2);
+      for (let k = 0; k < pos.length / 3; k++) [uv[k * 2], uv[k * 2 + 1]] = [pos[k * 3] / (cfg.rules.ground.roadEvery ?? 10), pos[k * 3 + 2] / (cfg.rules.ground.roadEvery ?? 10)];
+      const nrm = new Float32Array(pos.length);
+      for (let k = 0; k < pos.length / 3; k++) nrm[k * 3 + 1] = 1;
+      sprims = [{ pos: new Float32Array(pos), nrm, uv, idx: new Uint32Array(idx), material: cfg.rules.ground.road }];
+    }
+    // (a derived one too, Milestone 1058: the asphalt worn matt, "Asphalt00*#ffffff%k", as the ring road's tiles wear it; the
+    // apron's pavers and flags the pack's own, its strips a derived light, each one the centre's file draws already)
+    const smats = sprims.map((p) => {
+      const g = derivedMat(p.material) ?? pack.matFor(p.material);
+      if (!g) throw new Error(`no material ${p.material}`);
+      return g;
+    });
+    const model = { meshes: [{ name: "streets", prims: sprims }], nodes: [], roots: [] } as unknown as Draw["model"];
+    const d: Draw = { model, mesh: 0, pre: null, mats: smats, modelGuid: "", on: true, go: null };
     (groups.get(groupOf("c-streets")) ?? groups.set(groupOf("c-streets"), []).get(groupOf("c-streets"))!).push({ d, m: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] });
-    console.log(`streets: ${idx.length / 3} triangles of surface`);
+    console.log(`streets: ${sprims.reduce((a, p) => a + p.idx.length / 3, 0)} triangles of surface${AP ? ` (the plaza's apron: ${sprims.map((p) => `${p.material} ${p.idx.length / 3}`).join(", ")})` : ""}`);
   }
   // the jump pads, found in the collision just made (rules.pads), and the pack's plate and beam of light where each stands
   cfg.pads = findPads(all, cfg.rules);

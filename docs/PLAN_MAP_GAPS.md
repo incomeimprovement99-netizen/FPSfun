@@ -426,7 +426,32 @@ THE STRIP's crown banded (1108).
 - Mine: the desks on the 26 m floor, the centre's white lit street boxes, the facades lit from below at night, the
   transitions between districts, the pyramid's edge at a grazing angle (the renderer's aliasing, seen at d17).
 
-### 6.3 Reaching 7, and then 8
+### 6.3 Batch 9 (built 2026-11-09 as version 142, Milestones 1110 to 1124; then round 23)
+
+**What round 22 showed** (version 141): flat (the centre 6.3 and 6.3, the districts 6.2 and 6.4). Two of batch 8's items
+were named as faults of their own, first or third in both centre reviews: the plain plaster ceilings read as olive mould and
+the rope frames' black posts as gallows. Its asks: the plaza a paved place with a centrepiece, each High City block its own
+crown, MARKET's and NOODLE ROW's cover in their own kit, the underground lanes broken halfway, THE STACKS' court a structure,
+THE WORKS' yard read from the roofs, THE CANYON's walkways and roofs and LANTERN ALLEYS' roofs as routes, GLASS HEIGHTS'
+lift a cab. **Built as version 142:** eight proposal agents' items, the Loop round the plaza paved with inlaid light and THE
+SPIRE lit (1110), the High City crowns, the lookout's rim and three tower balconies (1111), the corner blocks' stations in
+their own kit and rooms open off their streets (1112), the underground's lanes broken and the hall's pieces read (1113),
+THE STACKS' court tower and THE WORKS' hazard paint (1114), THE CANYON's booths and roof pads and THE TERMINAL's catwalks
+(1115), LANTERN ALLEYS' roof terraces and bridges (1116), GLASS HEIGHTS' lift a lit cab in a smoked shaft (1117); and of
+mine the ceilings in an even grey (1118), the rope frames in slim grey steel with lit collars (1119), the benches' lit strip
+off (1120), THE VAULT's threshold gold (1121), THE TERRACES' and the club's lamps flush (1122, 1123), THE VAULT's vestibule
+kept clear (1124).
+
+**Left for batch 10** (the agents' "not done", each in its report in T/proposals9, and mine):
+- More cover clusters on the plaza's north and south bands (no free 1.5 by 2 m spot; plaza9.md).
+- Cover in picture 14's frame (inside the arrivals' keep-off: the n-in pad would have to move; crowns9.md).
+- The desks on the 26 m floor (the pack's desks are 0.85 m, under the floor's chest-high cover: a taller desk or a desk
+  with a screen wall).
+- THE VAULT reached from outside, kiosks and stair towers from the plaza to the Sky Ring, the facades lit from below at
+  night, the transitions between districts (from batch 8's list).
+- The stripes across THE TERMINAL hall's floor (d08) are shadow acne, the renderer's, with the near shadows (4.11).
+
+### 6.4 Reaching 7, and then 8
 
 **For 7,** play-style and finish have to move. Flow (7) and fun (6.5 to 7) are already there. Batches 7 and 8 are
 mostly play-style; the finish list is cleared each batch, picture by picture. The shadows (4.11) are the largest single

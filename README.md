@@ -1354,26 +1354,26 @@ City bundle alone, nothing drawn by hand; the ILranch city it replaced went on
 2026-10-09.
 The same nine districts, the eight round the centre plain for now with straight
 roads, but for LANTERN ALLEYS past the ring road in the north-east: alleys lined with
-low shophouses under lantern lines meeting at a pole in its court under a lantern pavilion, jump pads up onto their roofs; and THE TERRACES in
+low shophouses under lantern lines meeting at a pole in its court under a lantern pavilion, jump pads up onto their roofs, eight of them flat terraces joined by plank bridges hung with lanterns, a fire escape up from the street; and THE TERRACES in
 the west: three garden tiers stepping up to the edge, their lips lit green, terracotta planters and slim pergolas with benches on the lawn, a grand stair up the middle under its name large on the gate, a tall tree either
 side of its head, a run of
 balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls, each lit and
 furnished; and
-THE TERMINAL in the south: a station hall of arcades under hex glass vaults, lit amber, metro map boards and
+THE TERMINAL in the south: a station hall of arcades under ribbed glass vaults with a steel catwalk along each row, lit amber, metro map boards and
 ticket machines along its concourses, a metro train at its platform and trams on the strips beside it, jump pads onto its vault roofs; and THE STACKS
 in the north-west: three towers of stacked capsule pods round an avenue and a car park, and a
-capsule hotel of 21 pods on three storeys round a court with a line of cover across its middle, galleries and stairs up to its pink-railed roof with cover on it, lit pink by
+capsule hotel of 21 pods on three storeys round a court with a deck on pink pillars round its kiosk, bridged to both wings' galleries, galleries and stairs up to its pink-railed roof with cover on it, lit pink by
 night, and a jump pad onto a pod roof 20 m up the twin towers; and GLASS HEIGHTS in the north: white glass
 towers with decks at the High City's height, joined by gangways, the North deck's carried across the ring road onto
-them, shops along its street storey behind glass fronts set back under canopies, lit inside, a glass lift up from its courtyard in a clear glass tube, its gangways glowing cyan underneath by night, its towers' windows glowing cyan, and a 72 m tower in
+them, shops along its street storey behind glass fronts set back under canopies, lit inside, a glass lift up from its courtyard in a smoked glass shaft ringed in cyan at every tier, its cab lit, its gangways glowing cyan underneath by night, its towers' windows glowing cyan, and a 72 m tower in
 white, its windows and crown lit cyan; and THE STRIP in the east: an 87 m
 black tower on the city's edge at the end of a boulevard, crowned by a dark cap with a magenta ring, its foot ringed by glowing blocks under lit billboards, a
 stepped pyramid of lit windows, each step edged in magenta, to run up onto a lookout 7 m over the plaza, and a club walled in red lit panels under a glowing inverted pyramid, a lit dance floor and a DJ booth
 in it, its balcony running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
 between two cliffs of lit windows 27 m high, down both arms and round the corner, passages in from the ring road,
-walkways 3.5 m up both walls with stairs set into them, its fronts in runs of white offices, glass and dark blocks with balconies over the walkways, bridges across its roofs, jump pads up from its passages, a market down its worn paving, a service lane with parked vans past it to the fence, bundles of cables slung across it, neon signs out over its walkways and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L on concrete floors, lintels over their doors, bolted plates on its rust walls and teal lights under their roofs,
+walkways 3.5 m up both walls with stairs set into them and a booth every 15 to 20 m, its outer roof cut into pads by gaps to jump, its fronts in runs of white offices, glass and dark blocks with balconies over the walkways, bridges across its roofs, jump pads up from its passages, a market down its worn paving, a service lane with parked vans past it to the fence, bundles of cables slung across it, neon signs out over its walkways and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L on concrete floors, lintels over their doors, bolted plates on its rust walls and teal lights under their roofs,
 crossed indoors from hall to hall, each with columns, gantry rails under its roof, a gallery and its stair, a tank and engines, and the corner's works block with an upper floor
-round an atrium, gas risers glowing up through it, cabinets, engines and pipe runs under it, jump pads up to it; a pipe rack and a gantry crane over the containers in its yard of concrete slabs, pads in its yards onto the roofs, footbridges between them, and the works block
+round an atrium, gas risers glowing up through it, cabinets, engines and pipe runs under it, jump pads up to it; a pipe rack and a gantry crane over the hazard-striped containers in its yard of concrete slabs, pads in its yards onto the roofs, footbridges between them, and the works block
 crowned with tanks 31 m up, lit teal by night. By night every street lamp throws a pool of light on the ground, bright under the lamp and fading to nothing, and each
 district is washed in its own colour, THE STRIP the brightest; the central tower's corners and crown glow amber, THE TERRACES' grand stair is lined in green, and a frame of light in its
 place's colour stands at the foot of each fire escape and each stair onto the Sky Ring and the base; THE TERRACES' tier lips, THE CANYON's
@@ -1383,9 +1383,9 @@ Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the
 Loop on the four axes, each in its own colour (north cyan, east pink, south amber,
-west green, its lift's and its battle royale sector's), each crowned (a roof tank 17 m
-tall with masts on the north, three cypresses on the south, a billboard and neon gas
-pipes on the west, a parked flying car under two masts on the east) and a big neon
+west green, its lift's and its battle royale sector's), each crowned in its own outline (a roof tank 17 m
+tall with masts and a stepped tank and spike on its cap on the north, three cypresses and two tiers of planted balconies under its cornice on the south, a billboard, neon gas
+pipes and a crane with its jib over the deck on the west, a parked flying car under two masts and two billboards high on their frames on the east) and a big neon
 sign on its face to the Loop, the south and east blocks with a fire escape up their outer
 faces from the street to the deck; on each corner block a wedge building faces its junction,
 a row of 3 to 6 storey buildings follows each of its curved streets, and in its
@@ -1402,12 +1402,12 @@ gallery to the metro station's concourse. A walkway one floor up, the Sky
 Ring, circles the tower's plaza inside the Loop, glass-railed, with a stair up
 from the plaza on each side, and a footbridge from it to a glass lift beside each
 High City island: interact facing its rope and it carries you up the island's side
-to a landing onto the roof, or back down, its rope's top hung from a steel post and boom as every zip line's ends are; up the north and west islands' Loop faces, balconies a double jump apart
+to a landing onto the roof, or back down, its rope's top hung from a slim grey steel post and boom with a lit collar where the rope hangs, as every zip line's ends are; up the north and west islands' Loop faces, balconies a double jump apart
 climb from the street to the roof, and up the outer faces of the north, west and south islands a stack of ledges 3 m apart. The tower stands on a wide base filling the plaza,
 built of the tower's own pieces (`tools/neon-base.ts` bakes its floors to meet
 the tower's on every storey): three storeys and a roof, an open hall behind a
 colonnade on the ground floor (open to the plaza all round, canopies over its entrances, a turnstile line at the metro, a reception desk and a lounge under a lit coffer in its atrium), offices on the first, a warehouse hall on the second, its faces banded in cyan light at each floor with framed windows and THE LOBBY in large letters over each, four stairs between
-each, bridges from its first floor's corners to the Sky Ring, round its foot on the plaza a ring of low lit walls with gaps at its gates, cover clusters, planters and a sign column, and its roof runs
+each, bridges from its first floor's corners to the Sky Ring, round its foot on the plaza a ring of low lit walls with gaps at its gates, cover clusters, planters and a sign column lit up its corners, the Loop round it paved in the plaza's stone with pale bands and light strips set in, balconies on three storeys of the tower's north face, and its roof runs
 onto the tower's terrace and in through its glass waist. A stair core runs
 up the tower's middle from its lobby to its top floor (`tools/neon-tower.ts`), a
 door onto each of its 15 storeys, eight of them new floors between 14 and 35 m and the pack's three over them,
@@ -1432,22 +1432,22 @@ The tower stands in a sunken court 7 m deep, its own basement at its floor,
 walled with the pack's concrete (the world's floor lowered into it, as the old
 metro's was), floored in black marble, with stacks of crates and the pack's cooling plant to
 fight round in its open ends, and four of the pack's metro corridors lead off it under the
-plaza, two of them down from the street through the pack's metro kiosks and
+plaza (two staggered islands of vending machines halfway down the court's lane), two of them down from the street through the pack's metro kiosks and
 their escalators, the other two the pack's shop corridors, a noodle bar and an
 electronics shop to walk into. Under the south street is Centre Station, the pack's own metro
 station put together as its demo scene puts it: a glass-roofed hall on the plaza
 down to a platform with a train at it, a tunnel off into the dark, and a marble
-concourse behind the platform, closed on every side, and reached from the tower's
+concourse behind the platform, street kiosks, vending machine islands, a crate stack and benches in its hall, closed on every side, and reached from the tower's
 court too: a door in its south wall, a corridor and a ramp down to a gate into the
 station's marble hall. Every jump pad has a ring of light on the ground in its place's colour and a short column of its light over it (no beam since Milestone 689). Eight, on the pack's plate, throw you onto High City's
 roofs; four more throw you from the plaza onto the tower's base's roof, one from there up to a lookout
-on the tower's east block at 49 m, two more from there up to the tower's crown at 109 m, and one back
+on the tower's east block at 49 m (a crate stack on its north tip and a lattice mast on its rim), two more from there up to the tower's crown at 109 m, and one back
 down off the lookout; and pads in Market and by the Well throw you across onto their higher roofs and on onto the bridge
 ring, and the four roofs are joined into a ring round the tower by the pack's
 floating bridges over the street crossings (cut at two corners into gaps with a jump pad either side), chest-high cover on the decks, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map; the four corner blocks are named too (MOTEL HILL, NOODLE
-ROW, MARKET, THE WELL), each with loot of its own through its building and on its roof (every loot chest gold-lidded and lit), and a big neon sign on a roof facing the middle; NOODLE ROW has street food stalls with bistro tables by them and a canopy of lanterns strung across its streets, MARKET market stalls under cloth awnings, crates in wood and awnings strung across its streets, MOTEL HILL a railed walkway one floor up round its motel, and lamps ring THE WELL's shaft; THE WELL and MARKET have their names in neon letters on the roof of the building facing their junction; and one building along the curves on each corner block is the pack's realistic kind, rooms and stairs inside to walk into from the street, a lit gold frame at its door; and from MOTEL HILL's and NOODLE ROW's roof yards a zip line, a dark cable with lit collars in its block's colour, runs up to a High City deck, and three run from the tower's lookout at 49 m down to the north, east and south decks.
+ROW, MARKET, THE WELL), each with loot of its own through its building and on its roof (every loot chest gold-lidded and lit), and a big neon sign on a roof facing the middle; NOODLE ROW has street food stalls with bistro tables by them and a canopy of lanterns strung across its streets, MARKET market stalls under cloth awnings, crates in wood and awnings strung across its streets, MOTEL HILL a railed walkway one floor up round its motel; the stations down MARKET's and NOODLE ROW's carriageways are the blocks' own stalls, crate stacks and drinks machines, and two buildings in each corner block open their upper windows onto rooms reached from the street; and lamps ring THE WELL's shaft; THE WELL and MARKET have their names in neon letters on the roof of the building facing their junction; and one building along the curves on each corner block is the pack's realistic kind, rooms and stairs inside to walk into from the street, a lit gold frame at its door; and from MOTEL HILL's and NOODLE ROW's roof yards a zip line, a dark cable with lit collars in its block's colour, runs up to a High City deck, and three run from the tower's lookout at 49 m down to the north, east and south decks.
 `tools/checks/sk-neon.ts` rides every pad, walks every bridge from island to island and back, walks the graph, both metro
 entrances and each rooms building's floors from the street, and climbs each fire escape onto its roof and back and into its yard.
 
