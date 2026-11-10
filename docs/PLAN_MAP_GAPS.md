@@ -452,7 +452,37 @@ kept clear (1124).
   night, the transitions between districts (from batch 8's list).
 - The stripes across THE TERMINAL hall's floor (d08) are shadow acne, the renderer's, with the near shadows (4.11).
 
-### 6.4 Reaching 7, and then 8
+### 6.4 Batch 10 (built 2026-11-10 as version 143, Milestones 1125 to 1135; then round 24)
+
+**What round 23 showed** (version 142): flat a second round (the centre 6.3 and 6.3, the districts 6.3 and 6.3), and five
+of batch 9's items did not show in the pictures, built where no spot looks or too faint to pick out. The rule for batch 10:
+build where the review cameras look, each item projected through the spot that shows it. **Built as version 143:**
+- **Eight proposal agents' items:**
+  - the north deck's lobe in cover and the lookout's stray crates out (1125);
+  - offices in the east and west High City blocks (1126);
+  - MARKET's stall line, the benches along the kerbs and each corner block's paving (1127);
+  - THE STACKS' deck deep and pink, GLASS HEIGHTS' screens frosted and LANTERN ALLEYS' court and mouth (1128);
+  - the roof routes made visible at THE TERMINAL, THE CANYON and LANTERN ALLEYS (1129);
+  - THE WORKS' container groups and GLASS HEIGHTS' smoked shaft (1130);
+  - each district's colour by night and from the drop (1131);
+  - THE STRIP's club and stage and THE TERRACES' lawn (1132).
+- **Mine:**
+  - the ceilings glowing a cool light grey (1133: the olive was the light, measured);
+  - the crown's billboards an ad with dark backs (1134);
+  - the clover glass worn clear on every rail (1135).
+
+**Left for batch 11:**
+- The rope frames, read as gallows in grey too (rounds 22 and 23): a lattice mast with a pulley in place of the post and
+  boom; not started.
+- Head-high cover on picture 10's floor (the top pad's landing and the north rope's top: deck10.md).
+- LANTERN ALLEYS' lantern arches at the bridges' ends, and a deck over A2 with a bridge to B3 that d03 would see
+  (routes10.md).
+- THE CANYON's 3 m gaps with a step between pads, and the floating pad rings (routes10.md, works10.md).
+- THE TERRACES' forecourt (d04) through the shared street cover, and low walls on the top tier (strip10.md).
+- Ledges and awnings to mantle on the corner blocks' street walls (streets10.md has the spec).
+- Haze past the fence (renderer); the shadows (4.11).
+
+### 6.5 Reaching 7, and then 8
 
 **For 7,** play-style and finish have to move. Flow (7) and fun (6.5 to 7) are already there. Batches 7 and 8 are
 mostly play-style; the finish list is cleared each batch, picture by picture. The shadows (4.11) are the largest single

@@ -760,7 +760,10 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       // (a tower floor's lamp: inside the tower's square, over its lowest new floor)
       const sq = neonCfg.tower.square as number[];
       const lowest = Math.min(...Object.keys(neonCfg.rules.tower.floors.at).map(Number));
-      FILL.power = FILL.spots.map((q) => (q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest ? F.tower : F.intensity));
+      // (and a High City room's, cfg.highRooms, Milestone 1126: its storey 3 m under a pale ceiling, as a tower floor's)
+      const HRm = (neonCfg as unknown as { highRooms?: { rooms: Array<{ floor: number; top: number; rects: number[][] }> } }).highRooms?.rooms ?? [];
+      const inRoom = (q: THREE.Vector3) => HRm.some((r) => q.y > r.floor && q.y < r.top && r.rects.some(([x0, x1, z0, z1]) => q.x - BR_X > x0 && q.x - BR_X < x1 && q.z - BR_Z > z0 && q.z - BR_Z < z1));
+      FILL.power = FILL.spots.map((q) => ((q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest) || inRoom(q) ? F.tower : F.intensity));
       // (a tower floor's lamp in its floor's `light`, the floor the highest of floors.at under it; any other spot, and a
       // floor that names none, the fill's own colour: one pool, so a light takes its spot's colour each frame)
       const FA = neonCfg.rules.tower.floors.at as unknown as Record<string, { light?: string }>;

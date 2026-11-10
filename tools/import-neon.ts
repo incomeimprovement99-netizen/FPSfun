@@ -328,6 +328,33 @@ if (mode === "bake") {
       return { d: { ...d, model, mesh: 0, pre: null, mats: d.mats ? keep.map((i) => d.mats![i]) : d.mats }, m };
     });
   };
+  // a High City block's rooms (cfg.highRooms, neon-layout.ts rules.blocks.rooms, Milestone 1126): each room's boxes cut out of
+  // its island's columns exactly, a box a cut reaches split round it (up to six), so the column under the room is its floor,
+  // over it its ceiling and round it its walls; the island's own placement alone (its chunk and its piece)
+  const HR = (cfg as { highRooms?: { rooms: Array<{ island: string; piece: string; carve: number[][] }> } }).highRooms;
+  const carveRooms = (id: string, key: string, list: number[][]): number[][] => {
+    const cuts = (HR?.rooms ?? []).filter((q) => q.island === id && key.endsWith(`/${q.piece}`)).flatMap((q) => q.carve);
+    let out = list;
+    for (const k of cuts) {
+      const next: number[][] = [];
+      for (const b of out) {
+        if (b[1] <= k[0] || b[0] >= k[1] || b[3] <= k[2] || b[2] >= k[3] || b[5] <= k[4] || b[4] >= k[5]) {
+          next.push(b);
+          continue;
+        }
+        const [x0, x1, z0, z1] = [Math.max(b[0], k[0]), Math.min(b[1], k[1]), Math.max(b[2], k[2]), Math.min(b[3], k[3])];
+        if (b[0] < k[0]) next.push([b[0], k[0], b[2], b[3], b[4], b[5]]);
+        if (b[1] > k[1]) next.push([k[1], b[1], b[2], b[3], b[4], b[5]]);
+        if (b[2] < k[2]) next.push([x0, x1, b[2], k[2], b[4], b[5]]);
+        if (b[3] > k[3]) next.push([x0, x1, k[3], b[3], b[4], b[5]]);
+        if (b[4] < k[4]) next.push([x0, x1, z0, z1, b[4], k[4]]);
+        if (b[5] > k[5]) next.push([x0, x1, z0, z1, k[5], b[5]]);
+      }
+      out = next;
+    }
+    if (cuts.length) console.log(`the High City's rooms: ${cuts.length} boxes carved out of ${id}'s columns, ${list.length} collision boxes to ${out.length}`);
+    return out;
+  };
   // (each placed draw's chunk, for naming what the bake's measures find)
   const chunkOf = new WeakMap<object, string>();
   // a placement's material may be derived: "Base|#rrggbb|k" is the pack's Base with its emission the colour at k times
@@ -411,11 +438,17 @@ if (mode === "bake") {
       // The pack stretches a part's UVs with its scale, 2.5 to 22.5 m a repeat on one of GLASS HEIGHTS' decks, measured,
       // which its plain concrete hides and a tile shows as a patchwork of sizes, Milestone 889)
       const flatUv = new Map<string, number>();
+      // (and "Spec@m" with an axis letter, "@2y", Milestone 1132: those faces' uvs along that axis of the prefab's own metres as
+      // placed and across each face, so a post's grain runs up it and a beam's along it; laid flat on the map, one row of
+      // the timber ran up a post's whole side, the districts' seventeenth reviews' "pergola grain stretched")
+      const grainUv = new Map<string, number>();
       for (const [name, to] of remap ?? []) {
         const [spec, at] = to.split("@");
         if (!at) continue;
         remap!.set(name, spec);
-        flatUv.set(name, Number(at));
+        const axis = "xyz".indexOf(at.slice(-1));
+        flatUv.set(name, Number(axis < 0 ? at : at.slice(0, -1)));
+        if (axis >= 0) grainUv.set(name, axis);
       }
       const matGuid = mat && !remap ? (derivedMat(mat) ?? pack.matFor(mat)) : null;
       if (mat && !remap && !matGuid) throw new Error(`no material ${mat}`);
@@ -439,10 +472,33 @@ if (mode === "bake") {
         let touched = false;
         const prims = d.model.meshes[d.mesh].prims.map((q, i) => {
           const g = d.mats![i];
-          const at = g ? flatUv.get(readMaterial(pack, g)?.name ?? "") : undefined;
+          const nm = g ? (readMaterial(pack, g)?.name ?? "") : "";
+          const at = g ? flatUv.get(nm) : undefined;
           if (!at || !q.uv) return q;
           touched = true;
           const uv = new Float32Array(q.uv.length);
+          const axis = grainUv.get(nm);
+          if (axis !== undefined && q.nrm) {
+            // (v the metres along the axis, u across the face: the face's normal crossed with the axis; on an end face, the
+            // two directions across the axis. The pack's timber pieces have a normal of their own face at each corner, measured)
+            const unit = (v: number[]) => {
+              const l = Math.hypot(v[0], v[1], v[2]) || 1;
+              return [v[0] / l, v[1] / l, v[2] / l];
+            };
+            const cr = (a: number[], b: number[]) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+            const dt = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+            const A = unit([W[axis * 4], W[axis * 4 + 1], W[axis * 4 + 2]]);
+            const side = unit(cr(A, Math.abs(A[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]));
+            const side2 = cr(A, side);
+            for (let k = 0; k * 2 < uv.length; k++) {
+              const p = [0, 1, 2].map((c) => T[c] * q.pos[k * 3] + T[4 + c] * q.pos[k * 3 + 1] + T[8 + c] * q.pos[k * 3 + 2] + T[12 + c]);
+              const n = unit([0, 1, 2].map((c) => T[c] * q.nrm![k * 3] + T[4 + c] * q.nrm![k * 3 + 1] + T[8 + c] * q.nrm![k * 3 + 2]));
+              const end = Math.abs(dt(n, A)) > 0.7;
+              uv[k * 2] = dt(p, end ? side : unit(cr(n, A))) / at;
+              uv[k * 2 + 1] = dt(p, end ? side2 : A) / at;
+            }
+            return { ...q, uv };
+          }
           for (let k = 0; k * 2 < uv.length; k++) {
             uv[k * 2] = (T[0] * q.pos[k * 3] + T[4] * q.pos[k * 3 + 1] + T[8] * q.pos[k * 3 + 2] + T[12]) / at;
             uv[k * 2 + 1] = (T[2] * q.pos[k * 3] + T[6] * q.pos[k * 3 + 1] + T[10] * q.pos[k * 3 + 2] + T[14]) / at;
@@ -654,7 +710,8 @@ if (mode === "bake") {
         solidBoxes.push([b[0], b[1], b[2], b[3], foot, foot + CAPS.top]);
       } else if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...drawn);
       else if (how === "s") {
-        const boxes = columnSolids(mine, C.cell, C.stick, cfg.rules.shell);
+        // (a High City block's rooms carved out of its columns, carveRooms, Milestone 1126)
+        const boxes = carveRooms(id, key, columnSolids(mine, C.cell, C.stick, cfg.rules.shell));
         if (LAID.includes(id) && boxes.length) laid.push([solidBoxes.length, solidBoxes.length + boxes.length]);
         solidBoxes.push(...boxes);
       }
@@ -668,6 +725,15 @@ if (mode === "bake") {
   // is made. Written to `windows` for the checks, each with the way out of its building
   const windowBoxes: number[][] = [];
   const windowCuts: number[][] = [];
+  // (a High City room's windows, cfg.highRooms, Milestone 1126: their way out away from their own room's middle, the Loop
+  // being nearer the map's middle than the room is; the room whose rects the window's wall stands within 1.5 m of)
+  const roomsChunk = (cfg.rules.blocks as { rooms?: { chunk: string } }).rooms?.chunk;
+  const roomMid = (w: { chunk: string; p0: number[]; U: number[]; L: number }): number[] | null => {
+    if (w.chunk !== roomsChunk) return null;
+    const [cx, cz] = [w.p0[0] + w.U[0] * (w.L / 2), w.p0[1] + w.U[1] * (w.L / 2)];
+    const q = ((HR as { rooms: Array<{ mid: number[]; rects: number[][] }> } | undefined)?.rooms ?? []).find((r) => r.rects.some(([x0, x1, z0, z1]) => cx > x0 - 1.5 && cx < x1 + 1.5 && cz > z0 - 1.5 && cz < z1 + 1.5));
+    return q ? q.mid : null;
+  };
   cfg.windows = [];
   if (WIN && windowWalls.length) {
     // a window opens only onto something: a body's breadth of level rays, at three heights, `clear` metres out of it and
@@ -724,7 +790,7 @@ if (mode === "bake") {
     let shut = 0;
     for (const w of windowWalls) {
       const SQ = cfg.tower?.square as number[] | undefined;
-      const mid = w.chunk === "c-middle" && SQ ? [(SQ[0] + SQ[1]) / 2, (SQ[2] + SQ[3]) / 2] : [0, 0];
+      const mid = w.chunk === "c-middle" && SQ ? [(SQ[0] + SQ[1]) / 2, (SQ[2] + SQ[3]) / 2] : (roomMid(w) ?? [0, 0]);
       const cx = w.p0[0] + w.U[0] * (w.L / 2), cz = w.p0[1] + w.U[1] * (w.L / 2);
       const sign = (cx - mid[0]) * w.N[0] + (cz - mid[1]) * w.N[1] > 0 ? 1 : -1;
       const out = [w.N[0] * sign, w.N[1] * sign];
@@ -791,7 +857,7 @@ if (mode === "bake") {
       }
       // (the way out: away from the middle of the tower's square, or of the base)
       const SQ = cfg.tower?.square as number[] | undefined;
-      const mid = w.chunk === "c-middle" && SQ ? [(SQ[0] + SQ[1]) / 2, (SQ[2] + SQ[3]) / 2] : [0, 0];
+      const mid = w.chunk === "c-middle" && SQ ? [(SQ[0] + SQ[1]) / 2, (SQ[2] + SQ[3]) / 2] : (roomMid(w) ?? [0, 0]);
       for (const [t0, t1] of w.spans) {
         // (from the floor up: the cells under a sill reached half a metre into the room, a 0.44 m step where a standing
         // head met the ceiling, 2.2 m over the tower's floors, and was pushed off it; the sill stands as its own box,
@@ -889,8 +955,9 @@ if (mode === "bake") {
       // (the rims of its holes, the atrium's and the stairs', in `mats.rim` where it names one, Milestone 1045: brick read as a beam
       // across the atrium's ceiling)
       const prims = (["top", "edge", "under"] as const).map((k) => ({ pos: new Float32Array(parts[k].pos), nrm: new Float32Array(parts[k].nrm), uv: new Float32Array(parts[k].uv), idx: new Uint32Array(parts[k].idx), material: k === "edge" ? (BS.mats.rim ?? BS.mats.edge) : BS.mats[k] }));
+      // (a derived spec too, as the tower's slabs take one: the ceilings' neutral glow, Milestone 1133)
       const mats = prims.map((p) => {
-        const mg = pack.matFor(p.material);
+        const mg = derivedMat(p.material) ?? pack.matFor(p.material);
         if (!mg) throw new Error(`no material ${p.material}`);
         return mg;
       });
@@ -1463,7 +1530,8 @@ if (mode === "bake") {
   // and THE STACKS' plugs (cfg.stacks), filling shut rooms the bots' street grid fell into
   // (and GLASS HEIGHTS' shops' jambs, glazing and lids, Milestone 1099: their openings cut out of its blocks' skins)
   // (and THE TERMINAL's since Milestone 1115: its catwalks' decks and crate stacks)
-  const typed = [cfg.terraces, cfg.stacks, cfg.strip, cfg.stairs, cfg.canyon, cfg.works, cfg.shops, cfg.glass, cfg.terminal].flatMap((d) => ((d as { solids?: number[][] } | undefined)?.solids ?? []).map((q) => [...q]));
+  // (and the High City's rooms' partitions and furniture since Milestone 1126, cfg.highRooms)
+  const typed = [cfg.terraces, cfg.stacks, cfg.strip, cfg.stairs, cfg.canyon, cfg.works, cfg.shops, cfg.glass, cfg.terminal, cfg.highRooms].flatMap((d) => ((d as { solids?: number[][] } | undefined)?.solids ?? []).map((q) => [...q]));
   const solids = [...cutBack(carve(coarse)), ...cutBack(carve(fine)), ...exactBoxes, ...windowBoxes, ...typed];
   if (carved) console.log(`the windows cut out of ${carved} collision boxes`);
   if (trimmed) console.log(`${trimmed} collision boxes of the rest cut back out of the fire escapes' rooms`);
@@ -1651,7 +1719,11 @@ function findPads(boxes: number[][], rules: any): Array<{ id: string; face: numb
     const alongX = dir === "n" || dir === "s";
     for (const [side, from, into] of [["in", sign * inner, sign], ["out", sign * ring, -sign]] as const) {
       let best: { score: number; q: (typeof found)[number] } | null = null;
+      // (a pad held at one place across its block, rules.pads.fix (Milestone 1125): the north block's inner pad off the
+      // north deck's south lobe, so the lobe takes cover; only that place is tried, and the bake stops if it fails)
+      const fixU = (P.fix as Record<string, number> | undefined)?.[`${dir}-${side}`];
       for (let u = -P.across; u <= P.across; u += 1) {
+        if (fixU !== undefined && u !== fixU) continue;
         const at = (t: number): [number, number] => (alongX ? [u, from + into * t] : [from + into * t, u]);
         let hit = -1;
         for (let t = 0; t <= P.search; t += 0.05) {
@@ -1679,6 +1751,7 @@ function findPads(boxes: number[][], rules: any): Array<{ id: string; face: numb
         const score = hit + 0.15 * Math.abs(u) - (walk >= P.landArea ? P.landBonus : 0);
         if (!best || score < best.score) best = { score, q: { id: `${dir}-${side}`, face: face.map((v) => +v.toFixed(2)), out, pad: [px, pz].map((v) => +v.toFixed(2)), floor: +floor.toFixed(2), roof: +roof.toFixed(2) } };
       }
+      if (fixU !== undefined && !best) throw new Error(`rules.pads.fix holds ${dir}-${side} at u ${fixU}, where no pad passes the search: measure its place again`);
       if (best) found.push(best.q);
       else console.log(`no pad for ${dir}-${side}`);
     }

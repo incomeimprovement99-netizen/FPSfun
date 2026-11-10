@@ -20294,3 +20294,152 @@ the map agent's own items, 1118 to 1124.
   its fire escape (1116); GLASS HEIGHTS' lift (1117); the round 22 finish (1119 to 1123). Changed: the ceilings read in the
   even grey concrete (1118, for 1106's plaster); the streets' median counts the corner kits on the middle line.
 - **Checked:** 460 map checks pass at every texture size (lo, hi, max; each bake converged, the layout's rerun 0 lines off it), the centre's draws 205, 207 and 217 of 220 (two fewer at each than version 141). verify, rules and tsc. Map files version 142: lo 239.4 MB, hi 323.5 MB, max 639.8 MB.
+
+## Milestones 1125 to 1135 — batch 10: the north deck's lobe and the lookout, offices in two High City blocks, MARKET's stall line and the corner streets' own ground, the districts' courts, the roof routes made visible, THE WORKS' depot and GLASS HEIGHTS' lift glass, each district's colour by night and from the drop, THE STRIP's faces and THE TERRACES' lawn, the ceilings lit a light grey, the crown's billboards, the clover glass
+
+From the twenty-third fresh reviews (2026-11-09, on version 142: the centre 6.3 and 6.3, the districts 6.3 and 6.3, flat a
+second round; five of batch 9's items did not show in the pictures). Batch 10's first rule was to build where the review
+cameras look, and to name for each item the picture that shows it, projected through that spot's camera. Eight proposal
+agents measured the larger items as dry runs on version 142's files at once. Seven were cut off by the usage limit and
+resumed after it reset. They were applied here one at a time, each checked live against the working tree first, then laid
+and baked as one version with the map agent's own 1133 to 1135. The first loop settled with six fails, each traced and
+fixed:
+- **Two proposals crossed:** deck10's cover on the north deck's lobe stands in picture 14's line to rooms10's west windows,
+  so 02 shows those windows and 14 shows the cover.
+- **Re-laid district cover:** LANTERN ALLEYS' district cover stood a rack at the new fire escape's foot and another across
+  the court's middle line. Both are now `ways`, kept clear.
+- **The tower model's rails:** they kept the clover glass under the model's own remap.
+- **A street-cover stall in MARKET's quadrant** wore the pack's colours (streets10's follow-up dresses it in its block's kit).
+- **GLASS HEIGHTS' two new clusters** were climbed along a 0.7 m bench face that the bake typed higher than predicted
+  (courts10's follow-up climbs over the bench onto the screen).
+
+THE CANYON's new roof tint was halved in chroma after its first picture read as turf.
+
+- **1125, the north deck's lobe and the lookout cleared** (round 23, both centre reviewers: B rank 5 "the north roof (14):
+  a raised middle with a stair house, a sign frame and crate stacks"; A rank 3 "three or four chest-high cover sets on the deck
+  along the line to the tower"; both "the lookout (10): remove the tilted brick-and-moss block on the rim").
+  - **The lookout:** the brick-and-moss block was Milestone 1111's own two-crate stack on the north tip's rim, 0.4 to 2.5 m
+    from the lens. It is gone, and the rim's check now requires that none of the group is in the frame. Picture 10's floor
+    takes no cover: it is the top pad's landing and the north rope's top.
+  - **The north deck:** the n-in pad is held at u -14 in the alcove west of the lobe, the only other place the bake's search
+    passes (the bake stops if that place ever fails). The lift keeps its side, and the lookout rope's deck end is pinned. The
+    deck's tank is at 0.8 and the AC moves to the lobe, which takes a chest-high wall, a crate and a two-high stack, all whole
+    or 81% in picture 14.
+- **1126, offices in two High City blocks** (round 23, centre B rank 1: "open two storeys of each High City block (the purple
+  one in 27, the teal one on the right of 14) ... the largest missing combat space"). One storey in each of the two blocks
+  named, the brief's fallback.
+  - **East block:** at the fire escape's 11.556 m landing, in through the pack's wide gate in the recess, then a gallery, a
+    passage and a room to two windows on the Loop face.
+  - **West block:** at 20 m behind the Loop face, with seven windows over the Loop and the plaza. It is entered off the
+    climb's 20 m balcony through the two windows over it, and its three rooms are joined by staggered doors.
+  - **Loot and build:** a landmark-tier loot site in each room. The shell face is cut where the window walls and the gate
+    stand, and the room's volume is carved out of the island's columns by a new step in the bake. Every material is one the
+    centre already draws.
+- **1127, the corner streets' near carriageways and their own ground** (round 23, both centre reviewers: "MARKET (18): a
+  stall line ... splitting it into two lanes"; A rank 5 "NOODLE ROW (16): fill the open paving; fix the tilted lit panel"; A
+  rank 7 "each corner block its own paving").
+  - **MARKET:** six of its seven stations take a stall line down the street's middle line, with 3.63 m of road in each lane
+    beside a stall. Its crates are painted yellow, and two lit MARKET boards stand on the canopy cable that 18 looks along.
+  - **The "tilted panel" of rounds 21 to 23:** it was a street bench. Every furniture bench stood end-on to the road (the
+    pack's bench is long down its own z), and all nine now run along the kerb.
+  - **NOODLE ROW:** a second bistro table in 16's foreground, and the stall bodies in the block's own colour.
+  - **Paving:** MARKET, NOODLE ROW and MOTEL HILL each take their own, in materials the map draws already.
+- **1128, the districts' open courts** (round 23, both district reviewers, first: "head-high cover in the middle of the open
+  courts: THE STACKS' (d11), GLASS HEIGHTS' (d13b), LANTERN ALLEYS' (d02)").
+  - **THE STACKS:** every deck and bridge is drawn two tiles deep, with the tile edges and underside in the hotel's pink. The
+    edge had been brown brick, the "thin plank". The strips go under the deck, the pillars are 1 m, and a second cover line of
+    plant and machines (2.09 m) runs along the court's south lane.
+  - **GLASS HEIGHTS:** the screens' timber pane is the lift cab's pale-cyan frosted glass, and two L-shaped clusters of low
+    screens stand either side of the door.
+  - **LANTERN ALLEYS:** the brick U set (d02's "placeholder cube" and d01's two blank slabs) leaves its kit for crates and
+    timber tables. A fourth stall stands where the cube stood, and a lit LANTERN ALLEYS board hangs between the mouth's
+    masts.
+- **1129, the roof routes made visible** (round 23, districts B rank 1: "none of the new routes read").
+  - **THE TERMINAL (d09):** the vaults glow a flat pale blue; their colour map is an even dark grey, which read as black
+    metal. The catwalk's yellow end tile takes the yellow painted panels of THE WORKS' yard lines, its white crates are
+    timber, and both decks get the canyon walkway's fence with a lit amber handrail.
+  - **THE CANYON (d21):** a 1 m yellow band runs round each of its seven roof gaps, with dark walls and floors.
+  - **LANTERN ALLEYS (d02, d03):** a second fire escape goes up D2's east face from the court, with lanterns on every landing
+    and a red ROOFS board, and A1's escape takes the same. The bridges get pale timber sides and lit rails.
+- **1130, THE WORKS' yard and hall, GLASS HEIGHTS' lift glass** (round 23, both district reviewers).
+  - **d24's "single boxes":** these were the street cover's rust boxes on the ring road's south-east corner. Three groups of
+    two-high containers stand there now, laid before the street cover so it builds round them.
+  - **d22:** the parked hover van gives way to a container. The pack has no truck or forklift.
+  - **d23:** the pad collars are laid upside down, a clean yellow band in place of the scalloped "melted" rim, with a plate
+    keeping the dark disc. Drums and pallet crates fill the hall's two free pockets, and yellow aisle lines run round the
+    boiler.
+  - **GLASS HEIGHTS' lift ("a wireframe"):** the shaft is the pack's darker smoked glass (Cristal01, alpha 0.69 for 0.47), its
+    eight lit rims are gone, and a second cab is parked at 12 m.
+- **1131, each district its own colour at night and from the drop** (round 23, both district reviewers: "at night only THE
+  WORKS and THE STRIP read"; "take THE CANYON, THE TERMINAL and THE STACKS off the shared tan-brown").
+  - **By night:** a glow along the roofs' edges in each district's colour, with an even fill across the roof, drawn by the
+    game only at night (game.pools.roofs). It covers 224 runs measured off the collision: THE CANYON 669 m of edge, LANTERN
+    ALLEYS 397, THE TERRACES 343, THE STACKS 229, THE TERMINAL 210.
+  - **The street lamps' pools:** under each head (1.15 m either side of its post, measured), warmer and dimmer.
+  - **By day:** THE CANYON's roofs in lime-tinted panels, THE STACKS' ground in rose slabs, THE TERMINAL's in a cool grey
+    stone, and the first ring past the fence in a material the map draws already.
+- **1132, THE STRIP's faces and stage, THE TERRACES' tier** (round 23, both district reviewers).
+  - **The club:** the red tile only on its front and behind the bar, every other face in THE STRIP's dark panel. Its columns
+    are dark below and screens above, and its stairs are black on all five pale parts.
+  - **Lamps:** the balcony and room lamps of Milestones 1122 and 1123 at half size, set 0.12 m into the slab so they sit
+    flush.
+  - **The stage (d16's "parked flatbed"):** a screen wall with a truss tower at each end and two speakers.
+  - **THE TERRACES:** the lawn darker, mown in 2.5 m stripes of two greens, with three paved paths. The pergolas are slimmer,
+    with their grain laid along each member (a grain mode in the bake, `@m` plus an axis).
+  - **One new material,** batched.
+- **1133, the ceilings lit a neutral light grey** (round 23, both centre reviewers, first and second, the third round running:
+  "the ceilings in 07, 11 and 29c still read olive and blotchy, not even light grey", "use a flat light-grey material, and stop
+  the warm or olive light from washing over it"). Measured: Milestone 1118's panel has an even grey base map (151, 150, 146, a
+  spread of 6), yet it rendered at 68, 69, 58 in 07 and at 90, 99, 85 in 11. So the olive is the light that reaches a face
+  turned down: the warm hemisphere ground and the floors' coloured fill, under the grade's cool shadows. The sky's light from
+  below is blue, measured off the HDR. It is not the texture. The ceilings now glow their own map in a cool white (Milestone
+  828's derived glow, `ConcretePanels00~#hex|k`), so the panels are kept and the light is the ceiling's own. Three bakes
+  measured the same patch of 07 (competitive, golden hour):
+  - none: 69, 66, 51;
+  - #eef2f6 at 0.3: 83, 81, 67;
+  - #e4ecff at 1.4: 188, 191, 192;
+  - #e4ecff at 0.75: 138, 139, 137 (29c's ceiling 130, 132, 132).
+
+  The tower's undersides and the 26 m floor are at #e8eeff 0.6 (11's ceiling 131, 136, 129, its fill green). The base slab's
+  material lookup now takes a derived spec, as the tower's already did (tools/import-neon.ts). The ceilings' check reads the
+  glow: the panel, a strength of 0.2 or more, and each channel of its colour within 12% of the others. Batched: the centre's
+  draws held at 205 at lo.
+- **1134, the crown's billboards an ad, not a blank orange** (round 23, A rank 2: "blank orange billboards (05, 08, 14, 24,
+  also 02 and 03): put ad art or the pack's screen textures on them; seen from everywhere, they look untextured"). Traced: the
+  two AD_Structure01 boards on the east block's crown (Milestone 1111) carry the pack's Light04 panels, a plain glow of 2, 0, 0
+  over a plastic map, which drew from across the city as two flat orange faces 23 m up. Light04 is now worn in the pack's
+  Ads21, a red and orange poster. It is new to the map and batched.
+- **1135, no green clovers on the glass rails** (round 23, A: "08, 20, 26: the same green clover decals on every glass rail";
+  the districts' A: "d18 odd green clover decals on the balcony glass"; named since round 17). Traced: the print is the pack's
+  CrystalPattern03, a pane glowing its LightWall01_em03 map in green (0.48, 1, 0.41). Milestone 1068 wore it as clear glass
+  (Cristal03^#bff4ff) on the Sky Ring's and the base's own fences only. The clovers seen were on pieces placed with no
+  material of their own:
+  - the lifts' footbridges off the Sky Ring (08);
+  - THE STRIP club's balcony fences (d18);
+  - THE TERRACES' fences;
+  - the corner streets' small bridges and THE CANYON's;
+  - the tower model's own rails round the court and the atrium (20, 26).
+
+  Each now wears the same clear glass through rules.wear, a material the map draws already.
+- **The round 23 finish check** (1134, 1135): no AD_Structure board in the map shows Light04 as the pack made it, and no
+  FenceElegant00, FloorBridge or the tower model shows CrystalPattern03. Proven on the map before the layout laid the wear:
+  680 rails and bridges with the clover glass, 112 showing it, failed.
+- **Checks that learned the new work:** ten new, 461 to 470, each failing on version 142's placements or with its fault put
+  back (the agents' proofs in T/proposals10/*-dry and *-tools, the map agent's in T/skn72proof.log):
+  - the north deck's lobe a place to fight (1125);
+  - the High City's rooms (1126);
+  - the corner streets' near carriageways and their own ground (1127);
+  - the districts' open courts (1128);
+  - the roof routes made visible, and the climb of LANTERN ALLEYS' second fire escape (1129, two);
+  - THE WORKS' depot and GLASS HEIGHTS' lift glass (1130);
+  - each district its own colour by night and from the drop (1131);
+  - THE STRIP's faces and stage, THE TERRACES' tier (1132);
+  - the round 23 finish (1134, 1135).
+
+  Changed:
+  - the lookout's rim: nothing of it in picture 10's frame (1125);
+  - the ceilings, read in the panel's neutral glow (1133);
+  - Milestone 1117's screens and the floor-tile check (1128, 1126);
+  - the districts' landmark sites (1126);
+  - the tests of Milestones 667, 987, 1062 and 1085 (1132).
+- **Checked:** 470 map checks pass at every texture size (lo, hi, max; each bake converged, the layout's rerun 0 lines off it), the centre's draws 205, 207 and 217 of 220 (as version 142). verify, rules and tsc. Map files version 143: lo 241.8 MB, hi 325.0 MB, max 646.4 MB.
