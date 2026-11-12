@@ -41,7 +41,7 @@ interface Spine {
 }
 
 /** what the map drew, for the page's hook and the checks */
-export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; batches: { batches: number; materials: number; layers: number }; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean; anisotropy: { asked: number; textures: number }; flattened: number; towerLit: { materials: number; rows: number } } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, batches: { batches: 0, materials: 0, layers: 0 }, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false, anisotropy: { asked: 0, textures: 0 }, flattened: 0, towerLit: { materials: 0, rows: 0 } };
+export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; batches: { batches: number; materials: number; layers: number }; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean; anisotropy: { asked: number; textures: number }; flattened: number; calmed: number; towerLit: { materials: number; rows: number } } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, batches: { batches: 0, materials: 0, layers: 0 }, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false, anisotropy: { asked: 0, textures: 0 }, flattened: 0, calmed: 0, towerLit: { materials: 0, rows: 0 } };
 
 /**
  * The city's collision boxes (src/config/neon/neonmap.solids.json, measured off the pieces at the bake): a file of their
@@ -82,18 +82,27 @@ export function addNeonSolids(boxes: number[][]): void {
 const G = neonCfg.game;
 
 type WellFrameCfg = { side: number; out: number; top: number; thick: number; over: number; brace: number; block: number; colour?: string; rough?: number; metal?: number };
-type RopeFrameCfg = { rise: number; thick: number; colour?: string; rough?: number; metal?: number; collar?: number; at: Record<string, [number, number, number]> };
+type RopeFrameCfg = { apex: number; drum: number[]; house: number[]; foot: number[]; depth: number; chord: number; lace: number; pitch: number; collide: number; band: number; colour?: string; rough?: number; metal?: number; collar?: boolean; to?: Record<string, number>; loose?: string[]; at: Record<string, number[][]> };
+type V3 = [number, number, number];
+/** one rope end's hoist as ropeFrames() builds it, map-local */
+export type RopeFrame = { id: string; end: V3; feet: V3[]; apex: V3; m: [number, number]; n: [number, number]; legs: Array<[V3, V3]>; boxes: number[][]; lift: boolean; colour?: string };
 /**
- * Every other rope's end over a floor carried by a post and a short boom (game.ropeFrames, Milestone 1105; the centre's
- * twentieth reviews, A, 04 and 14: "a vertical rope hangs from the sky with no visible anchor", "a thick rope segment with
- * collars seems to end in mid-air near the tower"; the twenty-first, B, 14: "a thick black rod ... ends in mid-air"): the
- * glass lifts' tops and both ends of every zip line. A rider leaves a rope's end along it (a lift's top along its `out`, a
- * zip's end away from its other end), so each post stands `at[id]` [along, across, floor]: `along` metres on along that
- * line and `across` metres to its side, on the floor there (all three measured off the collision, a lift's top hanging
- * over its car and a zip's end over a roof's edge), its top `rise` over the end, a boom from it over the end and a hanger
- * down to the rope. An end with no `at` has no frame. Map-local. `colour` is its rope's, for the collar at the boom's tip.
+ * Every other rope's end over a floor hung from an A-frame hoist (game.ropeFrames, Milestone 1138). From Milestone 1105 a
+ * post and a short boom carried each end (the twentieth reviews: "a vertical rope hangs from the sky with no visible
+ * anchor"), and the centre's reviews read it as a gallows in black (round 22), in grey (23) and as "the white post-and-boom
+ * with its pink cube ... a goalpost or gallows" (24, B, 14; A asked for "a dark steel A-frame with a winch housing, the
+ * collar inside it"). Now two lattice legs (`chord` square chords `depth` apart, laced every `pitch` metres) stand on two
+ * feet `at[id]` [[along, across, floor], [along, across, floor]] (along the way a rider leaves the end, across it, and the
+ * floor's top, all measured off the collision) and meet the ends of a winch drum (`drum`: its radius, its flanges' radius,
+ * its length, a flange's thickness) whose axle is `apex` metres over the end, square to the line through the feet; a housing
+ * (`house`: across, along, tall) sits on the drum, the rope rises to the drum's underside and a collar in its colour rings
+ * it there. The feet stand either side of the rider's line where the floor lets them (a lift's landing, a yard) and both to
+ * one side where it does not (sheerlegs leaning over the line), so a rider rides in under the drum and is put off past the
+ * legs. Each foot (`foot`: side, tall) and each leg's lowest `collide` metres, in boxes `band` tall round it, collide, but a
+ * `loose` frame's legs, which stand where a walk passes within a sprint's drift of them. A
+ * rope whose top meets structure already standing has no frame: its rope is drawn up to `to[id]`.
  */
-export function ropeFrames(): Array<{ id: string; post: [number, number]; base: number; top: number; end: [number, number, number]; box: number[]; lift: boolean; colour?: string }> {
+export function ropeFrames(): RopeFrame[] {
   const F = (G as unknown as { ropeFrames?: RopeFrameCfg }).ropeFrames;
   if (!F) return [];
   const C = neonCfg as unknown as { lifts?: Array<{ id: string; rope: number[][]; out: number[]; colour?: string }>; glass?: { lift?: { id: string; rope: number[][]; out: number[]; colour?: string } }; zips?: Array<{ a: number[]; b: number[]; colour?: string }> };
@@ -105,14 +114,45 @@ export function ropeFrames(): Array<{ id: string; post: [number, number]; base: 
       ends.push({ id: `zip-${i}-${k}`, e, dir: [(e[0] - o[0]) / l, (e[2] - o[2]) / l], lift: false, colour: z.colour });
     }
   });
-  const h = F.thick / 2;
   return ends
     .filter((q) => !!F.at[q.id])
     .map(({ id, e, dir, lift, colour }) => {
-      const [along, s, base] = F.at[id];
-      const post: [number, number] = [e[0] + dir[0] * along - dir[1] * s, e[2] + dir[1] * along + dir[0] * s];
-      const top = e[1] + F.rise;
-      return { id, post, base, top, end: [e[0], e[1], e[2]] as [number, number, number], box: [post[0] - h, post[0] + h, post[1] - h, post[1] + h, base, top], lift, colour };
+      const c = [-dir[1], dir[0]];
+      const feet = F.at[id].map(([al, s, fl]): V3 => [e[0] + dir[0] * al + c[0] * s, fl, e[2] + dir[1] * al + c[1] * s]);
+      // (m from the second foot to the first; n square to it, toward the way off the end where it is not along the line)
+      const ml = Math.hypot(feet[0][0] - feet[1][0], feet[0][2] - feet[1][2]) || 1;
+      const m: [number, number] = [(feet[0][0] - feet[1][0]) / ml, (feet[0][2] - feet[1][2]) / ml];
+      const n: [number, number] = -m[1] * dir[0] + m[0] * dir[1] < 0 ? [m[1], -m[0]] : [-m[1], m[0]];
+      const apex: V3 = [e[0], e[1] + F.apex, e[2]];
+      const hw = F.drum[2] / 2;
+      const legs = feet.map((f, i): [V3, V3] => [[f[0], f[1] + F.foot[1], f[2]], [apex[0] + m[0] * hw * (i ? -1 : 1), apex[1], apex[2] + m[1] * hw * (i ? -1 : 1)]]);
+      // (the collision: each foot block, turned to the frame, and each leg's section from its block to `collide` over its
+      // floor, the box round it every `band` metres: a walking body meets the frame where it stands, a rider passes over it)
+      const boxes: number[][] = [];
+      const hf = F.foot[0] / 2;
+      feet.forEach((f, i) => {
+        const xs = [-1, 1].flatMap((a) => [-1, 1].map((b) => f[0] + (m[0] * a + n[0] * b) * hf));
+        const zs = [-1, 1].flatMap((a) => [-1, 1].map((b) => f[2] + (m[1] * a + n[1] * b) * hf));
+        boxes.push([Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs), f[1], f[1] + F.foot[1]]);
+        if (F.loose?.includes(id)) return;
+        const [a, b] = legs[i];
+        const lim = f[1] + F.collide;
+        for (let y = a[1]; y < lim - 1e-6; y = Math.min(y + F.band, lim)) {
+          const y2 = Math.min(y + F.band, lim);
+          const px: number[] = [];
+          const pz: number[] = [];
+          for (const yy of [y, y2]) {
+            const t = (yy - a[1]) / (b[1] - a[1]);
+            for (const j of [-1, 1])
+              for (const k of [-1, 1]) {
+                px.push(a[0] + (b[0] - a[0]) * t + (n[0] * j * F.depth) / 2 + ((m[0] + n[0]) * k * F.chord) / 2);
+                pz.push(a[2] + (b[2] - a[2]) * t + (n[1] * j * F.depth) / 2 + ((m[1] + n[1]) * k * F.chord) / 2);
+              }
+          }
+          boxes.push([Math.min(...px), Math.max(...px), Math.min(...pz), Math.max(...pz), y, y2]);
+        }
+      });
+      return { id, end: [e[0], e[1], e[2]] as V3, feet, apex, m, n, legs, boxes, lift, colour };
     });
 }
 /**
@@ -327,8 +367,8 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   for (const [x0, x1, z0, z1] of UG.slabs) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
   // (and THE WELL's frame's post, wellFrame: it stands on the rim's paving, so it collides as the street's pieces do)
   const WF = wellFrame();
-  // (and every rope frame's post, ropeFrames, Milestone 1105)
-  for (const [x0, x1, z0, z1, y0, y1] of [...(WF ? [WF.box] : []), ...ropeFrames().map((f) => f.box)]) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
+  // (and every rope frame's feet and its legs' lowest boxes, ropeFrames, Milestones 1105 and 1138)
+  for (const [x0, x1, z0, z1, y0, y1] of [...(WF ? [WF.box] : []), ...ropeFrames().flatMap((f) => f.boxes)]) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
   const slabs = RANGE_SOLIDS.slice(first);
   // (and the boxes the bake measured, when they are in: addNeonSolids)
   rebuildSolidGrid();
@@ -563,7 +603,9 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? []), ...(ropeCfg.express ?? []), ...(ropeCfg.glass?.lift ? [ropeCfg.glass.lift] : [])]) {
     const [a, b] = q.rope;
     const lf = liftTop(b);
-    const top = WFr && q === wellRope ? WFr.top - WFr.cfg.thick / 2 : lf && RFc ? lf.top - RFc.thick / 2 : b[1] + 0.3;
+    // (up to its hoist's drum, Milestone 1138, or to the structure standing over its top, `to`: GLASS HEIGHTS' lift's cap)
+    const to = RFc?.to?.[`lift-${(q as { id?: string }).id}`];
+    const top = WFr && q === wellRope ? WFr.top - WFr.cfg.thick / 2 : lf && RFc ? lf.apex[1] - RFc.drum[0] : (to ?? b[1] + 0.3);
     cable(new THREE.Vector3(a[0], q.floor, a[2]), new THREE.Vector3(a[0], top, a[2]), G.liftRope, q.colour);
     ZIPLINES.push({ a: new THREE.Vector3(a[0] + BR_X, a[1], a[2] + BR_Z), b: new THREE.Vector3(b[0] + BR_X, b[1], b[2] + BR_Z) });
   }
@@ -590,10 +632,10 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     block.position.set(WFr.rope[0], WFr.top - FR.thick / 2 - FR.block / 2, WFr.rope[1]);
     ropes.push(block);
   }
-  // every other rope's end: a post, a boom over the end and, for a zip's end, a hanger down to it; in the cable's near-black
-  // they read from the High City decks as "black untextured gallows" (round 22, both centre reviews), so since Milestone 1119
-  // in the well frame's grey steel where game.ropeFrames gives a `colour`, and a lit collar in the rope's colour at the
-  // boom's tip, over the rope, as the ropes' own collars are lit
+  // every other rope's end hung from its A-frame hoist (ropeFrames, Milestone 1138): two lattice legs from their feet to a
+  // winch drum over the end, a housing on the drum, the rope up to the drum's underside and a collar in its colour there,
+  // all in the frames' dark steel (Milestone 1119's lighter grey read white in the sun in round 24; the cable's near-black
+  // read as a hole in rounds 21 and 22)
   if (RFc && RF.length) {
     // (its glow the cable's own, so the ropes' check reads it as a cable, as THE WELL frame's steel does)
     const steel = RFc.colour && G.zipCable ? new THREE.MeshStandardMaterial({ color: new THREE.Color(RFc.colour), emissive: new THREE.Color(G.zipCable), emissiveIntensity: G.zipGlow, roughness: RFc.rough ?? 1, metalness: RFc.metal ?? 0 }) : cableMat ?? emissive(0x222222, G.zipGlow);
@@ -603,17 +645,41 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), q2.clone().sub(p).normalize());
       ropes.push(m);
     };
+    const put = (geo: THREE.BufferGeometry, at: THREE.Vector3, q: THREE.Quaternion) => {
+      const mesh = new THREE.Mesh(geo, steel);
+      mesh.position.copy(at);
+      mesh.quaternion.copy(q);
+      ropes.push(mesh);
+    };
+    const v = (p: number[]) => new THREE.Vector3(p[0], p[1], p[2]);
+    const UP = new THREE.Vector3(0, 1, 0);
+    const [r, flange, len, plate] = RFc.drum;
     for (const f of RF) {
-      const [px, pz] = f.post;
+      const M = new THREE.Vector3(f.m[0], 0, f.m[1]);
+      // (the square pieces turned to the frame: m, up and m x up, a right-handed basis whichever way n points)
+      const turn = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(M, UP, M.clone().cross(UP)));
+      const axle = new THREE.Quaternion().setFromUnitVectors(UP, M);
+      const N = new THREE.Vector3(f.n[0], 0, f.n[1]).multiplyScalar(RFc.depth / 2);
+      for (const ft of f.feet) put(new THREE.BoxGeometry(RFc.foot[0], RFc.foot[1], RFc.foot[0]), new THREE.Vector3(ft[0], ft[1] + RFc.foot[1] / 2, ft[2]), turn);
+      for (const [a, b] of f.legs) {
+        const ca = [v(a).add(N), v(a).sub(N)];
+        const cb = [v(b).add(N), v(b).sub(N)];
+        for (const i of [0, 1]) bar(ca[i], cb[i], RFc.chord);
+        // (the lacing zigzags between the two chords, so the leg reads as a truss)
+        const k = Math.max(2, Math.round(v(a).distanceTo(v(b)) / RFc.pitch));
+        for (let j = 0; j < k; j++) bar(ca[j % 2].clone().lerp(cb[j % 2], j / k), ca[(j + 1) % 2].clone().lerp(cb[(j + 1) % 2], (j + 1) / k), RFc.lace);
+      }
+      const A = v(f.apex);
+      put(new THREE.CylinderGeometry(r, r, len, 12), A, axle);
+      for (const s of [1, -1]) put(new THREE.CylinderGeometry(flange, flange, plate, 16), A.clone().addScaledVector(M, s * (len / 2 - plate / 2)), axle);
+      put(new THREE.BoxGeometry(RFc.house[0], RFc.house[2], RFc.house[1]), A.clone().addScaledVector(UP, RFc.house[2] / 2), turn);
       const [ex, ey, ez] = f.end;
-      const t = RFc.thick;
-      bar(new THREE.Vector3(px, f.base, pz), new THREE.Vector3(px, f.top + t / 2, pz), t);
-      const away = new THREE.Vector3(ex - px, 0, ez - pz).normalize().multiplyScalar(t / 2);
-      bar(new THREE.Vector3(px, f.top, pz).sub(away), new THREE.Vector3(ex, f.top, ez).add(away), t);
-      if (!f.lift) bar(new THREE.Vector3(ex, ey, ez), new THREE.Vector3(ex, f.top - t / 2, ez), G.liftRope * 2);
+      // (a zip's rope up from its end to the drum; a lift's rope is drawn up to it with the lifts' own, above)
+      if (!f.lift) cable(new THREE.Vector3(ex, ey, ez), new THREE.Vector3(ex, f.apex[1] - r, ez), G.liftRope, f.colour ?? "#222222");
       if (RFc.collar && f.colour) {
-        const c = new THREE.Mesh(new THREE.BoxGeometry(RFc.collar, RFc.collar, RFc.collar), emissive(new THREE.Color(f.colour).getHex(), G.zipCollar.glow));
-        c.position.set(ex, f.top - t / 2 - RFc.collar / 2, ez);
+        const ZC = G.zipCollar;
+        const c = new THREE.Mesh(new THREE.CylinderGeometry(G.liftRope * ZC.wide, G.liftRope * ZC.wide, ZC.long, 8), emissive(new THREE.Color(f.colour).getHex(), ZC.glow));
+        c.position.set(ex, f.apex[1] - r - ZC.long / 2, ez);
         ropes.push(c);
       }
     }
@@ -935,6 +1001,27 @@ function sharpen(scene: THREE.Object3D, renderer: THREE.WebGLRenderer, n: number
 }
 
 /**
+ * A material's normal map at a share of its strength (neonmap.json game.calm, by the pack material's name, its derived
+ * wears too, Milestone 1144): every glass in the pack carries a noise normal (Cristal03's Noise02_nrm2), and on the clear
+ * rails it caught the sky as "speckled noise" (the centre's twenty-fourth reviews, B: 04, 08). How many materials it changed
+ */
+function calmNormals(scene: THREE.Object3D, C: Record<string, number>): number {
+  const done = new Set<THREE.Material>();
+  scene.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    for (const m of (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as THREE.MeshStandardMaterial[]) {
+      if (done.has(m) || !m.normalMap) continue;
+      const key = Object.keys(C).find((k) => m.name === `neon/${k}` || m.name.startsWith(`neon/${k}__`));
+      if (!key) continue;
+      done.add(m);
+      m.normalScale.multiplyScalar(C[key]);
+    }
+  });
+  return done.size;
+}
+
+/**
  * A material's main map pulled toward its own mean, `keep` of its contrast left (neonmap.json game.flatten, by the pack
  * material's name, its derived wears too): the asphalt's main map is a cloud noise, there to break its detail's repeat,
  * whose blotches about a metre across read in every street picture as "mud" and "carpet" (Milestone 1069). The mean is the
@@ -1230,6 +1317,7 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
   });
   NEON_MAP.anisotropy = sharpen(gltf.scene, renderer, G.anisotropy[size]);
   NEON_MAP.flattened = flattenMains(gltf.scene, G.flatten);
+  NEON_MAP.calmed = calmNormals(gltf.scene, (G as unknown as { calm?: Record<string, number> }).calm ?? {});
   gltf.scene.name = "neon:map";
   root.add(gltf.scene);
   PART.root = root;

@@ -17,8 +17,16 @@ import neonCfg from "../config/neonmap.json";
 import { padColour } from "./padrings";
 import { decayLight } from "./world";
 
-type PoolSet = { pieces: string[]; r: number; k: number; every?: number; floor?: number; heads?: Record<string, number[][]>; mix?: number };
-type RoofPlace = { place: string; colour: string; k?: number; runs: number[][] };
+type PoolSet = { pieces: string[]; r: number; k: number; every?: number; floor?: number; heads?: Record<string, number[][]>; mix?: number; vary?: { r: number; k: number } };
+
+/** a number in [0, 1) fixed by a place on the map, so a lamp's pool is the same size every load and on every machine */
+export function hash01(x: number, z: number, salt: number): number {
+  const s = Math.sin(x * 12.9898 + z * 78.233 + salt * 37.719) * 43758.5453;
+  return s - Math.floor(s);
+}
+// (`fill` a place's own share of its rims' light across its roofs, Milestone 1139: THE CANYON's 22.5 m roofs under the fill's 0.2
+// read "acid lime" from the night aerial)
+type RoofPlace = { place: string; colour: string; k?: number; fill?: number; runs: number[][] };
 type Pools = { sets: PoolSet[]; wash: { r: number; k: number; out: number; mix?: number }; washK?: Record<string, number>; spots?: number[][]; trim?: number[][]; lift: number; mix: number; warm: string; glow: { day: number; night: number }; shape: { h: number; fade: number }; roofs?: { w: number; reach: number; fill: number; k: number; inset: number; at: RoofPlace[] } };
 const P = (neonCfg as unknown as { game: { pools: Pools } }).game.pools;
 const mats: THREE.MeshBasicMaterial[] = [];
@@ -96,8 +104,15 @@ export function poolSpots(): number[][] {
           // ground as no lamp with two heads does; a lamp whose pool `trim` cuts to its floor keeps its one pool on its post,
           // the trims measured for it, on a roof by its edge)
           const a = ((yaw ?? 0) * Math.PI) / 180;
+          // (each lamp its own size and strength, `vary`, Milestone 1148: the centre's twenty-fourth reviews, night 23, "the
+          // pools still read as polka dots", "varied night pools", "fewer, stronger pools". Every pool the same disc at the
+          // same brightness is what made a pattern of them from the air; a lamp's two heads share its draw, so a lamp reads
+          // as one light. Only ever smaller than its set's radius, so a trimmed pool stays on its floor)
+          const [ur, uk] = [hash01(x, z, 1), hash01(x, z, 2)];
+          const rr = Math.min(r, set.r) * (1 - (set.vary?.r ?? 0) * ur);
+          const kk = set.k * (1 + (set.vary?.k ?? 0) * (2 * uk - 1));
           for (const [hx, hz] of (cut === undefined ? set.heads?.[name.split("/").pop()!] : undefined) ?? [[0, 0]])
-            spots.push([x + Math.cos(a) * hx + Math.sin(a) * hz, set.floor ?? y, z - Math.sin(a) * hx + Math.cos(a) * hz, Math.min(r, set.r), set.k, 0, set.mix ?? P.mix]);
+            spots.push([x + Math.cos(a) * hx + Math.sin(a) * hz, set.floor ?? y, z - Math.sin(a) * hx + Math.cos(a) * hz, rr, kk, 0, set.mix ?? P.mix]);
         }
     }
   }
@@ -160,7 +175,7 @@ export function roofGlowStrips(fill = false): Array<[number, number, number, num
       if (len < 0.5 || w < 0.1) continue;
       const [mx, mz] = [(x0 + x1) / 2 - nx * (R.inset + w / 2), (z0 + z1) / 2 - nz * (R.inset + w / 2)];
       const [hx, hz] = [Math.abs(x1 - x0) / 2 + (Math.abs(nx) * w) / 2, Math.abs(z1 - z0) / 2 + (Math.abs(nz) * w) / 2];
-      out.push([mx, y, mz, len, w, Math.atan2(-nx, -nz), (q.k ?? R.k) * (fill ? R.fill : 1), q.colour, mx - hx, mx + hx, mz - hz, mz + hz]);
+      out.push([mx, y, mz, len, w, Math.atan2(-nx, -nz), (q.k ?? R.k) * (fill ? (q.fill ?? R.fill) : 1), q.colour, mx - hx, mx + hx, mz - hz, mz + hz]);
     }
   return out;
 }

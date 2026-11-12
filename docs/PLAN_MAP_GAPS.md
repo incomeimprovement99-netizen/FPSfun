@@ -483,7 +483,34 @@ build where the review cameras look, each item projected through the spot that s
 - Ledges and awnings to mantle on the corner blocks' street walls (streets10.md has the spec).
 - Haze past the fence (renderer); the shadows (4.11).
 
-### 6.5 Reaching 7, and then 8
+### 6.5 Batch 11 (built 2026-11-12 as version 144, Milestones 1136 to 1148; then round 25)
+
+**What round 24 showed** (version 143): the centre rose to 6.4 and 6.4, its first rise in three rounds; the districts held
+at 6.2 and 6.3. Batch 10's own items were read where the pictures show them, but three read wrong: THE CANYON's roofs as
+turf, THE WORKS' containers as brown blocks, GLASS HEIGHTS' screens as beds that hide nobody. The rule for batch 11: what is
+built must read as what it is at picture size. **Built as version 144:**
+- **Eight proposal agents' items:**
+  - the lookout's landing marked, its rim capped and named, deck10's slab a lit panel, and spot 10b on its cover (1136);
+  - the plaza's twelve named sets: shelters, kiosk pairs and posts (1137);
+  - the rope frames as dark steel A-frame hoists (1138);
+  - THE CANYON's roofs dark islands with lit edges, its gaps lipped and lit (1139);
+  - THE WORKS' containers ribbed in four colours, its pads lit with rims, its ceilings steel decks (1140);
+  - GLASS HEIGHTS' screens on solid bases, its deck's cafe and SKY BAR (1141);
+  - THE STACKS' stair in view and the car out, THE TERRACES' arches lit and beds (1142);
+  - THE TERMINAL's floor fixed and its boards, THE STRIP's ads, two cars out of the walks (1143).
+- **Mine:** the glass rails calmed (1144), the bins black (1145), the chests' lids lit (1146), the hover vans white (1147),
+  the night pools varied, and the loop's guards for what the re-lay brought (1148).
+
+**Left for batch 12:**
+- THE VAULT's 32 m band lit gold from outside (needs a facade tint by height); the tower's open windows read from outside.
+- THE CANYON's islands stepped 2 to 4 m, and a true gap to the lit street (canyon11.md: four bridge landings and the bots'
+  roof nodes stand on them).
+- THE TERMINAL's wagon at a platform (no spot sees one: terminal11.md), one planting per district (no second tall tree).
+- GLASS HEIGHTS' three more clusters and a sculpture on the 27 m deck (glass11.md: no level ground in d14's view).
+- THE STACKS' second stair and barrier lines, THE TERRACES' deeper rooms (stacks11.md).
+- The shadows (4.11), haze past the fence.
+
+### 6.6 Reaching 7, and then 8
 
 **For 7,** play-style and finish have to move. Flow (7) and fun (6.5 to 7) are already there. Batches 7 and 8 are
 mostly play-style; the finish list is cleared each batch, picture by picture. The shadows (4.11) are the largest single

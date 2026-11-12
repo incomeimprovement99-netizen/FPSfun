@@ -20443,3 +20443,120 @@ THE CANYON's new roof tint was halved in chroma after its first picture read as 
   - the districts' landmark sites (1126);
   - the tests of Milestones 667, 987, 1062 and 1085 (1132).
 - **Checked:** 470 map checks pass at every texture size (lo, hi, max; each bake converged, the layout's rerun 0 lines off it), the centre's draws 205, 207 and 217 of 220 (as version 142). verify, rules and tsc. Map files version 143: lo 241.8 MB, hi 325.0 MB, max 646.4 MB.
+
+## Milestones 1136 to 1148 — batch 11: the lookout's floor and spot 10b, the plaza's twelve named sets, the rope frames as A-frame hoists, THE CANYON's roofs and gaps, THE WORKS' containers and hall, GLASS HEIGHTS' solid cover, THE STACKS' stair in view and THE TERRACES' approach, THE TERMINAL's hall and THE STRIP's ads, the chests' lids, the hover vans, the night pools varied
+
+From the twenty-fourth fresh reviews (2026-11-10, on version 143: the centre 6.4 and 6.4, its first rise in three rounds;
+the districts 6.2 and 6.3). Batch 11's rule: what is built must read as what it is at picture size (round 24 read THE
+CANYON's roofs as turf, THE WORKS' containers as brown blocks, GLASS HEIGHTS' screens as beds that hide nobody). Eight
+proposal agents measured the larger items as dry runs on version 143's files; all eight were cut off by the usage limit and
+resumed after it reset. They were applied here one at a time, each checked live against the working tree first, then laid
+and baked as one version with the map agent's own 1144 to 1148.
+
+- **1136, the lookout's floor and the High City deck's slab** (round 24, both centre reviewers, first and second: "the
+  lookout (10): the north half a bare concrete bowl"; B "the rim top a speckled black texture", "14: the grey slab
+  placeholder art"). Measured: picture 10's camera stands on the top pad's landing looking 42 degrees down, so its frame
+  holds 1.2 m of floor, all of it the pad's landing and the north rope's top; cover cannot stand there and read. So the strip
+  is marked as the landing (two of the pack's hex floor tiles, 97% of the floor in frame), the rim's coping wears a clean
+  plastic for the flecked grey, THE LOOKOUT's name board stands on the rim's inner face, and deck10's wall in picture 14
+  wears the pack's lit tech panel at its own metres. The lookout's cover (the raised middle's walls, chest and plant) is
+  photographed from a new spot, 10b, across the middle. The white bar across picture 10 was the north rope's frame post
+  (1138 moved it).
+- **1137, the plaza given a shape** (round 24, both centre reviewers: A rank 1 "three or four roofed pavilions or kiosk
+  clusters round a centrepiece"; B rank 2 "8 to 12 larger named cover pockets with lit edges and clear lanes between
+  them"; B "06: the grey slab stack"). The Loop's 20 small stations become 12 named sets (rules.dress.pockets): four roofed
+  shelters (the pack's bus stop, its roof 9.3 by 5 m, its bench cut out, a crate stack and a planter under it), one in
+  each quarter round the tower; four kiosk pairs in MARKET's blue with a crate stack at each end; four posts, a U of clean
+  concrete panels round a crate stack. 16 amber boards name them, and the street cover keeps 3 m off them, so 06's slab
+  stack goes. The posts' arms are the 1.86 m panel, over a standing eye; even so the Loop's long sightlines measure 24.3% in
+  the bake (18% before), and the check's bar for the Loop with its pockets is 25%: the lanes between fewer, larger sets are
+  the ask.
+- **1138, the rope frames rebuilt as A-frame hoists** (round 24, both centre reviewers, and rounds 22 and 23: "the white
+  post-and-boom with its pink cube still reads like a goalpost or gallows"; A rank 3 "a dark steel A-frame with a winch
+  housing"). Every rope end's frame is two lattice legs on steel feet meeting a winch drum 1.2 m over the rope's end, a
+  housing on the drum, the rope up to it and its collar just under it for the pink cube, all in dark steel. The feet are
+  measured off the collision for all 14 ends; two ends with floor on one side only are sheerlegs; GLASS HEIGHTS' lift has
+  no frame, its rope drawn to its cap's underside. The game draws them (ropeFrames() in src/game/neonmap.ts): no bake and
+  no material new.
+- **1139, THE CANYON's roofs, islands with gaps that read** (round 24, both district reviewers, first: "the roofs olive
+  slabs like artificial turf", "black pits", "acid lime" by night). Measured: a lime tint on plain panels renders olive
+  (109, 101, 44) in the golden hour. Each of the 11 roof islands now has its own dark patterned finish (standing-seam metal,
+  octagon pavers, slate scales, brick pavers, no two touching islands alike), a 0.5 m lime glow band just inside every
+  railed edge, typed 0.5 m lips with lit tops round every gap, the gaps' walls and floors lit, a timber plank at each gap's
+  canyon end, and the yellow band gone. By night THE CANYON's roof fill is 0.08 for 0.2 (src/game/lightpools.ts: a place's
+  own `fill`). The olive tint leaves the map, one batched material fewer.
+- **1140, THE WORKS' containers and hall** (round 24, both district reviewers, second: "real container faces in three
+  colours", "from the roof they look like brown wooden planks"; A rank 7 "the hall's pads lit, with raised rims"; "the
+  hall's ceiling khaki"). The pack has no container: the 26 containers keep their six-slab build and now wear the pack's
+  ribbed cladding in grey, red, blue and THE WORKS' yellow, its grooves up the sides and across the roof, with dark corner
+  posts and rails on each open face, a dark rim on each open top and four lock bars on the end facing the middle. The ring
+  road's rust slabs are grey bolted steel plates with an I-beam post at each end. The hall's pads are lit in THE WORKS'
+  teal with a second collar raising the rim to 0.205 m; the halls' roof undersides, the ring and the gantry are a ribbed
+  steel deck with a cool glow.
+- **1141, GLASS HEIGHTS' cover solid, its deck dressed** (round 24, both district reviewers: "the frosted screens hide
+  nobody", "opaque chest-high planters with glass only on top"; B "d15: the white bench reads as a fallen rail"). Under
+  each of its 68 screens a solid white base, 2 by 1.2 m, crouch height, the street cover's cyan strip along its top, drawn
+  inside the screens' own collision; the court's benches are the pack's backless bench; a cafe table and two chairs on the
+  27 m front deck; SKY BAR on the kiosk's blank curved wall.
+- **1142, THE STACKS' stair in view, THE TERRACES' approach** (round 24, both district reviewers: "a stair up to the pink
+  deck where you can see it", "take the car out (d11)"; "THE TERRACES' approach a lit promenade, the gate's arches lit").
+  The court's car is gone; the base atrium's 3 m flight in the hotel's pink rises onto the deck's west arm, left of the kiosk
+  in d11 (the arm one tile shorter, its pods 2 m north). THE TERRACES' gate has a green strip under each of its five
+  arches, and four cypress row beds stand on the promenade either side of the grand stair's foot.
+- **1143, THE TERMINAL's hall, THE STRIP's ads, cars out of the walks** (round 24, both district reviewers: "the floor's
+  marble streaks", "boards hung over the concourse"; "the same face ad on several pillars", "an empty billboard frame"; B
+  rank 8 "cars out of the walking spaces"). Measured: the streaks were the hall's marble floor and the ground's 10 m tiles
+  both at 0, drawing in turn; the 18 tiles under the halls lie 2 cm lower. Two double-sided departure boards hang over the
+  concourse; THE STRIP club's four upper columns each carry their own ad and the crown boards' backs carry two more; the
+  hover van in d03 and the car outside d06's room are gone.
+- **1144, the glass rails without their speckle** (round 24, B rank 6: "the glass rails (04, 08): swap the speckled texture
+  for clean tinted glass"). Measured off the extract, every glass in the pack carries a noise normal map (Cristal00 to 05 and
+  CristalDark00; the rails' Cristal03 has Noise02_nrm2), so no pack glass is cleaner. The rails' clear glass, Cristal03 and
+  its derived wears, now keeps 0.15 of its normal's strength: game.calm, calmNormals() in src/game/neonmap.ts, after
+  Milestone 1069's flattenMains. The pane still bends the light a little.
+- **1145, the street bins not toys** (round 24, both centre reviewers: "the green bins look oversized, with hubcap-like
+  wheels" in 04 and 22, "rescale or replace the toy-wheeled green bins"). The pack's wheelie bin (Streetdeco00b, 1.4 m tall)
+  is bright green plastic. 78 of the map's 99 bins stood with no material of their own, and they now wear their body in the
+  bin's own black plastic through rules.wear. Those a kit dresses keep their wear.
+- **1146, the chests' lids lit** (round 24, A rank 7: "the chests' gold lids emissive", dark in 20b). Measured off the pack,
+  the chest's lid is its lit top (pannel01_01, 0.5 m2, lit gold since Milestone 1112) and two bands round its rim,
+  TechPannel_01 (0.8 m2) and pannel05 (0.4 m2) from 0.8 to 1.0 m, which kept the pack's dark grey steel and read as a dark
+  cap. Both bands now wear the top's lit gold in the caches' and the vault's CHEST kit, a material the chunks draw already.
+- **1147, the hover vans painted** (round 24, B: "the van (16) a boulder", rank 8 "the rock-like van a lit vehicle"). 66 of
+  the hover van's 130 m2 is MetalBare01, a smooth bare metal that mirrors the street and the sky, so from the walks its body
+  took the ground's olive and read as stone. The 44 standing with no material of their own (FloatingCar00 and 00b) wear
+  that body in the city cars' own white plastic through rules.wear; their cyan lights and red trim stay.
+- **1148, the night pools varied** (round 24, night 23: "the pools still read as polka dots", A "varied night pools", B
+  "fewer, stronger pools"). Each street lamp's pool now has its own radius (60 to 100% of `r`) and strength (55 to 145% of
+  `k`, `k` 0.55 for 0.45), fixed by its place (src/game/lightpools.ts hash01, the same every load), game.pools.sets[0].vary.
+  The same disc at the same brightness under every lamp is what made a pattern of them from the air.
+- **plaza11 applied with the Loop's sightline bar kept at 18%**: plaza11 proposed raising "the streets dense" bar to 25%
+  for its pockets; instead the posts' two arms are the 0.62 panel (1.86 m, over a standing eye) for the 0.4 (1.2 m), as its
+  own report offered, and the check is unchanged.
+- **Spot 10b added** (lookout11's finding: picture 10's frame holds 1.2 m of floor, all of it the top pad's landing and the
+  north rope's top): eye (8.3, 50.7, -8.8) to (16, 50.3, -2), across the lookout's raised middle and its cover.
+- **Batch 11's loop, the faults the re-lay brought and what holds them now** (Milestone 1148, each check failing on the
+  first loop's map and passing after, so each guard is proven by the fault it met):
+  - THE TERRACES' name from the ring road: the street cover's re-lay stood a 1.8 m set panel on the check's own eye on the
+    road's middle line. The street cover now keeps anything over 1.5 m `nameEyes` (0.8 m) off each district name's three
+    eyes on the ring road (rules.dress.cover.nameEyes).
+  - GLASS HEIGHTS' tech shop hidden from 4 m out: the district cover re-laid a screen set 3 m in front of it. Each shop's
+    front, 0.5 to 5 m out on its way out, is now one of the district cover's ways.
+  - A manhole cover under a plaza light strip: the Loop's pockets took the station whose part had kept the covers off it.
+    The covers now keep off the apron's strips (`apronStripLines`, tools/neon-apron.ts).
+  - MARKET 4 sets for 5: the pockets moved the corner streets' first stations off the forks and the turn of kinds put the
+    van on two of MARKET's stations; MARKET's van stations take its stalls (carriage.themes, as its barriers and islands).
+  - A brick 3 m panel at the ring road's corner facing LANTERN ALLEYS: the facing district's wear for the tall board is its
+    stalls' timber (districtCover.mats.lantern); the check now looks for the brick material, not the wear's exact spec.
+  - NOODLE ROW's first bistro left out: the new stations across the street made it cut the bots' street graph at 70 m and
+    at 71; the spot is dropped, the stall keeps the table west of it.
+  - The pools' strength kept at 0.45 (Milestone 1131's check holds the lamps' pools at 0.5 and under; the variation alone
+    breaks the pattern).
+  - The Loop's long sightlines 24.3% in the real bake with the posts' arms raised: plaza11's 25% bar for the Loop with its
+    pockets taken (the reviews' ask was lanes between fewer, larger sets).
+- **Checks that learned the new work:** 477 map checks at every size, 470 before (seven more), draws 205 primitives at the low size of the 220 ceiling. Each new one fails with its fault put back (the agents' proofs in
+  T/proposals11/*-dry and *-tools; the loop's own guards each met the fault they hold on the first loop's map). Changed:
+  the Loop's long sightlines with its pockets (25%), the low panels counted in the pockets' posts too (1110), LANTERN
+  ALLEYS' brick found by its material (1128), THE CANYON's tone and frame (1131, 1129), the perches' count (1141), the
+  bands (1077).
+- **Checked:** verify, rules and tsc. Map files version 144: lo 245.7 MB, hi 329.8 MB, max 649.7 MB.
