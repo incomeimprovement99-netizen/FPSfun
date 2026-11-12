@@ -37,6 +37,7 @@ than one round of pictures.
 | 22 (141) | 6.3, 6.3 | 6.2, 6.4 | finish 5.5 to 5.8, flow 5.7 to 6 in the districts; the new ceilings and frames |
 | 23 (142) | 6.3, 6.3 | 6.3, 6.3 | finish 5.5 to 5.8; five of batch 9's items not read (ceilings still olive: the light) |
 | 24 (143) | 6.4, 6.4 | 6.2, 6.3 | the centre up first in three rounds; the ceilings read grey; THE CANYON's roofs, THE WORKS' containers and GLASS HEIGHTS' screens named |
+| 25 (144) | 6.4, 6.4 | 6.3, 6.3 | THE CANYON's roofs read as roofs, the A-frames as hoists; the plaza's places not seen from the drop, GLASS HEIGHTS' screens on bases still furniture, THE WORKS' d22 containers black |
 
 Round 19's districts, one by one (reviewer A, reviewer B): LANTERN ALLEYS 6.5, 6.6; THE TERRACES 6.0, 5.9; THE TERMINAL
 7.0, 6.3; THE STACKS 6.0, 6.0; GLASS HEIGHTS 5.5, 6.0; THE STRIP 6.5, 6.8; THE CANYON 6.5, 6.3; THE WORKS 6.5, 6.4.
