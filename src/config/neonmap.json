@@ -36446,7 +36446,106 @@
     "*#-1.45,-0.45,-0.06,1.0,0.97,1.32"
    ]
   },
-  "_partsOut1114": "Milestone 1114 (the districts' sixteenth reviews of version 141, A, d10: 'black curled hoses on the cooling units look like snakes'): `partsOut`, a piece's parts left out wherever it stands unless its placement leaves out its own (as `wear` gives a material). The cooling unit (Coolbox01d Variant, one model, StreetDeco00.FBX) has a curled hose (Line002, the pack's MetalPlanks01) down its face from the ground to 0.95 m and its two connectors, all wholly inside this box in its own metres (measured off its triangles; nothing else of it is): left out, its two units, top box and short pipes stay."
+  "_partsOut1114": "Milestone 1114 (the districts' sixteenth reviews of version 141, A, d10: 'black curled hoses on the cooling units look like snakes'): `partsOut`, a piece's parts left out wherever it stands unless its placement leaves out its own (as `wear` gives a material). The cooling unit (Coolbox01d Variant, one model, StreetDeco00.FBX) has a curled hose (Line002, the pack's MetalPlanks01) down its face from the ground to 0.95 m and its two connectors, all wholly inside this box in its own metres (measured off its triangles; nothing else of it is): left out, its two units, top box and short pipes stay.",
+  "_lines": "Milestone 1159 (docs/PLAN_MAP_TO_8.md step 2): the movement lines, each a route a player is meant to run at SpeedKills' speed, driven by the game's real Player over the bake's collision by tools/neon-lines.ts and checked every bake (tools/checks/sk-neon.ts). A line: `from` the feet's x, y, z; `via` points [x, z, how, height there], how being run (a mantle or a climb comes by itself), jump (off the edge ahead), double (a second jump at the first's top), wall (along a wall to the point, a kick off it there) or drop (off the edge with no jump); `within` the seconds it may take; `wall` the metres of it that must be on a wall. The seconds are the measured run and a margin: the three roofs of the north-east block take 5.9 s for 30 m on version 145, four mantles over their kerbs and boxes, a third of a sprint's pace; that number is what the quarter's rebuild is to bring down.",
+  "lines": [
+   {
+    "id": "ne-roofs-a-b-c",
+    "name": "three roofs of the north-east block in two leaps",
+    "from": [
+     59,
+     12.45,
+     -76
+    ],
+    "via": [
+     [
+      62,
+      -76,
+      "run"
+     ],
+     [
+      69.5,
+      -76,
+      "jump",
+      11.5
+     ],
+     [
+      74.5,
+      -73,
+      "run"
+     ],
+     [
+      74.5,
+      -67.5,
+      "run"
+     ],
+     [
+      72.5,
+      -57,
+      "jump",
+      11.5
+     ]
+    ],
+    "within": 7
+   },
+   {
+    "id": "ne-roof-c-d-street",
+    "name": "down off the north-east block by its low roof",
+    "from": [
+     70,
+     12,
+     -55
+    ],
+    "via": [
+     [
+      76,
+      -55,
+      "run"
+     ],
+     [
+      82.5,
+      -55,
+      "jump",
+      7
+     ],
+     [
+      89,
+      -55,
+      "drop",
+      0
+     ]
+    ],
+    "within": 4
+   },
+   {
+    "id": "n-face-wall",
+    "name": "a wall run along the north block's south face",
+    "from": [
+     3,
+     0.05,
+     -57.5
+    ],
+    "via": [
+     [
+      6,
+      -58.7,
+      "run"
+     ],
+     [
+      21,
+      -59.6,
+      "wall"
+     ],
+     [
+      27,
+      -55.5,
+      "jump"
+     ]
+    ],
+    "within": 3,
+    "wall": 8
+   }
+  ]
  },
  "tallest": {
   "x0": -21.275,

@@ -13787,5 +13787,25 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   );
 }
 
+// The movement lines (Milestone 1159, docs/PLAN_MAP_TO_8.md step 2; rules.lines, tools/neon-lines.ts): each named route
+// run by the real Player over this bake's collision, inside its seconds. The fresh reviews score pictures and the checks
+// above walk doors, pads and ropes; nothing ran a roof route or a wall, so a prop stood on a line, or a roof moved out of
+// a leap's reach, showed nowhere. A line that no longer goes says where the body stopped.
+{
+  const { runLine } = await import("../neon-lines");
+  type Line = import("../neon-lines").Line;
+  const lines = (cfg.rules as unknown as { lines?: Line[] }).lines ?? [];
+  const twice = lines.filter((l, i) => lines.findIndex((m) => m.id === l.id) !== i).map((l) => l.id);
+  check("the map names its movement lines (rules.lines): three or more, each id once, each with its seconds", lines.length >= 3 && twice.length === 0 && lines.every((l) => l.within > 0 && l.via.length > 0), `${lines.length} lines${twice.length ? `; twice: ${twice.join(", ")}` : ""}`);
+  for (const line of lines) {
+    const r = runLine({ Player, solidsIn, floorAt, BR_X, BR_Z }, line);
+    check(
+      `line ${line.id}: ${line.name}, run by the real player inside ${line.within} s${line.wall ? `, ${line.wall} m of it along a wall` : ""}`,
+      r.ok,
+      r.ok ? `${r.time} s${r.wallMetres ? `, ${r.wallMetres} m along walls` : ""}, top speed ${r.topSpeed} m/s` : `${r.why}; ended at (${r.at.join(", ")}) after ${r.time} s, ${r.wallMetres} m along walls`
+    );
+  }
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

@@ -220,7 +220,7 @@ for (let i = 2; i < N1; i += 5) for (let j = 2; j < N1; j += 5) for (const q of 
     gapHistogram: [[2, 6], [6, 11], [11, 18], [18, 30]].map(([a, b]) => ({ from: a, to: b, n: links.filter((l) => l.gap >= a && l.gap < b).length })),
     heightBands: [[6, 12], [12, 20], [20, 30], [30, 60]].map(([a, b]) => ({ from: a, to: b, area: info.filter((q) => q.at[1] >= a && q.at[1] < b).reduce((s, q) => s + q.area, 0) })),
   };
-  out._roofId = { id, top, info };
+  out._roofId = { id, top, info, deg };
 }
 
 // ---------- E. walls to run along ----------
@@ -243,7 +243,39 @@ for (let i = 2; i < N1; i += 5) for (let j = 2; j < N1; j += 5) for (const q of 
   }
   const z = {};
   for (const r of runs) { const o = (z[zoneOf(r.x, r.z)] ??= { runs: 0, metres: 0, over15: 0 }); o.runs++; o.metres += r.len; if (r.len >= 15) o.over15++; }
+  out._runs = runs;
   out.wallRun = { note: "straight walls 4 m and taller with a clear lane beside them, 6 m and longer", byZone: z, longest: runs.sort((a, b) => b.len - a.len).slice(0, 6) };
+}
+
+// ---------- F. the inner ring by quarter ----------
+// (a quarter rebuilt as a trial is read against the other three: north is -z and east +x, so NE is x > 0, z < 0)
+{
+  const inRing = (x, z) => { const m = Math.max(Math.abs(x), Math.abs(z)); return m > 50 && m <= 100; };
+  const qOf = (x, z) => (z < 0 ? "N" : "S") + (x > 0 ? "E" : "W");
+  const Q = {};
+  const get = (x, z) => (Q[qOf(x, z)] ??= { cells: 0, open: 0, roofed: 0, runMean: [], runBest: [], seen: [], roof: [0, 0, 0, 0], wall: 0, islands: 0, noLeap: 0 });
+  const { top, info, deg } = out._roofId;
+  for (let i = 0; i < N1; i++) for (let j = 0; j < N1; j++) {
+    const [x, z] = xz(i, j);
+    if (!inRing(x, z)) continue;
+    const o = get(x, z);
+    o.cells++;
+    const st = at(i, j).find((q) => q[0] > -0.6 && q[0] <= 0.4);
+    if (st) st[1] ? o.roofed++ : o.open++;
+    const t = top[i * N1 + j];
+    if (t >= 6) o.roof[t < 12 ? 0 : t < 20 ? 1 : t < 30 ? 2 : 3]++;
+  }
+  for (const p of street) if (inRing(p.x, p.z)) { const o = get(p.x, p.z); o.runMean.push(p.runMean); o.runBest.push(p.runBest); if (!p.roofed) o.seen.push(p.seenBy); }
+  for (const r of out._runs) if (inRing(r.x, r.z)) get(r.x, r.z).wall += r.len;
+  for (const q of info) if (inRing(q.at[0], q.at[2])) { const o = get(q.at[0], q.at[2]); o.islands++; if (!deg.has(q.n)) o.noLeap++; }
+  delete out._runs;
+  out.innerRingByQuarter = Object.fromEntries(Object.entries(Q).sort().map(([k, o]) => [k, {
+    openStreet: +(o.open / o.cells).toFixed(2), streetUnderARoof: +(o.roofed / o.cells).toFixed(2),
+    meanFreeRun_median: pct(o.runMean, 0.5), bestFreeRun_median: pct(o.runBest, 0.5),
+    openSpotsSeenBy10plus: +(o.seen.filter((n) => n >= 10).length / o.seen.length).toFixed(2), openSpotsSeenBy40plus: +(o.seen.filter((n) => n >= 40).length / o.seen.length).toFixed(2),
+    openRoof_m2: { "6to12": o.roof[0], "12to20": o.roof[1], "20to30": o.roof[2], over30: o.roof[3] },
+    wallToRunAlong_m: Math.round(o.wall), roofIslands: o.islands, islandsWithNoLeap: o.noLeap,
+  }]));
 }
 
 // ---------- pictures ----------

@@ -189,9 +189,9 @@ ground, the High City's glass), aiming under 10%.
 - *A layout review.* Fresh reviewers get the measured maps (heights, exposure, roof islands, free runs), the movement
   numbers and the match rules, and are asked level-design questions: the lanes, the loops, the power positions and their
   counters, the rotations as sectors go. This replaces one of the two picture reviews each round.
-- *Movement lines in the checks.* Ten named lines (for example MARKET's roofs to the Sky Ring to the base roof to the
-  gangway; a wall-run chain down THE CANYON; a roof route round the High City with no bridge) run by the real player each
-  bake, timed, failing when a prop breaks one.
+- *Movement lines in the checks.* Done (Milestone 1159): rules.lines, run by the real player each bake
+  (tools/neon-lines.ts), three on version 145 and more with each quarter rebuilt. The first finding: the north-east
+  block's three roofs take 5.9 s for 30 m, four mantles over their own kerbs.
 - *People.* Three to five full matches by the owner and two friends, with five questions after each (where did you die,
   from where, did you see it coming, where was it fun, where did you get stuck). This is the only real measure of fun and
   it needs the owner.

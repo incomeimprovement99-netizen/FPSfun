@@ -20686,3 +20686,29 @@ same day to act on its recommendations without asking. No map file changed: the 
   check fails (the city lit from 41.3 degrees under the hazy day), and with an hour aimed from 150 m again three fail.
 - **Checked:** verify, rules, tsc and the e2e's `sklight` section; the range photographed as the page opens, before and
   after (no difference but the lighter ground).
+
+## Milestone 1159 — measures for play: the movement lines, and the inner ring by quarter
+
+From docs/PLAN_MAP_TO_8.md, step 2: the map had 485 checks and not one ran a roof route or a wall. No map file changed.
+
+- **1159, the movement lines.** A line is a named route a player is meant to run at SpeedKills' speed (neonmap.json
+  rules.lines): where it starts, the points it goes by and how each is reached (on foot, a jump off the edge, a second
+  jump, along a wall, a drop), the seconds it may take and the metres of it that must be on a wall. tools/neon-lines.ts
+  drives the game's real Player over the bake's collision with hands as simple as a player's: it faces the next point
+  and holds forward, jumps where the floor ends, jumps again at the top, kicks off a wall at its point, and jumps at a
+  kerb it stands against. The map's checks run every line each bake and say where a body stopped. As a tool it takes
+  another collision file, boxes to add and boxes to take out, so a change is tried before a bake.
+- **Three lines on version 145, measured:** the three roofs of the north-east block in two leaps, 30 m, take 5.9 s: four
+  mantles over the roofs' own kerbs and boxes, a third of a sprint's pace, which is the number the quarter's rebuild is
+  to bring down; down off that block by its low roof, 3.1 s; a wall run along the north block's south face, 11.9 m on the
+  wall at 15.7 m/s, kicked off at 17.5. Found on the way: a sprint down the north spoke's middle stops twice against
+  street cover inside 35 m.
+- **1159 also, the inner ring by quarter** (tools/neon-mapstats.cjs `innerRingByQuarter`): the same numbers as the whole
+  ring's, for each quarter, so a quarter rebuilt as a trial is read against the other three. On version 145 the north-east
+  has 60% open street and 10% under a roof, a mean free run of 10.7 m, 79% of its open spots seen by forty high spots or
+  more, 175 m2 of roof between 12 and 20 m against 1,560 between 20 and 30, and 75 m of wall to run along; the other three
+  are within a few points of it.
+- **Checks that learned the new work:** four in tools/checks/sk-neon.ts (489): the lines named, and each run inside its
+  seconds. Proven with the tool by a prop stood on each line (a block in the alley's leap, a box against the wall, a box on
+  the low roof: each line stops and says where), and in the check by a line asked for 30 m of wall and one given 1 s.
+- **Checked:** verify, rules and tsc.
