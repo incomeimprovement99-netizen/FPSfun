@@ -3,6 +3,7 @@
   "_hdr": "The environment map, for reflections and ambient light. A MeshStandardMaterial with metalness reflects its environment, and with nothing to reflect every metal surface renders pure BLACK, so this is load-bearing and not decoration. A missing file falls back to sky-afternoon.hdr, the golden hour's, which means a checkout that has not run `npm run assets` still renders.",
   "_colors": "zenith, horizon and ground are the three bands of the authored dome (src/game/sky.ts) and sun is the disk. Hex strings, because a palette is read and edited by eye far more often than it is computed. The dome is authored rather than photographic because a photo's horizon sits at a fixed height that does not line up with where our ground plane ends.",
   "_sun": "dir is the direction the light comes FROM and is normalised by the code. intensity is the directional light's; env is scene.environmentIntensity, which at full strength fills every shadow straight back in and costs the scene its contrast.",
+  "_dir1158": "Milestone 1158: an hour's dir is where its disk is painted AND where its light comes from, in the range and in the city, at a match's start and after a change of hour (range.ts sunDir). Until then the city was lit from the range's first direction, 41.3 degrees up (0.56, 0.66, 0.5), at every hour, and the golden hour's dir, 15 degrees (0.78, 0.26, 0.57), only painted its disk: the look every match and every review picture had. So the golden hour's dir is that 41 degrees now, its picture unchanged and its disk where its shadows say. Measured on six review pictures (tools/neon-darkshare.cjs, docs/PLAN_MAP_TO_8.md section 3.4): lit from 15 degrees, 27.2% of pixels are under 30 of 255; from 41, 21.2%. A low sun puts a dense city's streets in shade.",
   "_light": "the DIRECTIONAL LIGHT's colour, which is not the same thing as the sun disk drawn in the dome: the disk is what you see when you look at the sun, the light is what falls on the world. They were the same value at first and that quietly changed how the range had always been lit, because the range's light was fff2dc and its disk fff0d0. An hour with no light colour uses its disk colour.",
   "_fog": "near and far in metres. The battle royale scales both up because its map is 440 m across and the range is 80 m.",
   "_sunDisk": "The sun disk drawn in the dome (src/game/sky.ts), as 1 less the cosine of its radius: 0.0014 is a disk about 3 degrees across its edge (0.0035, nearly 5, until Milestone 667: at the wide field of view a disk that size near the picture's corner drew as a big ellipse, the centre's review round 8, picture 14).",
@@ -24,16 +25,17 @@
       "sun": "ffd9a0",
       "light": "ffce8e",
       "dir": [
-        0.78,
-        0.26,
-        0.57
+        0.56,
+        0.66,
+        0.5
       ],
       "intensity": 2.9,
       "env": 0.95,
       "fog": [
         50,
         280
-      ]
+      ],
+      "fill": 1.7
     },
     "neonNight": {
       "label": "Neon night",
@@ -75,11 +77,13 @@
       "fog": [
         30,
         280
-      ]
+      ],
+      "fill": 1.7
     }
   },
   "_hazyDay": "SpeedKills' daytime (speedkills.json identity.skies; F8 flips it with the neon night): the bought city's own pictures, High City's store shots, are a hazy bright day, warm sun high and raking down its streets and haze from 30 m, so this is that, on the noon sky's picture with a paler dome and a nearer fog. Asked for by the owner to see the difference (2026-09-28); tuned by eye against the store's pictures.",
   "_fillRim": "An hour's `fill` and `rim` (Milestone 576): the range's sky fill, its hemisphere light, and its rim light's strengths, 0.75 and 0.3 where an hour gives none, as they were at every hour before. The neon night's are low, with its environment light and its moon, so the city's own lights carry it: lit at the day's fill, the Neon City's fourth review called it \"a purple-tinted day\".",
+  "_fill1158": "Milestone 1158: the day hours' sky fill 1.7 for the 0.75 they had. What the sun does not reach (faces turned from it, cast shadows) is lit by this and the environment alone, and ACES' toe presses it toward black: 21.2% of six review pictures under 30 of 255 at 0.75, 15.4% at 1.3, 13.0% at 1.7, with no more blown (0.5% over 235 at each) and the hour's colour kept. The hazy day's is 1.7 too, measured the same way under its own sun (54.5 degrees since this milestone): 19.7% under 30 at 0.75, 15.3% at 1.3, 12.9% at 1.7. The neon night keeps its own low fill: its lit things carry it.",
   "_sunCorona": "Milestone 972 (the fresh reviews of 2026-10-30: 'a hard-edged sun'): a tight glow round the disk, `power` the cosine's exponent (350 falls to half about 3.6 degrees out), `k` its strength, so the clipped disk fades into the sky. The disk 0.001 (0.0014), for the wider ramp's sake, so the sun stays its size.",
   "sunCorona": {
     "power": 350,

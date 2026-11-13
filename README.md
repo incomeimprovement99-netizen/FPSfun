@@ -798,7 +798,7 @@ The Settings tab, all remembered in this browser:
 | Volume | master, effects, hits |
 | The range's ammo | endless, or counted |
 | Mantle boost cue | the ring on the crosshair in the last frames of a mantle, where a superglide is possible |
-| Time of day | three hours, the sky, the sun, the light and the fog, applied at once with no reload: golden hour (the default since 2026-10-04), the neon night (its sky fill and rim light turned down, the city's own lights carrying it) or a hazy day; **F8** flips between golden hour and the hazy day in play |
+| Time of day | three hours, the sky, the sun, the light and the fog, applied at once with no reload: golden hour (the default since 2026-10-04), the neon night (its sky fill and rim light turned down, the city's own lights carrying it) or a hazy day; **F8** flips between golden hour and the hazy day in play. Each hour's light comes from its own sun, the one painted in its sky, in the range and in the city alike |
 | Accessibility | a colour vision mode (normal, deuteranopia, protanopia, tritanopia) that moves the enemy and ally colours on pings, the kill feed, name plates and the damage arcs to a pair you can tell apart; and a HUD size, 80% to 140% |
 | Crosshair | five styles (the game's three prongs, cross, T, circle, dot), six colours, length, thickness, gap, centre dot, outline, whether it opens with spread, opacity; a live preview, and Reset for the game's own |
 | Controller: look, ADS, curve, deadzone, auto sprint, rumble, aim assist, advanced look | see [Controller](#controller) |

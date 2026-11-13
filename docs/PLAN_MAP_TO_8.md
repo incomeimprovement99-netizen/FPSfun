@@ -139,10 +139,10 @@ Measured on version 145, on six of the review's pictures (02, 05, 06, d04, d11, 
   every gun and body too.
 - **About a tenth stays near black whatever the light,** and THE TERRACES from the ring road (d04) stays between 27% and
   57%: the High City's dark glass and the ring road's dark ground. That is material, and map work.
-- **A fault found on the way.** Changing the hour inside a match (F8, or the menu) aims the light by the hour's own
-  direction instead. Press F8 twice and the same golden hour is lit from 15 degrees: the streets lose their sun, the near
-  black goes from 21% to 27% and the dark from 35% to 48%. The range has the same two paths. It needs one rule for where
-  the light comes from.
+- **A fault found on the way, and mended (Milestone 1158).** Changing the hour inside a match (F8, or the menu) aimed the
+  light by the hour's own direction instead. F8 pressed twice brought the same golden hour back lit from 15 degrees: the
+  streets lost their sun, the near black went from 21% to 27% and the dark from 35% to 48%. The light now comes from the
+  hour's own sun everywhere, and the golden hour's sun is painted at the 41 degrees the city was always lit from.
 
 For play it matters more than for pictures: a body in black shade is invisible at 14 m/s.
 
@@ -179,12 +179,11 @@ Each step names its measure, so it can be seen to work.
 **Step 0. Ship version 145 (in the bake now).** Batch 12 as built. It is the last batch of its kind until the steps below
 have been tried.
 
-**Step 1. The light, once.** The pictures are shot (2026-11-13, section 3.4): six pictures, each option from a fresh page
-load. The owner picks the sky fill (0.75 now; 1.3 or 1.7) and, with whoever keeps the renderer, whether the tone mapping
-changes; one rule for where the light comes from is settled with it (the fault in 3.4). Then take back the glows the
-agents added to fight the shade, where they now overdo it, and lighten what is black by material: the ring road's ground,
-the High City's glass. Measure: the share of pixels under 30 of 255 on those six pictures, 21% now; the fill alone
-measures 13%, and the aim with the materials is under 10%. Cost: a day. Owner's decision: the look.
+**Step 1. The light, once. Done (Milestone 1158, 2026-11-13).** On the owner's word to act on the recommendations: both
+day hours' sky fill is 1.7 for 0.75, and one rule sets where the light comes from, the hour's own sun. Measured after:
+13.0% of the six pictures under 30 of 255, from 21.2%. Left of this step, to go with the next bake: take back the glows
+the agents added to fight the shade where they now overdo it, and lighten what is black by material (the ring road's
+ground, the High City's glass), aiming under 10%.
 
 **Step 2. Measures for play.** Three, all cheap:
 - *A layout review.* Fresh reviewers get the measured maps (heights, exposure, roof islands, free runs), the movement
@@ -230,9 +229,9 @@ fence, which fills half of every aerial with plain boxes.
 
 ## 6. Decisions that are the owner's
 
-1. The look: the sky fill at the default hour (0.75 now; 1.3 or 1.7), picked from the pictures, and one rule for where
-   the city's light comes from.
-2. Whether the next versions go to play (steps 2 and 3) instead of another picture-driven batch.
+1. The look. Decided 2026-11-13 by the owner's word to act on the recommendations: the fill at 1.7, the light where the
+   city was always lit from.
+2. Whether the next versions go to play (steps 2 and 3) instead of another picture-driven batch. Decided the same way: they do.
 3. Playing matches, and asking two friends to. Nothing else measures fun.
 4. Who takes the shadows and the ending: both are outside the map.
 5. Whether the bots should use the roofs. Today they keep to the street by the owner's own rule, so bot matches cannot

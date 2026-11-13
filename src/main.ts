@@ -40,7 +40,7 @@ import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/pro
 import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, airborne, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
-import { buildRange, RANGE_BOUNDS, RANGE_ENV_SHARE, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, RANGE_PLAIN, TARGET_RAILS, TARGET_SPECS } from "./game/range";
+import { buildRange, RANGE_BOUNDS, RANGE_ENV_SHARE, skyFollow, setShadowRegion, setHour, getSun, sunPlaced, RANGE_SOLIDS, RANGE_PLAIN, TARGET_RAILS, TARGET_SPECS } from "./game/range";
 import { floorAt } from "./game/floors";
 import { HOURS, HOUR_IDS, hourFor, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
@@ -8849,6 +8849,9 @@ const GALLERY = { x: 0, z: -8 };
       intensity: getSun()?.intensity ?? 0,
       env: scene.environmentIntensity,
       fog: (scene.fog as THREE.Fog | null)?.color.getHex() ?? 0,
+      // where the light really comes from and how far back the sun stands (Milestone 1158: the hour's own, everywhere)
+      light: sunPlaced().dir.toArray().map((v) => +v.toFixed(4)),
+      sunFar: +sunPlaced().far.toFixed(2),
     }),
   },
   debugView,

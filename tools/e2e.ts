@@ -23,6 +23,7 @@ import figureCfg from "../src/config/figure.json";
 import movementCfg from "../src/config/movement.json";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import brCfg from "../src/config/br.json";
+import skyCfg from "../src/config/sky.json";
 import { decayRounds } from "../src/game/decay";
 import netCfg from "../src/config/net.json";
 /**
@@ -7343,6 +7344,43 @@ async function skTutorialTest(browser: Browser): Promise<void> {
  * so the city loads behind it; the jump is refused until then, and the drop
  * lands in the city. The city is the square 250 m either side of (0, 500).
  */
+/**
+ * Where the light comes from (Milestone 1158): the hour's own sun, the one its disk is painted at, in the range and in
+ * the city, at a match's start and after a change of hour and back. Two ways placed the sun and each kept its own
+ * direction: a region entered aimed it by the range's first 41 degrees, so the city was lit from there at every hour;
+ * an hour put up aimed it by the hour's own from 150 m, so the golden hour changed to inside a match (F8 there and
+ * back) came back lit from its painted 15 degrees, its streets without sun. The match here starts under the hazy day:
+ * its sun is not the range's first, so a region that aims by that again shows.
+ */
+async function skLightTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender");
+  const dirOf = (id: string): number[] => {
+    const d = (skyCfg.hours as Record<string, { dir: number[] }>)[id].dir;
+    const l = Math.hypot(d[0], d[1], d[2]);
+    return d.map((v) => v / l);
+  };
+  type Lit = { id: string; light: number[]; sunFar: number };
+  const off = (r: Lit, id: string): number => Math.max(...dirOf(id).map((v, i) => Math.abs(v - (r.light?.[i] ?? 9))));
+  const read = (set?: string) => ev<Lit>(page, `(() => { const s = window.__range.sky; ${set ? `s.set(${JSON.stringify(set)});` : ""} const r = s.read(); return { id: r.id, light: r.light, sunFar: r.sunFar }; })()`);
+  const first = (await read()).id;
+  const range = await read("hazyDay");
+  check("sk light: in the range the light comes from the hour's own sun", range.id === "hazyDay" && off(range, "hazyDay") < 0.002, JSON.stringify(range));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
+  await page.waitForFunction("Boolean(window.__range.duel())", { polling: 100, timeout: 20000 }).catch(() => undefined);
+  await ev(page, "window.__range.duel().holdFire = true");
+  const city = await read();
+  check("sk light: and in the city at a match's start, the sun stood further back for the wider region", city.id === "hazyDay" && off(city, "hazyDay") < 0.002 && city.sunFar > range.sunFar + 10, JSON.stringify({ range, city }));
+  // there and back, as F8 goes
+  const there = await read("goldenHour");
+  const back = await read("hazyDay");
+  check("sk light: an hour changed to in the match is lit from its own sun, from as far back as the match's first", there.id === "goldenHour" && off(there, "goldenHour") < 0.002 && Math.abs(there.sunFar - city.sunFar) < 0.5, JSON.stringify(there));
+  check("sk light: and changed back, the first hour is lit as the match started it", off(back, "hazyDay") < 0.002 && Math.abs(back.sunFar - city.sunFar) < 0.5, JSON.stringify(back));
+  // (the page's own hour again: sky.set keeps the one it is given as the player's)
+  await read(first);
+  await ev(page, "window.__range.duel()?.leave()");
+  await page.close();
+}
+
 async function speedkillsShipTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender");
   await ev(page, "window.__straightDrop = false");
@@ -10165,7 +10203,7 @@ async function botStrafeTest(browser: Browser): Promise<void> {
 }
 
 
-/** E2E_ONLY=bots,brsolo runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), skwall, sktutorial, skship, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, start, skbots, p2p, mixed) */
+/** E2E_ONLY=bots,brsolo runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), skwall, sktutorial, skship, sklight, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, start, skbots, p2p, mixed) */
 /**
  * The lobby (src/ui/lobby.ts, the Play tab's panel). What has to hold: a card
  * picks a mode rather than starting one, the panel then shows that mode's own
@@ -11090,6 +11128,11 @@ async function main(): Promise<void> {
     if (want("skship")) await section("skship", async () => {
       console.log("\nSpeedKills' dropship, ridden: off the city, doors after five seconds, a landing in the city");
       await speedkillsShipTest(browser);
+    });
+
+    if (want("sklight")) await section("sklight", async () => {
+      console.log("\nWhere the light comes from: the hour's own sun, in the range and the city, after a change of hour and back");
+      await skLightTest(browser);
     });
 
     if (want("skwall")) await section("skwall", async () => {

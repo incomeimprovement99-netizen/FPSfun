@@ -20650,3 +20650,39 @@ laid and baked as one version with the map agent's own 1157.
 - **Beside the batch:** docs/PLAN_MAP_TO_8.md, the owner's ask of 2026-11-13: what holds the map at 6.4, measured off the
   collision (tools/neon-mapstats.cjs), and a ranked plan. It asks that this be the last batch built from the reviewers'
   item lists until its first three steps have been tried.
+
+## Milestone 1158 — the light: one rule for where it comes from, the day hours' sky fill 1.7
+
+From the owner's ask of 2026-11-13 for an analysis of the map (docs/PLAN_MAP_TO_8.md, step 1), and the owner's word the
+same day to act on its recommendations without asking. No map file changed: the city is version 145.
+
+- **1158, where the light comes from.** Two ways placed the sun and each kept its own direction. Entering the city aimed
+  it by a constant, the range's first 41.3 degrees, so the city was lit from there at every hour and an hour's own `dir`
+  only painted its disk: the golden hour's sun hung 15 degrees up while shadows fell as from 41. An hour put up aimed the
+  light by the hour's own direction from 150 m, so the golden hour changed to inside a match (F8 there and back) came back
+  lit from 15 degrees, its streets without sun: 27.2% of six review pictures under 30 of 255 where a match's start gave
+  21.2%. One direction and one distance now (range.ts `sunDir`, `placeSun`), read by both ways: the light comes from the
+  hour's own sun in the range and in the city, at a match's start and after any change of hour. The golden hour's `dir` is
+  the 41 degrees the city has been lit from all along, so its picture is the one every match and every review had, with
+  its disk where its shadows say. The hazy day is lit from its own 54.5 degrees and the neon night from its 55, as F8 had
+  them already; the night photographed before and after shows no difference worth the name.
+- **1158 also, the shade.** What the sun does not reach, every face turned from it and every cast shadow, is lit by the sky
+  fill and the environment alone, and ACES' toe presses it toward black. Measured on six review pictures (02, 05, 06, d04,
+  d11, d22), each setting from its own page load (tools/neon-darkshare.cjs): 21.2% under 30 of 255 at the fill of 0.75
+  both day hours had, 15.4% at 1.3, 13.0% at 1.7, with 0.5% over 235 at each and the hour's colour kept. Both day hours'
+  fill is 1.7 (sky.json; the hazy day 19.7% to 12.9%). The neon night keeps its own. Tried and left: a higher exposure
+  (16.0%), AgX tone mapping (11.1%, 8.9% with a fill of 1.3; it greys the neon and is every gun's and body's too), Neutral
+  (24.4%, worse). THE TERRACES from the ring road (d04) stays 38%: the High City's dark glass and the ring road's dark
+  ground, material and the map's next.
+- **Why the first reading was wrong** (recorded so it is not made again): the analysis' first version read the sun's height
+  off sky.json, 15 degrees, and forecast that raising it would take the near black from 18% to under 6%. The page says
+  otherwise: the light's direction is read off the running page now (`__range.sky.read().light`), and three rounds of
+  trial pictures were thrown away before one was sound (hours switched within one page load took the F8 path; trial hours
+  under new ids drew the night's haze, because day or night is told by the hour's id).
+- **Checks that learned the new work:** in verify (tools/checks/sky-hours.ts), a day hour's sun stands 35 degrees up or
+  more and its sky fill is 1.3 or more; each fails with its fault put back (the golden hour at 15.1 degrees, the hazy day's
+  fill 0.75). In the e2e, a new section `sklight` reads the light off the page in the range, in the city at a match's
+  start under the hazy day, changed to the golden hour and back: with a region aimed by the constant again its second
+  check fails (the city lit from 41.3 degrees under the hazy day), and with an hour aimed from 150 m again three fail.
+- **Checked:** verify, rules, tsc and the e2e's `sklight` section; the range photographed as the page opens, before and
+  after (no difference but the lighter ground).

@@ -26,10 +26,10 @@ export const COURSE_GATE_C = { minX: -2, maxX: 2 };
 export const COURSE_GATES = [COURSE_GATE, COURSE_GATE_C, COURSE_GATE_R];
 
 /**
- * Direction TO the sun. About 25 degrees of elevation, behind and to the right
- * of the spawn, so shadows rake away down the lanes rather than toward the
- * player's eye. Shared by the light and by the sky dome's sun disk, or the
- * painted sun and the real shadows would disagree.
+ * Direction TO the sun the range is built under, before the first hour is put up: 41 degrees up, behind and to the
+ * right of the spawn, so shadows rake away down the lanes rather than toward the player's eye. From the first hour on
+ * the light comes from that hour's own direction (`sunDir` below), the one its disk is painted at, or the painted sun
+ * and the real shadows disagree.
  */
 export const SUN_DIR = new THREE.Vector3(0.56, 0.66, 0.50).normalize();
 
@@ -37,6 +37,27 @@ let sunLight: THREE.DirectionalLight | null = null;
 /** the sky fill and the rim light, each hour's own strength (setHour) */
 let fillLight: THREE.HemisphereLight | null = null;
 let rimLight: THREE.DirectionalLight | null = null;
+/**
+ * Where the light comes from now, and half the width its shadow map covers: one of each, read by both ways the sun
+ * gets placed (a region entered, an hour put up). Each way kept its own. A region entered aimed the light by SUN_DIR,
+ * so the city was lit from the range's first 41 degrees at every hour while the golden hour's disk hung at 15; an hour
+ * put up aimed it by the hour's own direction from 150 m, so the golden hour changed to inside a match (F8 there and
+ * back) came back lit from 15 degrees, its streets without sun: 27% of six review pictures under 30 of 255 where a
+ * match's start gave 21% (Milestone 1158, docs/PLAN_MAP_TO_8.md section 3.4).
+ */
+const sunDir = SUN_DIR.clone();
+let shadowHalf = 135;
+/** the sun stood back along its direction from the middle of what its shadow map covers, further for a wider region */
+function placeSun(): void {
+  const sun = sunLight;
+  if (sun) sun.position.copy(sunDir).multiplyScalar(150 + shadowHalf * 0.4).add(sun.target.position);
+}
+/** where the light really comes from and how far back the sun stands, for the debug handle (tools/e2e.ts sklight) */
+export function sunPlaced(): { dir: THREE.Vector3; far: number } {
+  const sun = sunLight;
+  const d = sun ? sun.position.clone().sub(sun.target.position) : sunDir.clone();
+  return { far: d.length(), dir: d.normalize() };
+}
 /** the sun the hour lights the world with, for what stages a place's own light over it (atmosphere.ts districts) */
 export const sunNow = (): THREE.DirectionalLight | null => sunLight;
 /** the sun, for the debug handle */
@@ -49,8 +70,9 @@ export const getSun = (): THREE.DirectionalLight | null => sunLight;
 export function setShadowRegion(centre: THREE.Vector3, half: number): void {
   const sun = sunLight;
   if (!sun) return;
-  sun.position.copy(SUN_DIR).multiplyScalar(150 + half * 0.4).add(centre);
   sun.target.position.copy(centre);
+  shadowHalf = half;
+  placeSun();
   const c = sun.shadow.camera;
   c.left = -half;
   c.right = half;
@@ -81,8 +103,8 @@ export function setHour(h: Hour, scene: THREE.Scene): void {
   if (fog && rangeSky) fog.color.copy(rangeSky.fogColor);
   const sun = sunLight;
   if (sun) {
-    const centre = sun.target.position.clone();
-    sun.position.copy(h.dir).multiplyScalar(150).add(centre);
+    sunDir.copy(h.dir);
+    placeSun();
     sun.color.setHex(h.light);
     sun.intensity = h.intensity;
   }
@@ -459,6 +481,9 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   c.near = 1;
   c.far = 360;
   c.updateProjectionMatrix();
+  // (the same way a region is entered: the first hour's sun stands 54 m further back than this was built with, and the
+  // far plane has to reach past the range from there)
+  setShadowRegion(shadowCentre, 135);
   // A low sun means grazing angles, where a constant bias either peters out
   // into acne or floats the contact point. normalBias handles the grazing case
   // and lets the constant bias stay small enough to keep contacts tight.

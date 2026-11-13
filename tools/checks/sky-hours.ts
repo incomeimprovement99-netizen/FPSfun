@@ -61,6 +61,21 @@ check("every light is lit and no hour blows out the environment", !badLight, bad
   const bad = Object.entries(HOURS).filter(([, h]) => !(h.fill > 0 && h.fill <= 2) || !(h.rim >= 0 && h.rim <= 1)).map(([id]) => id);
   check("every hour's sky fill lit and under 2, its rim light 0 to 1", bad.length === 0, bad.join(", ") || "all lit");
 }
+{
+  // Milestone 1158: an hour's dir is where its light comes from as well as where its disk is painted (range.ts sunDir),
+  // so a low sun is now a low light. Measured on six review pictures of the city (tools/neon-darkshare.cjs,
+  // docs/PLAN_MAP_TO_8.md section 3.4): lit from 15 degrees, 27.2% of pixels are under 30 of 255; from 41, 21.2%
+  const day = ["goldenHour", "hazyDay"].filter((id) => id in HOURS);
+  const up = (id: string): number => (Math.asin(HOURS[id].dir.y) * 180) / Math.PI;
+  check(
+    "a day hour's sun stands 35 degrees up or more: it is the light's direction too, and a low one leaves the city's streets in shade",
+    day.length === 2 && day.every((id) => up(id) >= 35),
+    day.map((id) => `${id} ${up(id).toFixed(1)}`).join(", ")
+  );
+  // and what the sun does not reach is lit by the sky fill and pressed down by the tone mapping's toe: 21.2% under 30 at
+  // a fill of 0.75, 15.4% at 1.3, 13.0% at 1.7
+  check("a day hour's sky fill is 1.3 or more, so what its sun does not reach is not pressed to black", day.every((id) => HOURS[id].fill >= 1.3), day.map((id) => `${id} ${HOURS[id].fill}`).join(", "));
+}
 // An unknown id has to land somewhere: a saved setting from an older build, or a hand-typed one (the legacy hours'
 // ids among them), must not leave the scene with no sky at all
 check("an unknown hour, or a legacy one, falls back to the default", hourFor("nineteen-eighty-four").id === DEFAULT_HOUR && hourFor(null).id === DEFAULT_HOUR && hourFor("afternoon").id === DEFAULT_HOUR);
