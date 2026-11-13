@@ -20,15 +20,18 @@ reads those numbers against how the game moves.
 3. **The roofs are a ring and a few plates, not islands.** Three plates hold 41% of all roof area. Only 9% of roof area
    stands between 12 and 20 m, so there is a low tier, a high tier, and almost nothing to climb between them but pads and
    lifts. A sprint jump carries about 11 m and a double jump about 20 m, and the map barely uses either.
-4. **The default hour puts the sun 15 degrees up.** A 27 m block casts a 100 m shadow, so most of the ground is in shade,
-   and shade renders near black: 18% of every daytime review picture is darker than 30 of 255. This one setting is behind
-   a large share of the "black slabs", "black pits", "dark empty pavement" and stair-stepped shadow complaints, and behind
-   the agents adding a glow to every new material.
+4. **The shade renders near black, and the sun's height is not why.** 21% of six test pictures is darker than 30 of 255
+   (18% across round 25's 55 daytime pictures). The game lights the city from 41 degrees up at every hour, whatever the
+   hour's own sun says: the golden hour paints its sun at 15 degrees, and an earlier version of this document took that
+   for the light and was wrong. What is black is what the sun does not reach, every face turned from it and every cast
+   shadow, lit by a sky fill that the tone mapping presses toward black, and the dark materials themselves. Raising the
+   fill takes the near black from 21% to 13%. This is behind a large share of the "black slabs", "black pits" and "dark
+   empty pavement" complaints, and behind the agents adding a glow to every new material.
 5. **The review loop is saturated, and nobody has played a match.** The centre has moved from 6.0 to 6.4 in ten rounds,
    about 0.04 a round. The visit log for the last three weeks shows no session longer than 7 minutes and no feedback.
    The picture score is a measure of screenshots. The fun of the map has no measure at all yet.
 
-What follows from that: stop buying 0.04 a round with dressing, fix the light once, and spend the next versions on how the
+What follows from that: stop buying 0.04 a round with dressing, settle the light once, and spend the next versions on how the
 map plays at 14 m/s, proved on one quarter of the map first and by people playing it.
 
 ## 2. What was measured
@@ -106,13 +109,40 @@ tier belongs, and their roofs are a handful of small boxes.
 
 ### 3.4 The light
 
-The golden hour's sun stands at 15 degrees (sky.json, `dir` [0.78, 0.26, 0.57]). Shadows are 3.7 times as long as what
-casts them, and what lights them is the sky alone: its environment light and a fill, a hemisphere light at 0.75 beside a
-sun of 2.9. Batch 12's agents each measured the same thing in their own corner: container faces at 1, 1, 3; the plaza's
-ground at 1 to 33; hedges at 29, 50, 27. Each answered with a glow on its own material, which then stands out at night. A
-sun at 30 to 35 degrees halves the shadow length, lights most of the ground, and stretches each shadow texel half as far
-across the ground, which is the stair-stepping all four reviewers name every round. A stronger sky fill lifts what stays
-in shade. It is one config change, a look decision, and it touches every picture at once.
+Measured on version 145, on six of the review's pictures (02, 05, 06, d04, d11, d22), each option from a fresh page load
+(`tools/neon-darkshare.cjs` counts the pixels):
+
+| Option | Near black (under 30 of 255) | Dark (under 60) | Blown (over 235) |
+|---|---|---|---|
+| As now: golden hour, sky fill 0.75, ACES at exposure 1.05 | 21.2% | 35.4% | 0.5% |
+| Sky fill 1.3 | 15.4% | 31.6% | 0.5% |
+| Sky fill 1.7 | 13.0% | 28.8% | 0.5% |
+| Exposure 1.35 | 16.0% | 31.5% | 0.8% |
+| AgX tone mapping | 11.1% | 27.0% | 0.1% |
+| AgX and sky fill 1.3 | 8.9% | 22.6% | 0.1% |
+| Neutral tone mapping | 24.4% | 39.9% | 0.3% |
+| Hazy day | 20.7% | 34.3% | 0.5% |
+| The light aimed from where the golden hour's sun is painted (15 degrees) | 27.2% | 48.3% | 0.4% |
+
+- **The sun's height is not the lever.** The city's light does not come from the hour's sun at all. Entering the city
+  aims the light by a constant (range.ts `SUN_DIR`, 41.3 degrees up, read off the running page) at every hour; the hour's
+  `dir` in sky.json moves only the painted disk. So the golden hour's sun is painted 15 degrees up while shadows fall as
+  from 41, about 1.15 times as long as what casts them. An earlier version of this section computed 3.7 times from
+  sky.json and was wrong. Aimed from the painted sun the city is darker, not better: 27% near black.
+- **What is near black is what the sun does not reach:** faces turned from it, cast shadows, and dark materials. Those
+  are lit by the sky fill (a hemisphere light at 0.75 beside a sun of 2.9) and the environment, and ACES' toe presses
+  them toward black. Batch 12's agents each measured it in their own corner (container faces at 1, 1, 3; the plaza's
+  ground at 1 to 33; hedges at 29, 50, 27) and each answered with a glow on its own material, which then stands out at
+  night.
+- **The fill is the cheap lever:** one number in sky.json. 1.7 takes the near black from 21% to 13% with nothing more
+  blown and the golden look kept. AgX goes further, but it greys the colours of a neon map, and it is the renderer's, for
+  every gun and body too.
+- **About a tenth stays near black whatever the light,** and THE TERRACES from the ring road (d04) stays between 27% and
+  57%: the High City's dark glass and the ring road's dark ground. That is material, and map work.
+- **A fault found on the way.** Changing the hour inside a match (F8, or the menu) aims the light by the hour's own
+  direction instead. Press F8 twice and the same golden hour is lit from 15 degrees: the streets lose their sun, the near
+  black goes from 21% to 27% and the dark from 35% to 48%. The range has the same two paths. It needs one rule for where
+  the light comes from.
 
 For play it matters more than for pictures: a body in black shade is invisible at 14 m/s.
 
@@ -149,10 +179,12 @@ Each step names its measure, so it can be seen to work.
 **Step 0. Ship version 145 (in the bake now).** Batch 12 as built. It is the last batch of its kind until the steps below
 have been tried.
 
-**Step 1. The light, once.** Shoot the same six pictures (02, 05, 06, d04, d11, d22) four ways: as now; the sun at 32
-degrees; the sun at 32 with the sky fill raised; and the existing hazy day. The owner picks. Then take back the glows the agents
-added to fight the shade, where they now overdo it. Measure: the share of daytime pixels under 30 of 255, 18% now, under 6%.
-Cost: a day. Owner's decision: the look.
+**Step 1. The light, once.** The pictures are shot (2026-11-13, section 3.4): six pictures, each option from a fresh page
+load. The owner picks the sky fill (0.75 now; 1.3 or 1.7) and, with whoever keeps the renderer, whether the tone mapping
+changes; one rule for where the light comes from is settled with it (the fault in 3.4). Then take back the glows the
+agents added to fight the shade, where they now overdo it, and lighten what is black by material: the ring road's ground,
+the High City's glass. Measure: the share of pixels under 30 of 255 on those six pictures, 21% now; the fill alone
+measures 13%, and the aim with the materials is under 10%. Cost: a day. Owner's decision: the look.
 
 **Step 2. Measures for play.** Three, all cheap:
 - *A layout review.* Fresh reviewers get the measured maps (heights, exposure, roof islands, free runs), the movement
@@ -194,11 +226,12 @@ fence, which fills half of every aerial with plain boxes.
 
 - Eight-agent dressing batches driven by the reviewers' item lists. Their return is about 0.04 a round.
 - Adding small cover to answer "open" in a picture. The exposure is from above, and the speed is 14 m/s.
-- A glow on each new material to fight the shade. Fix the light.
+- A glow on each new material to fight the shade. Raise the fill once.
 
 ## 6. Decisions that are the owner's
 
-1. The look: a higher sun and a stronger fill light at the default hour, picked from four pictures.
+1. The look: the sky fill at the default hour (0.75 now; 1.3 or 1.7), picked from the pictures, and one rule for where
+   the city's light comes from.
 2. Whether the next versions go to play (steps 2 and 3) instead of another picture-driven batch.
 3. Playing matches, and asking two friends to. Nothing else measures fun.
 4. Who takes the shadows and the ending: both are outside the map.
@@ -207,6 +240,10 @@ fence, which fills half of every aerial with plain boxes.
 
 ## 7. Honest limits
 
+- This document's first version said the default hour's sun stood 15 degrees up and that a 27 m block cast a 100 m
+  shadow. That was read off sky.json; the running game lights the city from 41 degrees. Corrected 2026-11-13 from the
+  light pictures: section 3.4's table is measured, the first version's forecast (18% to under 6% by raising the sun) was
+  not.
 - The reference speeds for Apex, Hyper Scape and the wall-running shooter are from memory, not measured.
 - The measures are proxies built in a day. They rank quarters of this map against each other well; they do not prove fun.
 - An 8 from picture reviewers needs finish at 7 or more, which needs the shadows and the light. Placement alone will not
