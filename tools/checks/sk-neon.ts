@@ -936,7 +936,10 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     });
   // (and the Loop's shelters' posts, Milestone 1137: a shelter's roof is over every head, 4.1 m, on a post at one end,
   // rules.dress.pockets.posts; the post stands as a lamp's does, beside a lane)
-  const posts1137 = ((cfg as unknown as { pockets?: Array<{ post?: number[] }> }).pockets ?? []).flatMap((S) => (S.post ? [S.post] : []));
+  // (and the legs of the kiosk pairs' and the corner posts' canopies, Milestone 1149, rules.dress.pockets.leg: a pipe 0.32
+  // to 0.37 m across to a canopy over every head, standing as the shelters' posts and the lamps do, beside a lane)
+  const leg1149 = (cfg.rules.dress as unknown as { pockets?: { leg?: string } }).pockets?.leg;
+  const posts1137 = ((cfg as unknown as { pockets?: Array<{ post?: number[]; parts?: Array<{ piece: string; c: number[]; hu: number; hv: number; yaw: number }> }> }).pockets ?? []).flatMap((S) => [...(S.post ? [S.post] : []), ...(S.parts ?? []).filter((p) => p.piece === leg1149).map((p) => [p.c[0], p.c[1], p.hu, p.hv, p.yaw])]);
   const onPost = (x: number, z: number) => posts1137.some((p) => {
     const a = (p[4] * Math.PI) / 180, [dx, dz] = [x - p[0], z - p[1]];
     return Math.abs(dx * Math.cos(a) - dz * Math.sin(a)) < p[2] + 0.75 && Math.abs(dx * Math.sin(a) + dz * Math.cos(a)) < p[3] + 0.75;
@@ -3771,6 +3774,14 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       // the shell's hollow under the island's column, walked by nobody)
       const RMc = (cfg.rules.blocks as unknown as { rooms?: { chunk: string; ceiling: string } }).rooms;
       if (RMc && chunk === RMc.chunk && q[6] === RMc.ceiling) continue;
+      // (and the districts' hedges' troughs, Milestone 1154: the beds' kerb under a hedge, drawn only, no floor at all)
+      const TGf = (cfg.rules.dress as unknown as { districtCover: { troughs?: Record<string, { mat: string }> } }).districtCover.troughs ?? {};
+      if (Object.values(TGf).some((t) => q[6] === t.mat)) continue;
+      // (and the lookout's legs' clads, Milestone 1150: the pack's corner floor piece stacked round the raised middle's
+      // brick legs under its deck, in the cap's steel; no floor, their tops inside the deck's frame, held to the legs by "the
+      // lookout in one kit")
+      const KTc = (cfg.rules.highCover as unknown as { roofs: { kit?: { chunk: string; mat: string; scale: number } } }).roofs.kit;
+      if (KTc && chunk === KTc.chunk && q[6] === KTc.mat && q[8] === KTc.scale) continue;
       const sc = (q[8] as number | undefined) ?? 1;
       const top = y + r.max![1] * sc;
       const [mx, mz] = [((r.min![0] + r.max![0]) / 2) * sc, ((r.min![2] + r.max![2]) / 2) * sc];
@@ -4447,8 +4458,17 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   // (by its pivot, which stands off its pit's middle by about a metre: the layout lays a piece by its footprint's middle)
   const { outlineBoxes } = await import("../../src/game/outlines");
   const stepBoxes = outlineBoxes((n) => n.startsWith("the strip pyramid step"));
-  const S4 = (SOLIDS as { solids: number[][] }).solids;
-  const off = stepBoxes.filter((b) => !S4.some((q) => q[0] < b[1] + 0.1 && q[1] > b[0] - 0.1 && q[2] < b[3] + 0.1 && q[3] > b[2] - 0.1 && Math.abs(q[5] - b[5]) < 0.06)).length;
+  // (on the drawn face since Milestone 1156, not the collision's steps: the piece's faces run 5 m in over its 7 m, the steps
+  // 0.38 m in a half metre, so from step 8 up the strips cut into the face, and 14 lay in its rim's plane: d17's pink streak.
+  // Each strip's inner side 0.5 to 3 cm out from the face at its foot, the collision's
+  // steps no longer read here)
+  const PF4 = (cfg.rules.districts as unknown as { strip: { pyramid: { at: number[]; face?: number[] } } }).strip.pyramid;
+  const [fh4, th4, h4] = PF4.face ?? [0, 0, 1];
+  const off = stepBoxes.filter((b) => {
+    const half = b[1] - b[0] < 0.2 ? Math.min(Math.abs(b[0] - PF4.at[0]), Math.abs(b[1] - PF4.at[0])) : Math.min(Math.abs(b[2] - PF4.at[1]), Math.abs(b[3] - PF4.at[1]));
+    const d = half - (fh4 - ((fh4 - th4) * b[4]) / h4);
+    return !PF4.face || d < 0.005 || d > 0.03;
+  }).length;
   check(
     "GLASS HEIGHTS' tower white with a cyan crown, THE TERRACES' two tall trees on its top tier, THE STRIP's pyramid's every step edged in light at its top",
     tm.includes(`MetalBare02=${(cfg.rules.districts as unknown as { glass: { look?: { white: string } } }).glass.look?.white ?? "(no look)"}`) && tm.includes("MetalBare01_lgt 2=") && LM.length === 2 && trees === 2 && stepBoxes.length === 56 && off === 0,
@@ -4635,13 +4655,14 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
 {
   const TM = (cfg.rules.dress as unknown as { districtCover: { mats: Record<string, Record<string, string>> } }).districtCover.mats.terraces ?? {};
   const wall = Object.values(TM)[0] ?? "";
-  const hedge = wall.split(";").every((r) => /=PlasterDirt00\*#/.test(r)) && !/ETPGrass/.test(wall);
+  // (or since Milestone 1154 the cypress's leaf glowing its own map: the plaster read a flat cube in d04's shade)
+  const hedge = wall.split(";").every((r) => /=(PlasterDirt00\*#|Cypress00Body~#)/.test(r)) && !/ETPGrass/.test(wall);
   // (the boards on THE TERMINAL's front: by its name, on its plane)
   const BD = ((cfg.game as unknown as { boards?: Array<{ at: number[]; w: number; h: number; text: string }> }).boards ?? []).filter((b) => Math.abs(b.at[0]) < 20 && Math.abs(b.at[2] - 117.4) < 1);
   const NM = (cfg.rules.districts as unknown as { terminal: { name: { at: number[]; w: number; h: number }; hall: { front: number } } }).terminal;
   const clear = BD.filter((b) => Math.abs(b.at[2] - NM.name.at[2]) < 0.2 && b.at[2] < NM.hall.front && (Math.abs(b.at[0] - NM.name.at[0]) > NM.name.w / 2 + b.w / 2 || b.at[1] + b.h / 2 < NM.name.at[1] - NM.name.h / 2)).length;
   check(
-    "THE TERRACES' hedges in tinted plaster, THE TERMINAL's departures board and clock on its front beside its name",
+    "THE TERRACES' hedges in tinted plaster or the cypress's leaf, THE TERMINAL's departures board and clock on its front beside its name",
     hedge && BD.length === 2 && clear === 2 && BD.some((b) => b.text === "DEPARTURES"),
     `hedge ${wall}; ${BD.length} boards (${BD.map((b) => b.text).join(", ")}), ${clear} clear of the name`
   );
@@ -6235,7 +6256,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   // THE WORKS: a lit board over each of the works block's atrium pads, facing its ring; steel trusses across its ring's
   // underside, up to its slab; rows down its aisles; its yard's low panels in the halls' own glowing rust
   const WK4 = (cfg.rules.districts as unknown as { works: { wallMat: string; plates?: string; storey: number; slab: number; upper: { atrium: number[] } } }).works;
-  const rings4 = (G4.padRings.column.trim ?? []).map(([x, z]) => [x, z]);
+  // (the works block's own: the east block's fire escape's pad is trimmed too since Milestone 1156)
+  const rings4 = (G4.padRings.column.trim ?? []).map(([x, z]) => [x, z]).filter(([x, z]) => x > 115 && x < 145 && z > 115 && z < 145);
   const told4 = rings4.filter(([x, z]) => G4.boards.some((b) => b.text.trim().length > 0 && Math.hypot(b.at[0] - x, b.at[2] - z) < 2.5 && b.at[1] > 4 && b.at[1] < WK4.storey && Math.sin((b.yaw * Math.PI) / 180) * (x - b.at[0]) + Math.cos((b.yaw * Math.PI) / 180) * (z - b.at[2]) > 0.5));
   const [ax0, ax1, az0, az1] = WK4.upper.atrium;
   const under4 = WK4.storey - WK4.slab;
@@ -7181,7 +7203,7 @@ const through5 = (p: number[], q: number[]) =>
     return true;
   });
 const placed5 = (ch: string) => (((cfg.chunks as unknown as Record<string, { place: unknown[][] }>)[ch]?.place ?? []) as Array<[string, number, number, number, number, string, (string | null)?, unknown?, (number | null)?]>);
-type Board5 = { text: string; at: number[]; yaw: number; w: number; h: number };
+type Board5 = { text: string; at: number[]; yaw: number; pitch?: number; w: number; h: number };
 type Outline5 = { name: string; rect?: number[]; posts?: boolean; frames?: number[][]; span?: number; y: number; h: number };
 const boards5 = ((cfg.game as unknown as { boards?: Board5[] }).boards ?? []) as Board5[];
 const outlines5 = ((cfg.game as unknown as { outlines?: Outline5[] }).outlines ?? []) as Outline5[];
@@ -7334,7 +7356,7 @@ const outlines5 = ((cfg.game as unknown as { outlines?: Outline5[] }).outlines ?
     const rods = dark.filter((b) => b[0] >= sg[0] && b[1] <= sg[1] && b[4] >= sg[4] && b[5] <= sg[5] && Math.abs(b[2] - sg[3]) < 0.01 && b[3] >= CO6.under).length;
     // (its underside lit: a glow under its foot, within 2 cm of it, over half its plan and more, as picture 29's eye sees it)
     const litUnder = clad6("sign underside").some((q) => /\|#/.test(q.mat) && q.b[3] <= sg[2] && q.b[3] >= sg[2] - 0.02 && (q.b[1] - q.b[0]) * (q.b[5] - q.b[4]) >= 0.5 * (sg[1] - sg[0]) * (sg[5] - sg[4]));
-    const hung = boards5.filter((q) => q.text === "THE LOBBY" && q.at[1] - q.h / 2 >= 4 && q.at[0] > x0 && q.at[0] < x1 && q.at[2] > z0 && q.at[2] < z1);
+    const hung = boards5.filter((q) => q.text === "THE LOBBY" && !q.pitch && q.at[1] - q.h / 2 >= 4 && q.at[0] > x0 && q.at[0] < x1 && q.at[2] > z0 && q.at[2] < z1);
     const facing = (q: Board5) => {
       const k = (((Math.round(q.yaw / 90) % 4) + 4) % 4);
       // (0 south, its face at the box's z1; 1 east, x1; 2 north, z0; 3 west, x0)
@@ -8657,7 +8679,7 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   const fresh6 = K6.flatMap((k) => [
     ...[...worn6(k.mat).values(), ...worn6(k.longMat).values()],
     ...(k.fronts ?? []).flatMap((n) => (rowC6.get(n)?.materials ?? []).filter((m) => m !== "none" && !worn6(k.mat).has(m))),
-  ]).filter((m) => !drawn6.has(m));
+  ]).filter((m) => !drawn6.has(m.split("@")[0]));
   // 2 the balconies
   const BL6 = DC6.cliffs.balconies;
   const balc6 = BL6 ? placed6.filter((q) => String(q[0]).endsWith(`/${BL6.piece}`)) : [];
@@ -9925,7 +9947,7 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   // (5) LOWER COURT seen whole from the court's east lane (picture 20b's eye): the lines to its ends, middle, foot and top clear
   // of the collision, and nothing standing within 0.4 m of its face
   type B98 = { text: string; at: number[]; yaw: number; w: number; h: number };
-  const LC98 = (cfg.game as unknown as { boards: B98[] }).boards.filter((b) => b.text === "LOWER COURT");
+  const LC98 = (cfg.game as unknown as { boards: B98[] }).boards.filter((b) => b.text === "LOWER COURT" && (-6.5 - b.at[0]) * Math.sin((b.yaw * Math.PI) / 180) + (-1.0 - b.at[2]) * Math.cos((b.yaw * Math.PI) / 180) > 0);
   const S98 = (SOLIDS as { solids: number[][] }).solids.filter((b) => b[1] > -25 && b[0] < 5 && b[3] > -12 && b[2] < 3 && b[4] < -2 && b[5] > -8);
   const eye98 = [-6.5, -5.3, -1.0];
   const hid98: string[] = [];
@@ -11143,6 +11165,103 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   check("the lookout's picture: the floor picture 10 holds marked as the top pad's landing, its name on the rim, the rim capped clean, and picture 14's lobe wall a lit kit panel; all drawn only", ok, said.join("; "));
 }
 
+// The lookout in one kit and the ring's bridges in their blocks' colours (rules.highCover.roofs.kit and rules.bridges.wear,
+// Milestone 1150; the centre's twenty-fifth reviews, picture 10b, both: "the brick plinth in the deck's metal", "the slabs
+// panelled with a lit edge"; A broken: "a yellow machine clipping the wall"; pictures 15 and 25, A rank 8: "each bridge of
+// the ring its own deck colour"). The raised middle's deck stands on four brick legs of the tower's own (2 by 2 m octagons,
+// 49 to 50 m, four of the pack's corner floor parts each, measured off its triangles): each part clad, drawn only, by two of
+// the pack's corner piece stacked at its middle, never inside the brick, its chamfer turned to the leg's corner, in the
+// cap's steel and up to the cap; every half-size panel of the lookout's groups in the kit wall; the chest clear of every
+// wall of its group in picture 10b's frame; and each straight and corner deck of the ring's four paths in its path's wear,
+// that wear's colour the one the block it leaves wears on its island, the four colours different
+{
+  type Kit50 = { legs: number[][]; floor: number; top: number; part: number; piece: string; tall: number; scale: number; mat: string; chunk: string; groups: string[]; panels: number; chest: string; view: number[][]; vfov: number; size: number[]; gap: number };
+  const HC50 = cfg.rules.highCover as unknown as { at: unknown[][]; roofs: { kit?: Kit50; kitWall?: string; shield: { piece: string } } };
+  const K50 = HC50.roofs.kit;
+  const CH50 = cfg.chunks as unknown as Record<string, { place: unknown[][] }>;
+  const said: string[] = [];
+  let ok = !!K50 && !!HC50.roofs.kitWall;
+  if (!K50) said.push("no rules.highCover.roofs.kit");
+  else {
+    // (1) the legs' clads: each part's two rows, and as many laid drawn only in the chunk
+    const EX50 = ((cfg.rules.dress as unknown as { extras?: Array<[string, string, number, number, number, number, number?, string?]> }).extras ?? []).filter(([ch, name]) => ch === K50.chunk && name === K50.piece);
+    const laid50 = (CH50[K50.chunk]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${K50.piece}`) && q[5] === "g" && q[6] === K50.mat && q[8] === K50.scale).length;
+    const turn50: Record<string, number> = { "-1,1": 0, "1,1": 90, "1,-1": 180, "-1,-1": 270 };
+    const h50 = K50.tall * K50.scale;
+    let parts50 = 0, clad50 = 0;
+    for (const [lx, lz] of K50.legs)
+      for (const sx of [-1, 1])
+        for (const sz of [-1, 1]) {
+          parts50++;
+          const [px, pz] = [lx + (sx * K50.part) / 2, lz + (sz * K50.part) / 2];
+          const mine = EX50.filter(([, , x, z, yaw, , s, m]) => Math.abs(x - px) < 2e-3 && Math.abs(z - pz) < 2e-3 && yaw === turn50[`${sx},${sz}`] && (s ?? 1) >= 1 && m === K50.mat);
+          const ys = mine.map(([, , , , , y]) => y).sort((a, b) => a - b);
+          if (ys.length === 2 && Math.abs(ys[0] - (K50.floor + h50)) < 2e-3 && Math.abs(ys[1] - (K50.floor + 2 * h50)) < 2e-3 && ys[1] >= K50.top) clad50++;
+        }
+    if (clad50 !== parts50 || EX50.length !== 2 * parts50 || laid50 !== EX50.length) ok = false;
+    said.push(`the legs: ${clad50} of ${parts50} parts clad (${EX50.length} rows, ${laid50} laid drawn only in ${K50.mat.split(";")[0].split("=")[1]})`);
+    // (2) the lookout's half-size panels in the kit wall
+    const P50 = HC50.at.filter((r) => K50.groups.includes(String(r[0])) && r[1] === HC50.roofs.shield.piece);
+    const kit50 = P50.filter((r) => r[7] === HC50.roofs.kitWall).length;
+    if (P50.length !== K50.panels || kit50 !== P50.length) ok = false;
+    said.push(`${kit50} of ${P50.length} panels the kit wall`);
+    // (3) the chest clear of each wall of its group in picture 10b's frame
+    const HCo50 = (cfg as unknown as { highCover?: Record<string, number[][]> }).highCover ?? {};
+    const rows50 = HC50.at.filter((r) => r[0] === "lookout-wall");
+    const recs50 = HCo50["lookout-wall"] ?? [];
+    const [e, a] = K50.view;
+    const fw = [a[0] - e[0], a[1] - e[1], a[2] - e[2]];
+    const fl = Math.hypot(fw[0], fw[1], fw[2]);
+    const f3 = fw.map((v) => v / fl);
+    const r3 = [-f3[2], 0, f3[0]].map((v) => v / Math.hypot(f3[0], f3[2]));
+    const kf = 1 / Math.tan((K50.vfov * Math.PI) / 360);
+    const [W, H] = K50.size;
+    // (a record's eight corners, its middle, foot, top, half lengths along its own x and z and its turn, across the frame)
+    const span50 = (q: number[]) => {
+      const t = ((q[6] % 180) + 180) % 180 === 90;
+      const [hx, hz] = t ? [q[5], q[4]] : [q[4], q[5]];
+      const xs: number[] = [];
+      for (const dx of [-hx, hx]) for (const dz of [-hz, hz]) for (const y of [q[2], q[3]]) {
+        const d = [q[0] + dx - e[0], y - e[1], q[1] + dz - e[2]];
+        const zc = d[0] * f3[0] + d[1] * f3[1] + d[2] * f3[2];
+        if (zc <= 0.05) return null;
+        xs.push((0.5 + ((d[0] * r3[0] + d[2] * r3[2]) * kf) / ((W / H) * zc) / 2) * W);
+      }
+      return [Math.min(...xs), Math.max(...xs)];
+    };
+    const chest50 = rows50.map((r, k) => ({ r, q: recs50[k] })).filter(({ r, q }) => r[1] === K50.chest && !!q).map(({ q }) => span50(q));
+    const walls50 = rows50.map((r, k) => ({ r, q: recs50[k] })).filter(({ r, q }) => r[1] !== K50.chest && !!q).map(({ q }) => span50(q)).filter((s): s is number[] => !!s);
+    const c50 = chest50[0];
+    const inFrame50 = !!c50 && c50[0] >= 0 && c50[1] <= W;
+    const clear50 = !!c50 && walls50.every((w) => c50[1] < w[0] - K50.gap || c50[0] > w[1] + K50.gap);
+    if (chest50.length !== 1 || !inFrame50 || !clear50) ok = false;
+    said.push(`the chest ${c50 ? `across pixels ${c50[0].toFixed(0)} to ${c50[1].toFixed(0)}` : "missing"}, the walls ${walls50.map((w) => `${w[0].toFixed(0)} to ${w[1].toFixed(0)}`).join(", ")}${clear50 ? `: clear by ${K50.gap} px and more` : ": touching one"}`);
+  }
+  // (4) the ring's bridges: each of the first four paths' straight and corner decks in its wear
+  const BG50 = cfg.rules.bridges as unknown as { paths: number[][][]; wear?: Array<string | null>; wearFrom?: string[]; straight: { piece: string }; corner: { piece: string } };
+  const tints50: string[] = [];
+  const onPath50 = (path: number[][], x: number, z: number) => path.slice(1).some((b, k) => {
+    const a = path[k];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const t = Math.max(0, Math.min(L, ((x - a[0]) * (b[0] - a[0]) + (z - a[1]) * (b[1] - a[1])) / L));
+    return Math.hypot(a[0] + ((b[0] - a[0]) * t) / L - x, a[1] + ((b[1] - a[1]) * t) / L - z) < 0.05;
+  });
+  const decks50 = CH50["c-bridges"].place.filter((q) => String(q[0]).endsWith(`/${BG50.straight.piece}`) || String(q[0]).endsWith(`/${BG50.corner.piece}`));
+  for (let i = 0; i < 4; i++) {
+    const w = BG50.wear?.[i] ?? "";
+    const tint = /(^|;)ConcretePanels00=ConcretePanels00\*(#[0-9a-f]{6})(;|$)/.exec(w)?.[2] ?? "";
+    const block = BG50.wearFrom?.[i] ?? "";
+    const island = (CH50[`c-${block}`]?.place ?? []).some((q) => /\/HighPlatform_Island/.test(String(q[0])) && String(q[6] ?? "").split(";").includes(`PlasticWhite01=PlasticWhite01*${tint}`));
+    const mine = decks50.filter((q) => onPath50(BG50.paths[i], Number(q[1]), Number(q[3])));
+    const worn = mine.filter((q) => q[6] === w).length;
+    if (!tint || !island || !mine.length || worn !== mine.length) ok = false;
+    tints50.push(tint);
+    said.push(`path ${i + 1} from ${block || "?"}: ${worn} of ${mine.length} decks in ${tint || "no colour"}${island ? ", its block's" : ", not its block's"}`);
+  }
+  if (new Set(tints50).size !== 4) (ok = false), said.push("two bridges in one colour");
+  check("the lookout in one kit, the ring's bridges in their blocks' colours: the raised middle's brick legs clad in the cap's steel, its slabs the lit kit wall, its chest clear of the wall in picture 10b; each bridge of the ring its own block's colour", ok, said.join("; "));
+}
+
 // The tower's balconies (rules.tower.balconies, Milestone 1111; the centre's twenty-second reviews, A rank 3: "balconies with
 // ledges you can mantle on each played tower storey, a few per face (06, 09)"): each of rules.highCover.at's `group` laid; in
 // front of an open window of the tower whose sill is its floor and `sill` over; its rail's top under the bake's lowest level ray
@@ -11810,7 +11929,7 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   const vm1129 = /^PlasticCorrugated00\|#([0-9a-f]{6})\|([\d.]+)$/i.exec(vault1129);
   const glow1129 = vm1129 ? ((parseInt(vm1129[1].slice(0, 2), 16) + parseInt(vm1129[1].slice(2, 4), 16) + parseInt(vm1129[1].slice(4, 6), 16)) / 3 / 255) * Number(vm1129[2]) : 0;
   const halls1129 = P1129.filter((q) => String(q[0]).endsWith("/CrystalRoofHall00.prefab") && remap1129(q[6]).get("Cristal04") === vault1129).length;
-  part1129(crates1129.length >= 24 && white1129 === 0 && /^MetalPaintPannelsYellow00/.test(top1129) && glow1129 >= 0.3 && halls1129 === 6, `${crates1129.length} crates on them, ${white1129} in the white glow; their end tiles' top ${top1129.split("@")[0] || "nothing"}; the vaults' sheet ${vault1129 || "nothing"}, a flat glow of ${glow1129.toFixed(2)}, on ${halls1129} halls`);
+  part1129(crates1129.length >= 24 && white1129 === 0 && (/^MetalPaintPannelsYellow00/.test(top1129) || top1129.split("~")[0] === (remap1129((CW1129 as unknown as { mat?: string } | undefined)?.mat).get("CeramicDirtTiles00") ?? "-")) && glow1129 >= 0.3 && halls1129 === 6, `${crates1129.length} crates on them, ${white1129} in the white glow; their end tiles' top ${top1129.split("@")[0] || "nothing"}; the vaults' sheet ${vault1129 || "nothing"}, a flat glow of ${glow1129.toFixed(2)}, on ${halls1129} halls`);
   // (2) THE CANYON: round every roof gap's rim, a quarter metre and a band's width less a quarter outside each edge, every half
   // metre along it, a yellow band quad on the roof (its footprint: its own x 0 to `across`, its own z from minus its length to
   // 0, by its corner pivot, turned); the gap's walls and the floor tiles inside it in the dark wear
@@ -12550,7 +12669,8 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   // (7) the rooms' racks: their shelves not in the white paint
   const racks32 = TP32.filter((q) => name32(q) === "Rack00 Variant.prefab");
   const white32 = racks32.filter((q) => (remap32(q[6]).get("MetalPaintWhiteCracked00b") ?? "MetalPaintWhiteCracked00b") === "MetalPaintWhiteCracked00b").length;
-  part32(racks32.length === 6 && white32 === 0, `${racks32.length - white32} of ${racks32.length} rooms' racks out of the white paint`);
+  // (or, since Milestone 1154, none: the rack read as a stair in d06, a counter in its place, the Milestone 1154 check's)
+  part32((racks32.length === 6 || racks32.length === 0) && white32 === 0, `${racks32.length - white32} of ${racks32.length} rooms' racks out of the white paint`);
   check("THE STRIP's faces and stage, THE TERRACES' tier and room (Milestone 1132): the club's red tile on its front alone, its columns dark and in screens, its stairs black; the balcony's and the rooms' lamps small and flush; a stage with a wall of screens, truss towers and speakers; THE TERRACES' top tier mown in two greens with paths across it, its pergolas slim with their grain along them, its racks in timber", ok32, say32.join("; "));
 }
 
@@ -13086,6 +13206,584 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
     "the Loop's pockets (Milestone 1137): eight to twelve named sets in place of the Loop's small stations, shelters roofed on their posts, kiosk pairs and posts with lit tops, each laid whole and standing, named on a board, the street cover off them, a lane between each two, a body's room at the review cameras and a set in 06's frame",
     !!PKr && nSets >= 8 && nSets <= 12 && PKs.length === nSets && PKs.filter((S) => S.kind === PKr.roofed).length >= 3 && missing.length === 0 && soft.length === 0 && bare.length === 0 && unnamed.length === 0 && oldKit.length === 0 && nearCover.length === 0 && crowdCam.length === 0 && inFrame.length >= 1 && tight.length === 0,
     `${PKs.length} of ${nSets} sets (${[...kinds].map((k) => `${PKs.filter((S) => S.kind === k).length} ${k}`).join(", ")}); ${missing.length} parts not laid${missing.length ? ` (${missing.slice(0, 3).join("; ")})` : ""}, ${soft.length} not standing${soft.length ? ` (${soft.slice(0, 3).join("; ")})` : ""}, ${bare.length} shelters bare${bare.length ? ` (${bare.join("; ")})` : ""}, ${unnamed.length} unnamed${unnamed.length ? ` (${unnamed.join(", ")})` : ""}; ${oldKit.length} old stations on the Loop; ${nearCover.length} street cover pieces within ${PKr?.keepOff} m; cameras crowded ${crowdCam.map(([k]) => k).join(", ") || "none"}; in 06's frame ${inFrame.map((S) => S.id).join(", ") || "none"}; lanes under ${PKr?.lane} m ${tight.join(", ") || "none"}`,
+  );
+}
+
+// THE WORKS' containers lit and its deck in panels (Milestone 1153; the districts' nineteenth reviews of version 144, 2026-11-12,
+// THE WORKS 6.6 and 6.4: A rank 3, "THE WORKS' containers at eye level (d22): door ends, ribs catching light, paint bright enough to
+// show in shade"; B rank 4, "black slabs at golden hour: ribbing, colour, corner posts, lit faces"; both, "d23: the hall ceiling a
+// noisy striped moire", B rank 10, "a plain steel deck or larger panel tiles"). Measured in d22's picture, the tinted containers
+// rendered 1, 1, 3 of 255 in shade where version 143's glowing plates read 89, 70, 56: a tint multiplies light a face turned from
+// the sun does not take. Every container paint glows its own map, each at least `lit.floor` in the glow's luminance as the bake
+// writes it (the colour times k read as sRGB, its peak a strength), two of them coloured far apart; no container slab in THE WORKS
+// in an unlit paint; the halls' deck not the ribbed map, its repeat at least `deck.minRepeat` metres and its glow at most `deck.maxGlow`
+{
+  const said53: string[] = [];
+  let ok53 = true;
+  const part53 = (good: boolean, said: string) => {
+    ok53 &&= good;
+    said53.push(said);
+  };
+  type W53 = { roofWear: { band: string; middle: string }; upper: { under?: string }; deck?: { minRepeat: number; maxGlow: number }; containers?: { slab: string; scale: number; chunks: string[]; paints: string[]; yellowPaint: string; lit?: { floor: number } } };
+  const W53 = (cfg.rules.districts as unknown as { works: W53 }).works;
+  const CH53 = cfg.chunks as unknown as Record<string, { place: unknown[][] }>;
+  const CT53 = W53.containers;
+  // (a glow's linear colour as import-city.ts writes it into the batches' table)
+  const glow53 = (spec: string): number[] | null => {
+    const m = /^[^~*^|]+~#([0-9a-f]{6})\|([\d.]+)$/i.exec(spec.split("@")[0]);
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    const v = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => (c / 255) * Number(m[2]));
+    const peak = Math.max(...v, 1e-6);
+    const lin = (s: number) => (s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4));
+    return v.map((x) => lin(Math.min(x / Math.max(peak, 1), 1)) * Math.max(1, peak));
+  };
+  const lum53 = (g: number[]) => 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2];
+  // (1) the paints: every part of every paint a glow at or over the floor; two coloured (chromaticity spread 0.25 or more) and far apart
+  const floor53 = CT53?.lit?.floor ?? Infinity;
+  const specs53 = (CT53?.paints ?? []).map((p) => p.split(";").map((s) => s.split("=")[1] ?? ""));
+  const isLit53 = (parts: string[]) => parts.length === 4 && parts.every((s) => { const g = glow53(s); return !!g && lum53(g) >= floor53; });
+  const lit53 = specs53.filter(isLit53).length;
+  const litPaints53 = (CT53?.paints ?? []).filter((_p, i) => isLit53(specs53[i]));
+  const chroma53 = specs53.map((parts) => {
+    const g = glow53(parts[0]) ?? [0, 0, 0];
+    const t = g[0] + g[1] + g[2] || 1;
+    return g.map((x) => x / t);
+  });
+  const coloured53 = chroma53.filter((c) => Math.max(...c) - Math.min(...c) >= 0.25);
+  const apart53 = coloured53.length >= 2 && coloured53.every((c, i) => coloured53.every((d, j) => i === j || Math.hypot(c[0] - d[0], c[1] - d[1], c[2] - d[2]) >= 0.3));
+  part53(!!CT53 && specs53.length >= 3 && lit53 === specs53.length && apart53,
+    `${lit53} of ${specs53.length} container paints lit at ${floor53} or more (${specs53.map((p) => { const g = glow53(p[0]); return g ? lum53(g).toFixed(2) : "unlit"; }).join(", ")}), ${coloured53.length} coloured${apart53 ? ", far apart" : ""}`);
+  // (2) the slabs: every container slab in THE WORKS' corner of the map (both coordinates past 40) in a lit paint or THE WORKS' yellow
+  const slabs53 = CT53 ? CT53.chunks.flatMap((ch) => (CH53[ch]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${CT53.slab}`) && q[5] === "s" && Math.abs(Number(q[8] ?? 1) - CT53.scale) < 1e-6 && Number(q[1]) > 40 && Number(q[3]) > 40)) : [];
+  const onLit53 = slabs53.filter((q) => litPaints53.includes(String(q[6])) || q[6] === CT53?.yellowPaint).length;
+  const tinted53 = slabs53.filter((q) => /=MetalPlanks03(\*#[0-9a-f]{6})?(@|;|$)/i.test(String(q[6] ?? ""))).length;
+  part53(slabs53.length >= 120 && onLit53 === slabs53.length && tinted53 === 0, `${onLit53} of ${slabs53.length} container slabs in a lit paint or the yellow, ${tinted53} in an unlit cladding`);
+  // (3) the deck: not the ribbed map the containers wear, panels large, its glow no brighter than the bound; the roofs' wears end in it
+  const under53 = W53.upper.under ?? "";
+  const deckSpec53 = under53.split("=")[1] ?? "";
+  const deckGlow53 = glow53(deckSpec53);
+  const repeat53 = Number(/@([\d.]+)[xyz]?$/.exec(deckSpec53)?.[1] ?? 0);
+  const ribBase53 = (specs53[0]?.[0] ?? "").split(/[~*@]/)[0];
+  const D53 = W53.deck;
+  part53(!!D53 && !!deckGlow53 && deckSpec53.split("~")[0] !== ribBase53 && repeat53 >= D53.minRepeat && lum53(deckGlow53) <= D53.maxGlow && W53.roofWear.band.endsWith(`;${under53}`) && W53.roofWear.middle.endsWith(`;${under53}`),
+    `the deck ${deckSpec53 || "none"} (${repeat53} m a repeat, glow ${deckGlow53 ? lum53(deckGlow53).toFixed(2) : "none"}), the containers' map ${ribBase53}`);
+  check("THE WORKS' containers lit and its deck in panels (Milestone 1153): every container paint glows its own map, bright enough for a face in shade, two coloured far apart; no container slab in an unlit paint; the halls' ceilings large steel panels, not the ribbed cladding, glowing no brighter than the bound", ok53, said53.join("; "));
+}
+
+// THE TERRACES' hedges and its room (Milestone 1154; the districts' nineteenth reviews of version 144, 2026-11-12, B rank 3:
+// "the hedge cubes at the stair's foot (d04): leafy geometry, rounded tops and terracotta troughs"; A rank 2: "hedges with leaf
+// texture and a planter base"; both, d06: "the ceiling blown out to white", "a counter", B: "the stepped bench (reads as a stair)").
+// Every wall of its kit in the cypress's leaf glowing green, each one laid standing in its terracotta trough, drawn only; the street's
+// bins and boxes on its band planters, none left in the green plaster; hedges in their troughs in d04's frame; in each room a counter
+// for the rack, on its floor in the dado's timber; each room's lamp lit lower and softer than the base's
+{
+  const said54: string[] = [];
+  let ok54 = true;
+  const part54 = (good: boolean, s: string) => {
+    ok54 &&= good;
+    said54.push((good ? "" : "NOT ") + s);
+  };
+  type Pl54 = [string, number, number, number, number, string, (string | null)?, unknown?, number?];
+  const CH54 = (cfg as unknown as { chunks: Record<string, { place: Pl54[] }> }).chunks;
+  const DC54 = cfg.rules.dress.districtCover as unknown as { chunk: string; mats: Record<string, Record<string, string>>; troughs?: Record<string, { leaf: string; mat: string; on: Record<string, Array<[string, number, number, number, number]>> }> };
+  const TG54 = DC54.troughs?.terraces;
+  const remap54 = (s: unknown) => new Map(String(s ?? "").split(";").filter((p) => p.includes("=")).map((p) => p.split("=") as [string, string]));
+  const name54 = (q: Pl54) => String(q[0]).split("/").pop()!;
+  const rows54 = ["c-cover", DC54.chunk].flatMap((ch) => CH54[ch]?.place ?? []);
+  // (1) the leaf: the cypress's foliage glowing, green over red over blue, at 1 and more; on every material of every wall `on` names
+  const walls54 = [...new Set(Object.keys(TG54?.on ?? {}).map((k) => k.split("@")[0]))];
+  const lf54 = /^Cypress00Body~#([0-9a-f]{6})\|([0-9.]+)$/i.exec(TG54?.leaf ?? "");
+  const rgb54 = lf54 ? [0, 2, 4].map((i) => parseInt(lf54[1].slice(i, i + 2), 16)) : [0, 0, 0];
+  const leafOk54 = !!lf54 && rgb54[1] > rgb54[0] && rgb54[0] > rgb54[2] && Number(lf54[2]) >= 1;
+  const unleafed54 = walls54.filter((n) => { const m = remap54(DC54.mats.terraces?.[n]); return m.size === 0 || [...m.values()].some((v) => v !== TG54!.leaf); });
+  part54(leafOk54 && walls54.length >= 2 && unleafed54.length === 0, `the hedges' wear ${TG54?.leaf ?? "none"} on ${walls54.length - unleafed54.length} of ${walls54.length} walls`);
+  // (2) every hedge laid standing in its trough: as many trough parts as `on` names for it, drawn only, in the trough's wear, their
+  // feet on the hedge's, their pivots within the hedge's reach; every trough drawn only, and none away from a hedge
+  const hedges54 = rows54.filter((q) => walls54.includes(name54(q)) && remap54(q[6]).size > 0 && [...remap54(q[6]).values()].every((v) => v === TG54?.leaf));
+  const troughs54 = rows54.filter((q) => !!TG54 && q[6] === TG54.mat);
+  const partsOf54 = (q: Pl54) => TG54?.on[Number(q[8] ?? 1) === 1 ? name54(q) : `${name54(q)}@${Number(q[8])}`] ?? [];
+  const mine54 = (h: Pl54) => troughs54.filter((t) => Math.hypot(Number(t[1]) - Number(h[1]), Number(t[3]) - Number(h[3])) < 3.2 && Math.abs(Number(t[2]) - 0.5 * Number(t[8] ?? 1) - Number(h[2])) < 0.01);
+  const bare54 = hedges54.filter((h) => partsOf54(h).length === 0 || mine54(h).length < partsOf54(h).length);
+  const loose54 = troughs54.filter((t) => t[5] !== "g" || !hedges54.some((h) => mine54(h).includes(t)));
+  part54(hedges54.length >= 20 && bare54.length === 0 && loose54.length === 0, `${hedges54.length - bare54.length} of ${hedges54.length} hedges in their troughs (${troughs54.length} trough pieces, ${loose54.length} solid or loose)${bare54.length ? `; first bare at (${bare54[0][1]}, ${bare54[0][3]})` : ""}`);
+  // (3) none of the kit or the band's bins and boxes left in the green plaster; the bins and boxes on the band planters
+  const green54 = rows54.filter((q) => /PlasterDirt00\*#7fa55c/.test(String(q[6] ?? ""))).length;
+  const planters54 = rows54.filter((q) => /^Streetdeco00/.test(name54(q)) && !!TG54 && String(q[6] ?? "").includes(TG54.leaf) && /Bricks00~#/.test(String(q[6] ?? ""))).length;
+  part54(green54 === 0 && planters54 >= 1, `${green54} pieces in the green plaster, ${planters54} bins and boxes planters`);
+  // (4) from d04's eye, the review's (-76, 1.7, 0) looking at (-133, 10, 0) in the game's 92.3 degree field, 16 by 9: hedges' feet
+  // and tops in the frame within 30 m
+  const E54 = [-76, 1.7, 0], A54 = [-133, 10, 0];
+  const f54 = (() => { const d = [A54[0] - E54[0], A54[1] - E54[1], A54[2] - E54[2]], l = Math.hypot(d[0], d[1], d[2]); return d.map((v) => v / l); })();
+  const r54 = (() => { const v = [-f54[2], 0, f54[0]], l = Math.hypot(v[0], v[2]); return [v[0] / l, 0, v[2] / l]; })();
+  const u54 = [r54[1] * f54[2] - r54[2] * f54[1], r54[2] * f54[0] - r54[0] * f54[2], r54[0] * f54[1] - r54[1] * f54[0]];
+  const k54 = 1 / Math.tan((92.3 * Math.PI) / 360);
+  const px54 = (p: number[]) => { const d = [p[0] - E54[0], p[1] - E54[1], p[2] - E54[2]]; const dz = d[0] * f54[0] + d[1] * f54[1] + d[2] * f54[2]; return dz <= 0 ? null : [0.5 + ((d[0] * r54[0] + d[2] * r54[2]) * k54) / ((16 / 9) * dz * 2), 0.5 - ((d[0] * u54[0] + d[1] * u54[1] + d[2] * u54[2]) * k54) / (dz * 2), dz]; };
+  const seen54 = hedges54.filter((h) => { const a = px54([Number(h[1]), Number(h[2]), Number(h[3])]); const b = px54([Number(h[1]), Number(h[2]) + 1.8 * Number(h[8] ?? 1), Number(h[3])]); return !!a && !!b && a[2] < 30 && [a, b].every((p) => p[0] > 0.02 && p[0] < 0.98 && p[1] > 0.02 && p[1] < 0.98) && mine54(h).length > 0; }).length;
+  part54(seen54 >= 4, `${seen54} hedges in their troughs in d04's frame`);
+  // (5) each room: no rack, a counter of four modules and more on its floor against a side wall in the dado's timber
+  const DT54 = (cfg.rules.districts as unknown as { terraces: { chunk: string; cell: number; rooms: { slab: string; dado?: { mat: string } } } }).terraces;
+  const rooms54 = (cfg as unknown as { terraces?: { rooms?: number[][] } }).terraces?.rooms ?? [];
+  const TP54 = CH54[DT54.chunk]?.place ?? [];
+  const inSq54 = (q: Pl54, x0: number, z0: number) => Number(q[1]) > x0 && Number(q[1]) < x0 + DT54.cell && Number(q[3]) > z0 && Number(q[3]) < z0 + DT54.cell;
+  const roomsOk54 = rooms54.filter(([x0, z0, floor]) => {
+    const here = TP54.filter((q) => inSq54(q, x0, z0) && Math.abs(Number(q[2]) - floor) < 0.05);
+    const racks = here.filter((q) => /^Rack0/.test(name54(q))).length;
+    const bars = here.filter((q) => name54(q) === "Bar00 Variant.prefab" && q[5] === "o" && remap54(q[6]).get("PlasticBlack01") === DT54.rooms.dado?.mat);
+    const side = bars.length ? Math.min(...bars.map((q) => Math.min(Math.abs(Number(q[3]) - z0), Math.abs(z0 + DT54.cell - Number(q[3]))))) : 9;
+    return racks === 0 && bars.length >= 4 && side < 1;
+  }).length;
+  part54(rooms54.length === 6 && roomsOk54 === 6, `${roomsOk54} of ${rooms54.length} rooms with a timber counter and no rack`);
+  // (6) each room's lamp: its fill spot in the room 0.9 m and more under the ceiling's underside, at `rooms.k`, no more than the
+  // tower's low storeys' half again; none left at the base's strength in a room
+  const { neonFillPower } = await import("../../src/game/neonmap");
+  const FS54 = neonFillSpots();
+  const FP54 = neonFillPower();
+  const FC54 = (cfg.game as unknown as { fill: { tower: number; intensity: number; rooms?: { k: number; drop: number } } }).fill;
+  const slabH54 = 0.5;
+  const lamps54 = rooms54.map(([x0, z0, floor, top]) => FS54.map((q, i) => ({ q, p: FP54[i] })).filter(({ q }) => q.x - BR_X > x0 && q.x - BR_X < x0 + DT54.cell && q.z - BR_Z > z0 && q.z - BR_Z < z0 + DT54.cell && q.y > floor && q.y < top).map(({ q, p }) => ({ h: top - slabH54 - q.y, p })));
+  const soft54 = lamps54.filter((L) => L.length >= 1 && L.every(({ h, p }) => h >= 0.9 && p === FC54.rooms?.k && p <= FC54.tower * 1.5)).length;
+  part54(rooms54.length === 6 && soft54 === 6, `${soft54} of ${rooms54.length} rooms' lamps lit soft and low (${lamps54.map((L) => L.map(({ h, p }) => `${h.toFixed(2)} m under at ${p}`).join("/") || "none").join(", ")})`);
+  check("THE TERRACES' hedges and room (Milestone 1154): every hedge in the cypress's leaf in a terracotta trough, the band's bins planters, hedges in d04's frame; in each room a timber counter for the rack and its lamp lit soft and low", ok54, said54.join("; "));
+}
+
+// The atrium's box from below, the court's room and lane, THE VAULT's doorway (Milestone 1151; the centre's twenty-fifth reviews:
+// both, "29: the atrium sign box's face toward the camera blank pale cyan"; B rank 6, "the court's west room (20) colour and a
+// focal point ... its ceiling opening's ragged wavy outline"; A rank 7, "a solid block halfway down the court's middle lane
+// (20c)"; A rank 6, "THE VAULT's round door closed round by a gold wall ... (30: the tiled wall shows between the round door and
+// its frame)"). Each where its picture looks (rules.base.base12): (1) THE LOBBY on a board facing down within `gap` under the
+// box's foot, inside its plan, read upright from picture 29's eye and seen from it; (2) the room's plate a few millimetres under
+// the tiles' undersides over the seam, in the base's ceiling, its four edges lit, and LOWER COURT on the wall 20 faces, over the
+// fan unit and under the mezzanine, whole in 20's frame and seen; (3) the lane's block on the court's floor, over a crouch and
+// under the lane's panel, in 20c's middle third `from` to `to` m down its look, `pad` off the bots' grid lines, its top's edge
+// lit; (4) every tile box of the doorway's wall inside a gold skin `grow` proud of it and more
+{
+  type Q51 = { eyes: Record<string, number[][]>; under: { board: string; gap: number }; room: { board: string; wall: number; fanTop: number; mezzanine: number; ceiling: number; plate: string; ring: string; seam: number[] }; lane: { set: string; panel: number; crouch: number; from: number; to: number; pad: number }; doorway: { box: number[]; skin: string; tiles: string; grow: number } };
+  const RB51 = cfg.rules.base as unknown as { base12?: Q51; mats: { under: string }; clad?: Array<{ name: string; mat: string; boxes: number[][]; under?: boolean }>; atrium: { coffer?: { sign: number[] } } };
+  const Q = RB51.base12;
+  const said51: string[] = [];
+  let ok51 = !!Q;
+  const part51 = (good: boolean, said: string) => {
+    ok51 &&= good;
+    said51.push(said);
+  };
+  // (a point through a review spot's camera, as the photographs take it: 92.35 degrees high, 1600 by 900; [x, y, metres ahead])
+  const shot51 = (sp: number[][], p: number[]) => {
+    const [e, a] = sp;
+    const n = (v: number[]) => {
+      const l = Math.hypot(v[0], v[1], v[2]);
+      return v.map((x) => x / l);
+    };
+    const f = n([a[0] - e[0], a[1] - e[1], a[2] - e[2]]);
+    const r = n([-f[2], 0, f[0]]);
+    const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+    const d = [p[0] - e[0], p[1] - e[1], p[2] - e[2]];
+    const dot = (v: number[]) => v[0] * d[0] + v[1] * d[1] + v[2] * d[2];
+    const k = 1 / Math.tan((92.35 * Math.PI) / 360);
+    const z = dot(f);
+    return [(0.5 + (dot(r) * k) / (16 / 9) / z / 2) * 1600, (0.5 - (dot(u) * k) / z / 2) * 900, z];
+  };
+  const inFrame51 = (s: number[]) => s[2] > 0.1 && s[0] >= 0 && s[0] <= 1600 && s[1] >= 0 && s[1] <= 900;
+  // (a sight line starts 0.6 m along the look: 20's eye stands on the back face of the basement's wall, z -8 to -7.5 in the
+  // collision, which its one-sided faces show through)
+  const from51 = (sp: number[][]) => {
+    const [e, a] = sp;
+    const l = Math.hypot(a[0] - e[0], a[1] - e[1], a[2] - e[2]);
+    return e.map((v, i) => v + ((a[i] - v) / l) * 0.6);
+  };
+  const clad51 = (name: string) => (RB51.clad ?? []).filter((q) => q.name === name);
+  if (!Q) said51.push("no rules.base.base12");
+  else {
+    // (1) under the box
+    const sg = RB51.atrium.coffer?.sign ?? [];
+    const und = boards5.filter((q) => q.text === Q.under.board && Math.abs((q.pitch ?? 0) - 90) < 0.5);
+    const placedU = und.filter((q) => sg.length === 6 && sg[2] - q.at[1] > 0 && sg[2] - q.at[1] <= Q.under.gap && q.at[0] - q.w / 2 >= sg[0] - 1e-6 && q.at[0] + q.w / 2 <= sg[1] + 1e-6 && q.at[2] - q.h / 2 >= sg[4] - 1e-6 && q.at[2] + q.h / 2 <= sg[5] + 1e-6);
+    // (upright: the text's top, (sin yaw, 0, cos yaw) once tipped, higher in the frame than its middle; seen: the line to its middle
+    // from 29's eye through no box)
+    const upright = placedU.filter((q) => {
+      const t = (q.yaw * Math.PI) / 180;
+      const [m, top] = [shot51(Q.eyes["29"], q.at), shot51(Q.eyes["29"], [q.at[0] + Math.sin(t) * 0.2, q.at[1], q.at[2] + Math.cos(t) * 0.2])];
+      const [l, rt] = [shot51(Q.eyes["29"], [q.at[0] - Math.cos(t) * 0.2, q.at[1], q.at[2] + Math.sin(t) * 0.2]), shot51(Q.eyes["29"], [q.at[0] + Math.cos(t) * 0.2, q.at[1], q.at[2] - Math.sin(t) * 0.2])];
+      return inFrame51(m) && top[1] < m[1] - 5 && rt[0] > l[0] + 5;
+    });
+    const seenU = upright.filter((q) => !through5(from51(Q.eyes["29"]), [q.at[0], q.at[1] - 0.01, q.at[2]]));
+    part51(placedU.length === 1 && seenU.length === 1, `under the box: ${und.length} boards facing down, ${placedU.length} under its foot in its plan, ${upright.length} upright in 29, ${seenU.length} seen`);
+    // (2) the room: the plate over the seam, under the tiles, in the base's ceiling; its ring; the board on the wall
+    const plate = clad51(Q.room.plate).flatMap((c) => c.boxes.map((b) => ({ b, c })));
+    const [s0, s1, s2, s3] = Q.room.seam;
+    const covers = plate.filter(({ b, c }) => c.mat === RB51.mats.under && c.under === true && b[3] <= Q.room.ceiling - 0.002 && b[3] >= Q.room.ceiling - 0.01 && b[0] <= s0 && b[1] >= s1 && b[4] <= s2 && b[5] >= s3);
+    const P = covers[0]?.b;
+    const lit = clad51(Q.room.ring).filter((c) => /\|#/.test(c.mat)).flatMap((c) => c.boxes);
+    const edges = P ? [[P[0], P[1], P[4], P[4]], [P[0], P[1], P[5], P[5]], [P[0], P[0], P[4], P[5]], [P[1], P[1], P[4], P[5]]].filter(([x0, x1, z0, z1]) => lit.some((b) => Math.abs(b[3] - P[2]) < 0.005 && b[0] <= x0 + 0.1 && b[1] >= x1 - 0.1 && b[4] <= z0 + 0.1 && b[5] >= z1 - 0.1)).length : 0;
+    const room = boards5.filter((q) => q.text === Q.room.board && !q.pitch && Math.abs(q.at[2] - (Q.room.wall - 0.02)) < 0.015 && Math.abs(((q.yaw % 360) + 360) % 360 - 180) < 0.5 && q.at[1] - q.h / 2 >= Q.room.fanTop + 0.1 && q.at[1] + q.h / 2 <= Q.room.mezzanine);
+    const whole = room.filter((q) => [[-1, -1], [1, -1], [-1, 1], [1, 1]].every(([sx, sy]) => inFrame51(shot51(Q.eyes["20"], [q.at[0] + (sx * q.w) / 2, q.at[1] + (sy * q.h) / 2, q.at[2]]))));
+    // (to a point 0.3 m out of the wall: its collision stands in half-metre columns, z -3.0 to -2.5 behind the board)
+    const seenR = whole.filter((q) => !through5(from51(Q.eyes["20"]), [q.at[0], q.at[1], Q.room.wall - 0.3]));
+    part51(!!P && edges === 4 && seenR.length >= 1, `the room: plate ${P ? `x ${P[0]} to ${P[1]}, z ${P[4]} to ${P[5]}, its foot ${P[2]}` : "none over the seam"}, ${edges} of 4 edges lit; ${room.length} ${Q.room.board} on the wall over the fan unit, ${whole.length} whole in 20, ${seenR.length} seen`);
+    // (3) the lane's block
+    const KC = cfg.court as unknown as { y: number };
+    const set = ((cfg as unknown as { caches?: Array<{ id: string; boxes: number[][] }> }).caches ?? []).find((s) => s.id === Q.lane.set);
+    const bx = set?.boxes ?? [];
+    const B = bx.length ? [Math.min(...bx.map((b) => b[0])), Math.max(...bx.map((b) => b[1])), Math.min(...bx.map((b) => b[2])), Math.max(...bx.map((b) => b[3])), Math.min(...bx.map((b) => b[4])), Math.max(...bx.map((b) => b[5]))] : null;
+    const step = (cfg.game as unknown as { graph: { step: number } }).graph.step;
+    const offGrid = (lo: number, hi: number) => { const k = Math.round((lo + hi) / 2 / step) * step; return lo - k >= Q.lane.pad || k - hi >= Q.lane.pad; };
+    const mid = B ? shot51(Q.eyes["20c"], [(B[0] + B[1]) / 2, (B[4] + B[5]) / 2, (B[2] + B[3]) / 2]) : [0, 0, 0];
+    const face = B ? !through5(from51(Q.eyes["20c"]), [B[1] + 0.05, (B[4] + B[5]) / 2, (B[2] + B[3]) / 2]) : false;
+    const edged = !!B && outlines5.some((o) => !!o.rect && [0, 1, 2, 3].every((i) => Math.abs(o.rect![i] - B[i]) < 0.05) && Math.abs(o.y - B[5]) < 0.05);
+    part51(!!B && Math.abs(B[4] - KC.y) < 0.05 && B[5] - B[4] >= Q.lane.crouch + 0.2 && B[5] <= Q.lane.panel - 0.2 && mid[2] >= Q.lane.from && mid[2] <= Q.lane.to && mid[0] > 1600 / 3 && mid[0] < 3200 / 3 && face && offGrid(B[0], B[1]) && offGrid(B[2], B[3]) && edged,
+      `the lane's block: ${B ? `x ${B[0]} to ${B[1]}, z ${B[2]} to ${B[3]}, ${B[4]} to ${B[5]} m, ${mid[2].toFixed(1)} m down 20c at pixel ${mid[0].toFixed(0)}, its face seen ${face}, off the grid ${offGrid(B[0], B[1]) && offGrid(B[2], B[3])}, its edge lit ${edged}` : "none"}`);
+    // (4) the doorway's tiles under gold
+    const [dx0, dx1, dy0, dy1, dz0, dz1] = Q.doorway.box;
+    const tilesD = ((cfg.rules.tower as unknown as { clad?: Array<{ mat: string; boxes: number[][] }> }).clad ?? []).filter((c) => c.mat === Q.doorway.tiles).flatMap((c) => c.boxes).filter((b) => b[0] >= dx0 - 1e-6 && b[1] <= dx1 + 1e-6 && b[2] >= dy0 && b[3] <= dy1 && b[4] >= dz0 && b[5] <= dz1);
+    const skin = clad51(Q.doorway.skin).filter((c) => /^GoldenScratched00~#/.test(c.mat)).flatMap((c) => c.boxes);
+    const g = Q.doorway.grow;
+    const bare = tilesD.filter((t) => !skin.some((s) => s[0] <= t[0] - g && s[1] >= t[1] + g && s[2] <= t[2] - g && s[3] >= t[3] + g && s[4] <= t[4] - g && s[5] >= t[5] + g));
+    part51(tilesD.length > 0 && bare.length === 0, `the doorway: ${tilesD.length} tile boxes, ${bare.length} not under the gold skin${bare.length ? ` (${bare.slice(0, 2).map((b) => b.join(",")).join("; ")})` : ""}`);
+  }
+  check(
+    "the atrium's box from below, the court's room and lane, THE VAULT's doorway (Milestone 1151): THE LOBBY under the box read upright from 29, the room's ceiling seam under one lit plate and LOWER COURT on the wall 20 faces, a lit block halfway down 20c's lane off the bots' grid, the round door in a gold wall",
+    ok51,
+    said51.join("; ")
+  );
+}
+
+// GLASS HEIGHTS' cover as walls, not furniture (Milestone 1152; the districts' nineteenth reviews: "loungers", "hospital beds",
+// "no bench detail", "solid chest-high frosted glass walls on concrete plinths, in L and U shapes"): (1) no bench of the kit
+// beside a screen on the street; (2) every street screen on a plinth, its base and one more of it either side; (3) the units'
+// wings laid, each a low screen of the kit square to its unit on a plinth with its strip, off the bots' grid as the positions
+// are; (4) every base's strip in the walls' wear, white with its cyan light
+{
+  type GW52c = { chunks: string[]; bench: string; near: number; sides: number[]; wing: { screen: string; scale: number }; wings: Array<{ unit: number[]; ends: number[][] }>; least: number };
+  const G52c = (cfg.rules.districts as unknown as { glass: { walls?: GW52c; solid: { piece: string; scale: number; mat: string; pane: string; screens: string[]; chunks: string[]; strip?: string }; deck: { kit: Record<string, string> } } }).glass;
+  const W52 = G52c.walls, S52 = G52c.solid;
+  const CH52 = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks;
+  const said52: string[] = [];
+  let ok52 = !!W52 && !!S52.strip;
+  const part52 = (good: boolean, said: string) => {
+    ok52 &&= good;
+    said52.push(said);
+  };
+  if (!W52) said52.push("no rules.districts.glass.walls");
+  else {
+    const PAID52 = process.env.PAID_DIR ?? "C:/Users/jwilb/Downloads/speedkills-paid";
+    const cat52 = JSON.parse(readFileSync(join(PAID52, "neon", "catalogue.json"), "utf8")) as Array<{ path: string; size: number[] | null; min: number[] | null; max: number[] | null }>;
+    const rows52 = new Map<string, { min: number[]; max: number[] }>();
+    const row52 = (q: unknown[]) => {
+      const k = String(q[0]);
+      if (!rows52.has(k)) {
+        const r = cat52.find((c) => !!c.size && c.path.endsWith(`/${k.split("City Builder/").pop()}`));
+        rows52.set(k, { min: r!.min!, max: r!.max! });
+      }
+      return rows52.get(k)!;
+    };
+    // (a placement's footprint middle, its foot and top, its turn, as the bake turns and scales it)
+    const at52 = (q: unknown[]) => {
+      const r = row52(q);
+      const s = Number(q[8] ?? 1);
+      const a = (Number(q[4]) * Math.PI) / 180;
+      const [x, z] = [((r.min[0] + r.max[0]) / 2) * s, ((r.min[2] + r.max[2]) / 2) * s];
+      return { x: Number(q[1]) + Math.cos(a) * x + Math.sin(a) * z, z: Number(q[3]) - Math.sin(a) * x + Math.cos(a) * z, foot: Number(q[2]) + r.min[1] * s, top: Number(q[2]) + r.max[1] * s, yaw: ((Number(q[4]) % 360) + 360) % 360, hu: ((r.max[0] - r.min[0]) / 2) * s, hv: ((r.max[2] - r.min[2]) / 2) * s };
+    };
+    const K52 = (cfg.rules.dress as unknown as { districtCover: { mats: Record<string, Record<string, string>> } }).districtCover.mats.glass;
+    const name52 = (q: unknown[]) => String(q[0]).split("/").pop()!;
+    let benches52 = 0, screens52 = 0, plinths52 = 0, wings52 = 0, listed52 = 0;
+    const offGrid52: string[] = [];
+    const GN52 = map.nodes as unknown as Array<{ x: number; z: number; y?: number }>;
+    const street52 = GN52.map((n) => ({ x: n.x - BR_X, z: n.z - BR_Z, y: n.y ?? 0 })).filter((q) => Math.abs(q.y) < MOVE.stepHeight);
+    const node52 = new Map(street52.map((q) => [`${Math.round(q.x)},${Math.round(q.z)}`, q]));
+    const gap52 = (b: number[], x0: number, x1: number, z0: number, z1: number) => Math.hypot(Math.max(0, b[0] - Math.max(x0, x1), Math.min(x0, x1) - b[1]), Math.max(0, b[2] - Math.max(z0, z1), Math.min(z0, z1) - b[3]));
+    for (const ch of W52.chunks) {
+      const place = CH52[ch]?.place ?? [];
+      const screens = place.filter((q) => S52.screens.includes(name52(q)) && String(q[6] ?? "").includes(S52.pane) && Number(q[2]) < 1).map(at52);
+      const bases = place.filter((q) => name52(q) === S52.piece && Number(q[8]) === S52.scale && q[5] === "g" && q[6] === S52.mat).map(at52);
+      // (1) a bench of the kit within `near` of a screen
+      benches52 += place.filter((q) => name52(q) === W52.bench && q[6] === K52[W52.bench] && Number(q[2]) < 1).map(at52).filter((b) => screens.some((s) => Math.hypot(s.x - b.x, s.z - b.z) < W52.near)).length;
+      // (2) each screen's plinth: a base on its middle and one at each of `sides` across it, square to it, at its foot
+      const across = (s: { x: number; z: number; yaw: number }, o: number) => {
+        const a = (s.yaw * Math.PI) / 180;
+        return [s.x + Math.sin(a) * o, s.z + Math.cos(a) * o];
+      };
+      const plinthAt = (s: { x: number; z: number; foot: number; yaw: number }, offs: number[]) => offs.every((o) => {
+        const [x, z] = across(s, o);
+        return bases.some((b) => Math.hypot(b.x - x, b.z - z) < 0.05 && Math.abs(b.foot - s.foot) < 0.02 && Math.abs(b.yaw - s.yaw) % 180 < 0.5);
+      });
+      for (const s of screens) {
+        screens52++;
+        if (plinthAt(s, [0, ...W52.sides])) plinths52++;
+      }
+      // (3) the wings: a low screen of the kit, colliding, square to its unit on a whole plinth, its strip on the plinth's top
+      const strips = place.filter((q) => name52(q) === "Lighting_Deco00e_lgt Variant.prefab" && q[5] === "g").map(at52);
+      // (a wing stands in no trough: the kit's L sets stand their second screen in one)
+      const troughs = place.filter((q) => name52(q) === "GardenPit_premade01.prefab" && q[6] === K52["GardenPit_premade01.prefab"]).map(at52);
+      const lows = place.filter((q) => name52(q) === W52.wing.screen && Number(q[8]) === W52.wing.scale && q[5] === "s" && q[6] === K52[W52.wing.screen]).map(at52).filter((l) => !troughs.some((t) => Math.hypot(t.x - l.x, t.z - l.z) < 0.3));
+      for (const W of W52.wings) {
+        const ux = W.unit[0], uz = W.unit[1];
+        for (const l of lows) {
+          const turn = (((l.yaw - W.unit[2] - 90) % 180) + 180) % 180;
+          if (Math.hypot(l.x - ux, l.z - uz) > 2.2 || Math.min(turn, 180 - turn) > 0.5) continue;
+          const mb = bases.find((b) => Math.hypot(b.x - l.x, b.z - l.z) < 0.05);
+          if (!mb || !plinthAt(l, [0, ...W52.sides]) || !strips.some((t) => Math.hypot(t.x - l.x, t.z - l.z) < 0.05 && Math.abs(t.foot - mb.top) < 0.05)) continue;
+          wings52++;
+          const b = Math.round(l.yaw) % 180 ? [l.x - l.hv, l.x + l.hv, l.z - l.hu, l.z + l.hu] : [l.x - l.hu, l.x + l.hu, l.z - l.hv, l.z + l.hv];
+          for (const q of street52) {
+            if (q.x > b[0] - MOVE.radius && q.x < b[1] + MOVE.radius && q.z > b[2] - MOVE.radius && q.z < b[3] + MOVE.radius) offGrid52.push(`(${l.x.toFixed(2)}, ${l.z.toFixed(2)}) on (${q.x}, ${q.z})`);
+            for (const [dx, dz] of [[10, 0], [0, 10]]) {
+              const r = node52.get(`${Math.round(q.x + dx)},${Math.round(q.z + dz)}`);
+              if (r && gap52(b, q.x, r.x, q.z, r.z) < 0.5 + MOVE.radius + 0.05) offGrid52.push(`(${l.x.toFixed(2)}, ${l.z.toFixed(2)}) by (${q.x}, ${q.z})-(${r.x}, ${r.z})`);
+            }
+          }
+        }
+      }
+    }
+    listed52 = W52.wings.reduce((a, w) => a + w.ends.length, 0);
+    part52(benches52 === 0, `${benches52} benches of the kit beside a screen`);
+    part52(screens52 >= 40 && plinths52 === screens52, `${plinths52} of ${screens52} street screens on a plinth (their base and ${W52.sides.length} more across it)`);
+    part52(wings52 >= W52.least && wings52 <= listed52 && offGrid52.length === 0, `${wings52} of ${listed52} wings laid (${W52.least} at least), ${offGrid52.length} on the bots' grid${offGrid52.length ? ` (${offGrid52.slice(0, 3).join("; ")})` : ""}`);
+    // (4) the bases' strips
+    const strips52 = S52.chunks.flatMap((ch) => (CH52[ch]?.place ?? []).filter((q) => name52(q) === "Lighting_Deco00e_lgt Variant.prefab" && q[5] === "g" && String(q[6] ?? "").includes("Light03=Light06|#2ee6ff")));
+    const white52 = strips52.filter((q) => q[6] === S52.strip).length;
+    part52(strips52.length >= screens52 && white52 === strips52.length && G52c.deck.kit["Lighting_Deco00e_lgt Variant.prefab"] === S52.strip, `${white52} of ${strips52.length} strips white with their cyan light`);
+  }
+  check("GLASS HEIGHTS' cover as walls (Milestone 1152): no bench beside a screen on the street, every street screen on a plinth 0.6 m through, wings in L and U off the bots' grid, the strips white with their cyan light", ok52, said52.join("; "));
+}
+
+
+// The broken and confusing, by picture (Milestone 1156; the centre's twenty-fifth and the districts' nineteenth reviews of
+// version 144). (1) THE STRIP's pyramid's step strips on its drawn face, each 0.5 to 3 cm out from it at its foot and none in
+// its rim's plane over its top (d17: "a bright pink streak with stretched texture ... on the pyramid's edge or rail"); (2) the
+// stage's four screens each its own ad and none the boulevard's (d16: "the same ad four times"); (3) the pad at the east block's
+// fire escape without its column, its ring kept (27: "the pink pad column half inside the building face"); (4) the station
+// hall's own black marble at 3 m a repeat or less (21: "huge white smears"); (5) THE CANYON's two lowest storeys' windows at 2.5
+// m a repeat or less on every white and dark front (d20: "the window texture smeared and stretched"); (6) THE TERMINAL's
+// catwalks' end tiles in the deck's own tile, lit (d09: "an untextured placeholder")
+{
+  const { outlineBoxes } = await import("../../src/game/outlines");
+  const say56: string[] = [];
+  let ok56 = true;
+  const part56 = (ok: boolean, text: string) => {
+    if (!ok) ok56 = false;
+    say56.push(`${ok ? "" : "NOT "}${text}`);
+  };
+  const CH56 = cfg.chunks as unknown as Record<string, { place: unknown[][] }>;
+  const remap56 = (m: unknown) => new Map(String(m ?? "").split(";").filter((p) => p.includes("=")).map((p) => p.split("=") as [string, string]));
+  const D56 = cfg.rules.districts as unknown as {
+    strip: { pyramid: { at: number[]; face?: number[] }; ads: { mats: string[] }; base: { mats: string[] }; stage: { parts: Array<[string, number, number, number, number, number, string | null, boolean]> } };
+    terminal: { chunk: string; catwalks: { tile: string; mat: string; padMat: string } };
+    canyon: { chunk: string };
+  };
+  // (1) the strips: a box's inner side its distance from the pyramid's middle across its thin way
+  const PY56 = D56.strip.pyramid;
+  const [fh56, th56, h56] = PY56.face ?? [0, 0, 1];
+  const steps56 = outlineBoxes((n) => n.startsWith("the strip pyramid step"));
+  const off56 = steps56.filter((b) => {
+    const half = b[1] - b[0] < 0.2 ? Math.min(Math.abs(b[0] - PY56.at[0]), Math.abs(b[1] - PY56.at[0])) : Math.min(Math.abs(b[2] - PY56.at[1]), Math.abs(b[3] - PY56.at[1]));
+    const d = half - (fh56 - ((fh56 - th56) * b[4]) / h56);
+    return d < 0.005 || d > 0.03 || b[5] > h56 + 1e-6 || (b[5] > h56 - 1e-6 && half < th56 + 0.01);
+  }).length;
+  part56(!!PY56.face && steps56.length === 56 && off56 === 0, `${steps56.length} step strips, ${off56} off the drawn face (${fh56} m out at its foot to ${th56} m at ${h56} m) or in its rim's plane`);
+  // (2) the stage's screens, as laid
+  const boulevard56 = new Set([...D56.strip.ads.mats, ...D56.strip.base.mats].flatMap((m) => [...remap56(m).values()]));
+  const screens56 = (CH56["c-strip"]?.place ?? []).filter((q) => String(q[0]).endsWith("/MonitorBase00b Variant.prefab")).map((q) => remap56(q[6]).get("MonitorScreen04") ?? "").filter((a) => /^Ads/.test(a));
+  part56(screens56.length === 4 && new Set(screens56).size === 4 && !screens56.some((a) => boulevard56.has(a)), `the stage's screens in ${screens56.join(", ") || "nothing"}, the boulevard's ${[...boulevard56].filter((a) => /^Ads/.test(a)).join(", ")}`);
+  // (3) the pad at the east block's fire escape: the pad laid, its column trimmed to nothing
+  const PD56 = ((cfg as unknown as { pads: Array<{ id: string; pad: number[] }> }).pads ?? []).find((p) => p.id === "e-out");
+  const TR56 = (cfg.game as unknown as { padRings: { column: { trim?: number[][] } } }).padRings.column.trim ?? [];
+  const bare56 = !!PD56 && TR56.some(([x, z, s]) => x === PD56.pad[0] && z === PD56.pad[1] && s === 0);
+  part56(bare56, `the pad at the east block's fire escape (${PD56?.pad.join(", ") ?? "none"}) ${bare56 ? "its ring alone" : "with its column"}`);
+  // (4) the station hall's marble, as laid
+  const HL56 = (cfg.rules as unknown as { underground: { hall: { piece: string } } }).underground.hall;
+  const hall56 = (CH56["c-station"]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${HL56.piece}`)).map((q) => remap56(q[6]).get("MarbleTilesDirt01") ?? "");
+  const rep56 = (s: string, base: string) => {
+    const m = new RegExp(`^${base}@(-?[\\d.]+)y$`).exec(s);
+    return m ? Math.abs(Number(m[1])) : Infinity;
+  };
+  part56(hall56.length === 1 && hall56.every((s) => rep56(s, "MarbleTilesDirt01") <= 3), `the station hall's marble ${hall56.join(", ") || "nothing"}`);
+  // (5) THE CANYON's white and dark fronts' two lowest storeys
+  const fronts56 = (CH56[D56.canyon.chunk]?.place ?? []).filter((q) => /\/UnderWall0(0[b-f]?|1)\.prefab$/.test(String(q[0])));
+  const coarse56 = fronts56.filter((q) => ["Cristal06Opaque 1", "Cristal06Opaque 2"].some((n) => rep56(remap56(q[6]).get(n) ?? "", "BuildingWindows01") > 2.5)).length;
+  part56(fronts56.length >= 80 && coarse56 === 0, `${fronts56.length} white and dark fronts, ${coarse56} with a storey's windows over 2.5 m a repeat`);
+  // (6) THE TERMINAL's catwalks' end tiles, as laid
+  const CW56 = D56.terminal.catwalks;
+  const top56 = remap56(CW56.padMat).get("CeramicDirtTiles00") ?? "";
+  const deck56 = remap56(CW56.mat).get("CeramicDirtTiles00") ?? "";
+  const ends56 = (CH56[D56.terminal.chunk]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${CW56.tile}`) && q[6] === CW56.padMat).length;
+  part56(!!deck56 && top56.split("~")[0] === deck56 && /~#[0-9a-f]{6}\|/i.test(top56) && ends56 >= 4, `${ends56} catwalk end tiles in ${top56 || "nothing"}, the deck in ${deck56 || "nothing"}`);
+  check(
+    "the broken and confusing, by picture: the pyramid's step strips on its drawn face and out of its rim's plane, the stage's screens each its own ad, the fire escape's pad without its column, the station's marble and THE CANYON's storey windows at a close repeat, the catwalks' end tiles in the deck's tile lit",
+    ok56,
+    say56.join("; "),
+  );
+}
+// THE STACKS' ground and cover, its roof (Milestone 1155; the districts' nineteenth reviews of version 144, 2026-11-12, A rank 5,
+// B rank 6, B d12). "Kerbs, painted bays, darker joints", "paving bands, kerbs and drains": every field's bands whole, in the deck's
+// cobble, kerbed and drained, drawn only, a band seen from d11's and d10's eyes; the car park's bays painted. "An odd floating
+// mechanical mast on the roof": every street box the roof's perch laid there without its mast, and no box of the collision over its
+// cabinet. "A cover line and a parked capsule cart", "two or three other pieces of cover": the cart's line and the avenue's machines
+// laid whole, seen from d11's and d10's eyes
+{
+  const said55: string[] = [];
+  let ok55 = true;
+  const part55 = (good: boolean, said: string) => {
+    ok55 &&= good;
+    said55.push((good ? "" : "NOT ") + said);
+  };
+  const CH55 = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks;
+  const S55 = SOLIDS.solids as number[][];
+  type Dr55 = { band: { piece: string; mat: string }; kerb: { pieces: string[] }; drain: { piece: string }; fields: Array<{ id: string; box: number[]; xs: number[]; zs: number[]; drains?: boolean }>; bays: { piece: string; mat: string; at: number[][] } };
+  const DS55 = (cfg.rules.districts as unknown as { stacks: { chunk: string; ground: { dress?: Dr55 }; hotel: { roof: number; roofPlant?: { perch: string; piece: string; without: string[] } } } }).stacks;
+  const GD55 = DS55.ground.dress;
+  const rows55 = CH55[DS55.chunk]?.place ?? [];
+  const is55 = (q: unknown[], name: string) => String(q[0]).endsWith(`/${name}`);
+  // (a row's footprint middle, as the layout lays a piece by it: its pivot plus the catalogue's middle, turned and scaled)
+  const cat55 = JSON.parse(readFileSync(join(process.env.PAID_DIR ?? "C:/Users/jwilb/Downloads/speedkills-paid", "neon", "catalogue.json"), "utf8")) as Array<{ path: string; min: number[] | null; max: number[] | null }>;
+  const midOf55 = (q: unknown[]): number[] => {
+    const r = cat55.find((c) => c.path.endsWith(`/${String(q[0]).split("/").pop()}`) && c.min);
+    const s = Number(q[8] ?? 1) || 1;
+    const [mx, mz] = r?.min && r.max ? [((r.min[0] + r.max[0]) / 2) * s, ((r.min[2] + r.max[2]) / 2) * s] : [0, 0];
+    const a = (Number(q[4]) * Math.PI) / 180;
+    return [Number(q[1]) + Math.cos(a) * mx + Math.sin(a) * mz, Number(q[3]) - Math.sin(a) * mx + Math.cos(a) * mz];
+  };
+  // (the camera of a review spot, the game's 92.3 degree field at 16 by 9: a point's pixel, and the first box between the eye and it)
+  const seen55 = (E: number[], A: number[], P: number[], own: number[] = [0, 0, 0, 0]) => {
+    const fw = [A[0] - E[0], A[1] - E[1], A[2] - E[2]], fl = Math.hypot(fw[0], fw[1], fw[2]);
+    const fwd = fw.map((v) => v / fl), rl = Math.hypot(fwd[2], fwd[0]), rgt = [-fwd[2] / rl, 0, fwd[0] / rl];
+    const upv = [rgt[1] * fwd[2] - rgt[2] * fwd[1], rgt[2] * fwd[0] - rgt[0] * fwd[2], rgt[0] * fwd[1] - rgt[1] * fwd[0]];
+    const d = [P[0] - E[0], P[1] - E[1], P[2] - E[2]];
+    const dz = d[0] * fwd[0] + d[1] * fwd[1] + d[2] * fwd[2], k = 1 / Math.tan((92.3 * Math.PI) / 360);
+    const px = 0.5 + ((d[0] * rgt[0] + d[2] * rgt[2]) * k) / ((16 / 9) * dz * 2), py = 0.5 - ((d[0] * upv[0] + d[1] * upv[1] + d[2] * upv[2]) * k) / (dz * 2);
+    const inFrame = dz > 0 && px > 0.02 && px < 0.98 && py > 0.02 && py < 0.98;
+    let by = "";
+    const L = Math.hypot(d[0], d[1], d[2]);
+    for (let s = 0.5; s < L - 0.6 && !by; s += 0.2) {
+      const p = [E[0] + (d[0] * s) / L, E[1] + (d[1] * s) / L, E[2] + (d[2] * s) / L];
+      // (not the thing's own boxes, `own` [x0, x1, z0, z1]: a point in a piece's middle is behind its own faces)
+      const b = S55.find((q) => p[0] > q[0] && p[0] < q[1] && p[2] > q[2] && p[2] < q[3] && p[1] > q[4] && p[1] < q[5] && !(q[0] < own[1] && q[1] > own[0] && q[2] < own[3] && q[3] > own[2]));
+      if (b) by = `a box at (${p[0].toFixed(1)}, ${p[1].toFixed(1)}, ${p[2].toFixed(1)})`;
+    }
+    return { ok: inFrame && !by, said: inFrame ? `at ${(px * 1600).toFixed(0)}, ${(py * 900).toFixed(0)}${by ? ", behind " + by : ""}` : "out of the frame" };
+  };
+  const D10 = [[-77, 1.7, -100], [-77, 7, -130]], D11 = [[-112, 1.7, -112], [-135, 6, -138]];
+  // (1) the dress: each field's bands, a tile every 2 m of every line, in the cobble and drawn only; kerbs and drains
+  const fields55 = (GD55?.fields ?? []).map((F) => {
+    const [x0, x1, z0, z1, y] = F.box;
+    const inF = (q: unknown[]) => {
+      const [mx, mz] = midOf55(q);
+      return mx >= x0 - 0.8 && mx <= x1 + 0.8 && mz >= z0 - 0.8 && mz <= z1 + 0.8 && Math.abs(Number(q[2]) - y) < 0.2;
+    };
+    const want = F.xs.length * Math.round((z1 - z0) / 2) + F.zs.length * Math.round((x1 - x0) / 2);
+    const bands = rows55.filter((q) => is55(q, GD55!.band.piece) && inF(q) && q[6] === GD55!.band.mat && q[5] === "g").length;
+    const kerbs = rows55.filter((q) => GD55!.kerb.pieces.some((n) => is55(q, n)) && inF(q) && q[5] === "g").length;
+    const drains = rows55.filter((q) => is55(q, GD55!.drain.piece) && inF(q) && q[5] === "g").length;
+    return { id: F.id, want, bands, kerbs, drains, wantDrains: F.drains ? F.xs.length * F.zs.length : 0 };
+  });
+  const bays55 = rows55.filter((q) => GD55 && is55(q, GD55.bays.piece) && q[6] === GD55.bays.mat && q[5] === "g" && Number(q[2]) < 0.1).length;
+  const ids55 = new Set(fields55.map((f) => f.id));
+  part55(!!GD55 && ["court", "plaza", "roof"].every((id) => ids55.has(id)) && fields55.every((f) => f.bands === f.want && f.kerbs >= f.want && f.drains === f.wantDrains) && bays55 === (GD55?.bays.at.length ?? -1) && bays55 >= 8,
+    `THE STACKS' ground dressed: ${fields55.map((f) => `${f.id} ${f.bands} of ${f.want} band tiles, ${f.kerbs} kerbs, ${f.drains} of ${f.wantDrains} drains`).join("; ") || "no dress"}; ${bays55} bays painted`);
+  // (seen: d11 a point on the band along z -115 3 m before its eye, d10 one on the band along z -105 on the avenue's axis)
+  const b11 = seen55(D11[0], D11[1], [-116, 0.05, -115]), b10 = seen55(D10[0], D10[1], [-77, 0.05, -105]);
+  const there55 = (x: number, z: number) => rows55.some((q) => GD55 && is55(q, GD55.band.piece) && Math.abs(Number(q[2])) < 0.2 && Math.hypot(midOf55(q)[0] - x, midOf55(q)[1] - z) < 1.2);
+  part55(b11.ok && b10.ok && there55(-116, -115) && there55(-77, -105), `a band from d11 ${there55(-116, -115) ? b11.said : "not there"}, from d10 ${there55(-77, -105) ? b10.said : "not there"}`);
+  // (2) the roof's plant: every street box the perch laid on the hotel roof without its mast, and nothing over its cabinet
+  const RP55 = DS55.hotel.roofPlant;
+  const PB55 = ((cfg.rules as unknown as { perches?: Array<{ name: string; box: number[]; y: number[] }> }).perches ?? []).find((q) => q.name === RP55?.perch);
+  const boxes55 = (CH55["c-dress"]?.place ?? []).filter((q) => !!RP55 && !!PB55 && is55(q, RP55.piece) && Number(q[1]) >= PB55.box[0] && Number(q[1]) <= PB55.box[1] && Number(q[3]) >= PB55.box[2] && Number(q[3]) <= PB55.box[3] && Number(q[2]) >= PB55.y[0] && Number(q[2]) <= PB55.y[1] + 0.2);
+  const bare55 = boxes55.filter((q) => JSON.stringify(q[7] ?? []) === JSON.stringify(RP55?.without ?? ["-"])).length;
+  // (its mast in the collision: a box over a metre and a quarter above its foot within 1.33 by 2.66 m round its pivot, turned as it
+  // is: the mast stands on the pivot, the cabinet round it, the foot cables reach out on one side)
+  const masts55 = boxes55.filter((q) => {
+    const [x, y, z, yaw] = [Number(q[1]), Number(q[2]), Number(q[3]), Number(q[4])];
+    const [hx, hz] = Math.round(yaw / 90) % 2 ? [1.33, 0.665] : [0.665, 1.33];
+    return S55.some((b) => b[0] < x + hx && b[1] > x - hx && b[2] < z + hz && b[3] > z - hz && b[5] > y + 1.25 && b[4] < y + 5);
+  }).length;
+  part55(boxes55.length >= 1 && bare55 === boxes55.length && masts55 === 0, `the hotel roof's street boxes: ${bare55} of ${boxes55.length} without their mast, ${masts55} with a mast in the collision`);
+  // (3) the cover: the cart's line and the avenue's machines, each laid whole (the positions' check climbs them), seen from d11 and d10
+  const LP55 = ((cfg as unknown as { posts?: Array<{ id: string; box: number[]; top: number; parts: number }> }).posts ?? []);
+  const post55 = (id: string) => LP55.find((p) => p.id === id);
+  const mid55 = (id: string, y: number) => { const b = post55(id)?.box; return b ? [(b[0] + b[1]) / 2, y, (b[2] + b[3]) / 2] : [0, -99, 0]; };
+  const cart55 = post55("stacks-cart"), mw55 = post55("stacks-mouth-w"), me55 = post55("stacks-mouth-e");
+  const pods55 = (CH55["c-dcover"]?.place ?? []).filter((q) => is55(q, "RoomSemiCapsule02_10x2.5.prefab") && Number(q[8] ?? 1) === 0.5 && Number(q[1]) > -116 && Number(q[1]) < -104 && Number(q[3]) > -136 && Number(q[3]) < -124).length;
+  const c11 = seen55(D11[0], D11[1], mid55("stacks-cart", 1.2), cart55?.box), w10 = seen55(D10[0], D10[1], mid55("stacks-mouth-w", 1.6), mw55?.box), e10 = seen55(D10[0], D10[1], mid55("stacks-mouth-e", 1.6), me55?.box);
+  // (and before d10's eye, within 11 m of it, where version 144 had two cooling units and no other piece of the district's cover:
+  // THE STACKS' ticket machines more than twice its cooling units, whatever the fill lays round them)
+  const near10 = ((cfg as unknown as { districtCover?: Array<{ piece: string; c: number[]; d: string }> }).districtCover ?? []).filter((q) => q.d === "stacks" && Math.hypot(q.c[0] + 77, q.c[1] + 100) < 11);
+  const cool10 = near10.filter((q) => q.piece.startsWith("Coolbox")).length, mach10 = near10.filter((q) => q.piece.startsWith("TicketMachine")).length;
+  part55(!!cart55 && cart55.parts === 3 && pods55 === 1 && !!mw55 && mw55.parts === 4 && !!me55 && me55.parts === 4 && c11.ok && w10.ok && e10.ok && mach10 >= 8 && mach10 > 2 * cool10,
+    `THE STACKS' court: ${cart55 ? `a capsule cart's line ${cart55.box.join(", ")} to ${cart55.top} m, ${pods55} pod at half size` : "no cart"}, from d11 ${c11.said}; the avenue's machines ${[mw55, me55].filter(Boolean).length} of 2, from d10 ${w10.said} and ${e10.said}; within 11 m of d10's eye ${mach10} ticket machines, ${cool10} cooling units`);
+  check("THE STACKS' ground and cover, its roof (Milestone 1155): bands of the deck's cobble, kerbs and drains on the court, the plaza and the hotel roof, the car park's bays painted, seen from d11 and d10; the roof's street boxes without their mast; a capsule cart's line in the court and ticket machines either side of the avenue's mouth, seen from d11 and d10", ok55, said55.join("; "));
+}
+
+// The Loop's places from the drop and by where they are (Milestone 1149; the centre's twenty-fifth reviews of version 144,
+// both, first: A "the twelve plaza places size and silhouette from the drop: coloured roofs at 3 to 4 m", B "each type its
+// own big coloured roof or canopy (the shelters one colour, the kiosk pairs another, the cover posts a third)", "in 02 and 03
+// they are invisible"; both broken "04: MOTEL KIOSK beside THE LOBBY", B "06: a kiosk crate with brick and moss texture on a
+// glossy black base"). Each set roofed in its kind's own colour worn as a glow on the roof's top (the north-east sets stand
+// in the tower's shadow at golden hour, where a lit colour reads near black), the three kinds' colours apart, every roof
+// over a standing head and under the Sky Ring's fence top, clear of the fence and big enough to see, each canopy colliding
+// over its middle, every crate of a set in its kind's colour, and each set named for its bearing's compass point and its kind
+{
+  type Pk1149 = { sets: Array<[string, string, string, number, number]>; glows: Record<string, string>; colours: Record<string, string>; tops: Record<string, string[]>; crates: Record<string, string[]>; compass: string[]; words: Record<string, string>; ringClear: number; roofArea: number; roofTop: number[] };
+  type Rec1149 = { id: string; kind: string; name: string; b: number; c: number[]; parts: Array<{ piece: string; c: number[]; yaw: number; hu: number; hv: number; y: number; top: number; how: string }> };
+  const PKq = (cfg.rules.dress as unknown as { pockets?: Pk1149 }).pockets;
+  const PKs2 = (cfg as unknown as { pockets?: Rec1149[] }).pockets ?? [];
+  const dressq = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-dress"]?.place ?? [];
+  const R1q = (cfg.rules as unknown as { skyring: { r1: number } }).skyring.r1;
+  const Sq = (SOLIDS as { solids: number[][] }).solids.filter((b) => Math.abs(b[0]) < 60 && Math.abs(b[2]) < 60 && b[4] > 3 && b[4] < 5);
+  const PAIDq = process.env.PAID_DIR ?? "C:/Users/jwilb/Downloads/speedkills-paid";
+  const catq = existsSync(join(PAIDq, "neon", "catalogue.json")) ? (JSON.parse(readFileSync(join(PAIDq, "neon", "catalogue.json"), "utf8")) as Array<{ path: string; size: number[] | null; min: number[] | null; max: number[] | null }>) : [];
+  const rowq = new Map<string, { size: number[]; min: number[]; max: number[] }>();
+  for (const r of catq) if (r.size) rowq.set(r.path.split("/").pop()!, r as { size: number[]; min: number[]; max: number[] });
+  // (a part's laid row in c-dress: its piece, its turn and its footprint's middle, as the pockets' check finds it)
+  const laidq = (p: Rec1149["parts"][number]) =>
+    dressq.find((q) => {
+      if (!String(q[0]).endsWith(`/${p.piece}`) || Math.abs(Number(q[4]) - p.yaw) > 0.02) return false;
+      const r = rowq.get(p.piece);
+      if (!r) return false;
+      const sc = Number(q[8] ?? 1) || 1, a = (Number(q[4]) * Math.PI) / 180;
+      const [mx, mz] = [((r.min[0] + r.max[0]) / 2) * sc, ((r.min[2] + r.max[2]) / 2) * sc];
+      const [x, z] = [Number(q[1]) + Math.cos(a) * mx + Math.sin(a) * mz, Number(q[3]) - Math.sin(a) * mx + Math.cos(a) * mz];
+      return Math.hypot(x - p.c[0], z - p.c[1]) < 0.03 && Math.abs(Number(q[2]) - (p.y - r.min[1] * sc)) < 0.03;
+    });
+  const wearq = (q: unknown[] | undefined) => new Map(String(q?.[6] ?? "").split(";").filter((s) => s.includes("=")).map((s) => s.split("=") as [string, string]));
+  const roofless: string[] = [], dull: string[] = [], sized: string[] = [], nearRing: string[] = [], soft: string[] = [], mixed: string[] = [], misnamed: string[] = [];
+  for (const S of PKs2) {
+    const [piece, top] = PKq?.tops[S.kind] ?? [];
+    const roof = S.parts.find((p) => p.piece === piece);
+    const row = roof && laidq(roof);
+    if (!roof || !row) {
+      roofless.push(S.id);
+      continue;
+    }
+    // its top worn in its kind's glow
+    if (wearq(row).get(top) !== PKq!.glows[S.kind]) dull.push(`${S.id} ${wearq(row).get(top) ?? "unworn"}`);
+    // over a standing head and under the Sky Ring's fence, and big enough to read from the drop
+    if (!(roof.top >= PKq!.roofTop[0] && roof.top <= PKq!.roofTop[1]) || 4 * roof.hu * roof.hv < PKq!.roofArea) sized.push(`${S.id} ${roof.top} m, ${(4 * roof.hu * roof.hv).toFixed(1)} m2`);
+    // clear of the Sky Ring's fence: its footprint's every corner `ringClear` past the deck's outer edge
+    const a = (roof.yaw * Math.PI) / 180;
+    const rin = Math.min(...[[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([s, t]) => Math.hypot(roof.c[0] + Math.cos(a) * s * roof.hu + Math.sin(a) * t * roof.hv, roof.c[1] - Math.sin(a) * s * roof.hu + Math.cos(a) * t * roof.hv)));
+    if (rin < R1q + PKq!.ringClear) nearRing.push(`${S.id} ${rin.toFixed(2)} m`);
+    // a canopy (drawn as its own faces) colliding over its middle, as the shelters' roofs do in the pockets' check
+    if (roof.how === "o" && roof.y > 0 && !Sq.some((b) => b[4] < roof.top && b[5] > roof.y && roof.c[0] >= b[0] - 0.25 && roof.c[0] <= b[1] + 0.25 && roof.c[1] >= b[2] - 0.25 && roof.c[1] <= b[3] + 0.25)) soft.push(S.id);
+    // every crate in its kind's colour: no crate of another kit stacked on one of its own
+    for (const p of S.parts) {
+      const body = PKq!.crates[p.piece];
+      if (!body) continue;
+      const w = wearq(laidq(p));
+      if (body.some((m) => w.get(m) !== PKq!.colours[S.kind])) mixed.push(`${S.id} ${p.piece} at ${p.y} m`);
+    }
+    // named for where it stands: its bearing's compass point (0 north, -z, as the HUD's strip) and its kind
+    const comp = (((S.b + 90) % 360) + 360) % 360;
+    const want = `${PKq!.compass[Math.floor(((comp + 22.5) % 360) / 45)]} ${PKq!.words[S.kind]}`;
+    if (S.name !== want) misnamed.push(`${S.id} "${S.name}" (${want})`);
+  }
+  // the three kinds' colours apart, each roof's glow its plain colour's own
+  const kinds1149 = Object.keys(PKq?.glows ?? {});
+  const apart = kinds1149.length === 3 && new Set(kinds1149.map((k) => PKq!.colours[k])).size === 3 && kinds1149.every((k) => PKq!.glows[k].startsWith(`${PKq!.colours[k]}~#`));
+  const twins = PKs2.filter((S, i) => PKs2.findIndex((T) => T.name === S.name) !== i).map((S) => S.name);
+  check(
+    "the Loop's places from the drop (Milestone 1149): each set roofed in its kind's own glowing colour (the stops red, the kiosk pairs blue, the corner posts yellow), its roof over a head, under the Sky Ring's fence and clear of it, each canopy colliding, every crate in its set's colour, each named for its compass point and its kind",
+    !!PKq && PKs2.length === PKq.sets.length && PKs2.length >= 8 && apart && roofless.length === 0 && dull.length === 0 && sized.length === 0 && nearRing.length === 0 && soft.length === 0 && mixed.length === 0 && misnamed.length === 0 && twins.length === 0,
+    `${PKs2.length} sets, colours ${apart ? kinds1149.map((k) => `${k} ${PKq!.colours[k]}`).join(", ") : "not apart"}; ${roofless.length} roofless${roofless.length ? ` (${roofless.join(", ")})` : ""}, ${dull.length} roofs not in their glow${dull.length ? ` (${dull.slice(0, 3).join("; ")})` : ""}, ${sized.length} roofs off height or small${sized.length ? ` (${sized.slice(0, 3).join("; ")})` : ""}, ${nearRing.length} near the Sky Ring${nearRing.length ? ` (${nearRing.slice(0, 3).join("; ")})` : ""}, ${soft.length} canopies not colliding${soft.length ? ` (${soft.join(", ")})` : ""}; ${mixed.length} crates of another kit${mixed.length ? ` (${mixed.slice(0, 3).join("; ")})` : ""}; ${misnamed.length} misnamed${misnamed.length ? ` (${misnamed.slice(0, 3).join("; ")})` : ""}${twins.length ? `, twins ${twins.join(", ")}` : ""}`,
   );
 }
 

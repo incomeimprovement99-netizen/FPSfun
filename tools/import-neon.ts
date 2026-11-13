@@ -370,13 +370,17 @@ if (mode === "bake") {
       const guid = `derived:${spec}`;
       if (mats.has(guid)) return guid;
       const [base, rest] = spec.split("~");
-      const [hex, k] = rest.split("|");
+      // ("Name~#rrggbb|k%s": and its smoothness times s, as "*#" takes it, Milestone 1151. THE VAULT's gold is the pack's
+      // scratched steel maps under a gold colour, metal 1 and roughness 0.22, so its walls mirrored the city's one reflection
+      // picture, taken in the plaza: green where the plaza is green, the centre's twenty-fifth reviews' "green smudges" in 28)
+      const [hex, kk] = rest.split("|");
+      const [k, soft] = (kk ?? "").split("%");
       const bg = pack.matFor(base);
       const info = bg ? readMaterial(pack, bg) : null;
       if (!info) throw new Error(`no material ${base} to derive ${spec} from`);
       const n = parseInt(hex.replace("#", ""), 16);
       const at = Number(k || 1);
-      mats.set(guid, { ...info, name: spec.replace(/[~|#]/g, "_"), emission: [(((n >> 16) & 255) / 255) * at, (((n >> 8) & 255) / 255) * at, ((n & 255) / 255) * at], emissive: info.map });
+      mats.set(guid, { ...info, name: spec.replace(/[~|#%]/g, "_"), smooth: info.smooth * (soft ? Number(soft) : 1), emission: [(((n >> 16) & 255) / 255) * at, (((n >> 8) & 255) / 255) * at, ((n & 255) / 255) * at], emissive: info.map });
       return guid;
     }
     // ("Name^#hex": the colour and the glow both tinted; a lit window's light is its emission, which a "*#" tint of the

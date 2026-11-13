@@ -106,12 +106,13 @@ tier belongs, and their roofs are a handful of small boxes.
 
 ### 3.4 The light
 
-The golden hour's sun stands at 15 degrees (sky.json, `dir` [0.78, 0.26, 0.57]) with no fill light. Shadows are 3.7 times
-as long as what casts them. Batch 12's agents each measured the same thing in their own corner: container faces at 1, 1, 3;
-the plaza's ground at 1 to 33; hedges at 29, 50, 27. Each answered with a glow on its own material, which then stands out
-at night. A sun at 30 to 35 degrees halves the shadow length, lights most of the ground, and stretches each shadow texel
-half as far across the ground, which is the stair-stepping all four reviewers name every round. A modest sky fill lifts
-what stays in shade. It is one config change, a look decision, and it touches every picture at once.
+The golden hour's sun stands at 15 degrees (sky.json, `dir` [0.78, 0.26, 0.57]). Shadows are 3.7 times as long as what
+casts them, and what lights them is the sky alone: its environment light and a fill, a hemisphere light at 0.75 beside a
+sun of 2.9. Batch 12's agents each measured the same thing in their own corner: container faces at 1, 1, 3; the plaza's
+ground at 1 to 33; hedges at 29, 50, 27. Each answered with a glow on its own material, which then stands out at night. A
+sun at 30 to 35 degrees halves the shadow length, lights most of the ground, and stretches each shadow texel half as far
+across the ground, which is the stair-stepping all four reviewers name every round. A stronger sky fill lifts what stays
+in shade. It is one config change, a look decision, and it touches every picture at once.
 
 For play it matters more than for pictures: a body in black shade is invisible at 14 m/s.
 
@@ -149,7 +150,7 @@ Each step names its measure, so it can be seen to work.
 have been tried.
 
 **Step 1. The light, once.** Shoot the same six pictures (02, 05, 06, d04, d11, d22) four ways: as now; the sun at 32
-degrees; the sun at 32 with a sky fill; and the existing hazy day. The owner picks. Then take back the glows the agents
+degrees; the sun at 32 with the sky fill raised; and the existing hazy day. The owner picks. Then take back the glows the agents
 added to fight the shade, where they now overdo it. Measure: the share of daytime pixels under 30 of 255, 18% now, under 6%.
 Cost: a day. Owner's decision: the look.
 
@@ -197,7 +198,7 @@ fence, which fills half of every aerial with plain boxes.
 
 ## 6. Decisions that are the owner's
 
-1. The look: a higher sun and a fill light at the default hour, picked from four pictures.
+1. The look: a higher sun and a stronger fill light at the default hour, picked from four pictures.
 2. Whether the next versions go to play (steps 2 and 3) instead of another picture-driven batch.
 3. Playing matches, and asking two friends to. Nothing else measures fun.
 4. Who takes the shadows and the ending: both are outside the map.

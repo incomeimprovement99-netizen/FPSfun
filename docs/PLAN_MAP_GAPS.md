@@ -511,7 +511,40 @@ built must read as what it is at picture size. **Built as version 144:**
 - THE STACKS' second stair and barrier lines, THE TERRACES' deeper rooms (stacks11.md).
 - The shadows (4.11), haze past the fence.
 
-### 6.6 Reaching 7, and then 8
+### 6.6 Batch 12 (built 2026-11-13 as version 145, Milestones 1149 to 1157)
+
+**What round 25 showed** (version 144): the centre held at 6.4 and 6.4; the districts rose to 6.3 and 6.3, THE STRIP at
+7.0 in one review. Batch 11 was read where the pictures show it. Read wrong or not at all: GLASS HEIGHTS' screens as
+loungers, THE WORKS' ring-road containers as black slabs, the plaza's twelve places from the drop, the lookout's brick
+plinth, "MOTEL KIOSK" beside THE LOBBY. Batch 12 kept the two rules (build where the cameras look; what is built must read
+as what it is) and added a third: no material clash, each colour measured where the camera sees it, in shade.
+**Built as version 145:**
+- **Eight proposal agents' items:**
+  - the plaza's twelve places under coloured roofs and canopies, named by the compass (1149);
+  - the lookout's legs clad in the cap's steel, its middle in the lit kit wall, each ring bridge in its block's colour
+    (1150);
+  - THE LOBBY under the atrium's box, the lower court's seam plate, name and lane block, THE VAULT's door surround and
+    calmer gold (1151);
+  - GLASS HEIGHTS' benches up, every street screen on a plinth, 25 units with wings in L and U (1152);
+  - THE WORKS' containers glowing their own ribbed map, its hall ceiling in steel panels (1153);
+  - THE TERRACES' hedges in the cypress leaf and terracotta troughs, its room's counter and lower lamps (1154);
+  - THE STACKS' cobble bands, kerbs, gullies and bays, its mast gone, a capsule pod and ticket machines as cover (1155);
+  - the broken by picture: THE STRIP's step outlines, its stage's four ads, pad e-out's column, the station's marble, THE
+    CANYON's panes, the catwalk's end tiles (1156).
+- **Mine:** the tower in one cyan but THE VAULT's gold, the lantern pools halved and varied, THE WORKS' name larger, the
+  loop's guard for MARKET's stations (1157).
+
+**No batch 13 is planned.** The owner's ask of 2026-11-13 was an analysis of what holds the map at 6.4
+(docs/PLAN_MAP_TO_8.md). Its finding: ten rounds of these batches moved the centre 0.04 a round, and what sets the score
+(the light, the shadows, how the map plays at a 14 m/s sprint) is in no item list. The next work is that plan's steps 1 to
+3, on the owner's word. What stays open here:
+- The shadows (4.11), haze past the fence.
+- From batch 11's list: THE CANYON's islands stepped, THE TERMINAL's wagon at a platform, GLASS HEIGHTS' deck sculpture,
+  THE STACKS' second stair, THE TERRACES' deeper rooms.
+- THE STRIP's step outlines still close into one band seen from the pyramid's top (d17).
+- GLASS HEIGHTS' street planters still read as seats (d13b): planting their soil drew green patches on the white box.
+
+### 6.7 Reaching 7, and then 8
 
 **For 7,** play-style and finish have to move. Flow (7) and fun (6.5 to 7) are already there. Batches 7 and 8 are
 mostly play-style; the finish list is cleared each batch, picture by picture. The shadows (4.11) are the largest single

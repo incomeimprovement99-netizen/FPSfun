@@ -217,6 +217,10 @@ export function neonFillColours(): THREE.Color[] {
 export function neonFillPool(): number {
   return FILL.lights.length;
 }
+/** each fill spot's power, the spots' order (the checks: THE TERRACES' rooms' lamps at game.fill.rooms, Milestone 1154) */
+export function neonFillPower(): number[] {
+  return FILL.power;
+}
 export function updateNeonFill(eye: THREE.Vector3): void {
   if (!FILL.lights.length) return;
   const F = G.fill;
@@ -738,10 +742,12 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     }
     // and the boards the game config names (`game.boards`, Milestone 871: THE TERMINAL's departures and clock), each a
     // filled plate as a district's name is
-    for (const q of (neonCfg as unknown as { game: { boards?: Array<{ text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back: string }> } }).game.boards ?? []) {
+    // (a board may be tipped, `pitch` degrees about its own x before its yaw, Milestone 1151: THE LOBBY under the atrium's box
+    // faces down, as picture 29 sees the box from under it)
+    for (const q of (neonCfg as unknown as { game: { boards?: Array<{ text: string; at: number[]; yaw: number; pitch?: number; w: number; h: number; colour: string; back: string }> } }).game.boards ?? []) {
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.h), new THREE.MeshBasicMaterial({ map: neonLetters(q.text, q.colour, q.w, q.h, { back: q.back, fill: true }), transparent: true, depthWrite: false, toneMapped: false }));
       mesh.position.set(q.at[0], q.at[1], q.at[2]);
-      mesh.rotation.y = (q.yaw * Math.PI) / 180;
+      mesh.rotation.set(((q.pitch ?? 0) * Math.PI) / 180, (q.yaw * Math.PI) / 180, 0, "YXZ");
       mesh.name = "neon:board";
       mesh.userData.dynamic = true;
       mesh.renderOrder = NAMES_ORDER;
@@ -822,14 +828,21 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       const near: Solid[] = [];
       const solid = (q: THREE.Vector3) =>
         solidsIn(q.x - off, q.x + off, q.z - off, q.z + off, near).some((s) => own.has(s) && q.x > s.minX - off && q.x < s.maxX + off && q.z > s.minZ - off && q.z < s.maxZ + off && q.y > s.base && q.y < s.top);
-      FILL.spots = raw.filter((q) => !solid(q));
+      // (THE TERRACES' rooms' lamps, `rooms`, Milestone 1154; the districts' nineteenth reviews of version 144, d06: "the ceiling
+      // blown out to white": a room 2.5 m high lit at the base's strength 0.18 m under its ceiling drew it white out to 0.8 m. Each
+      // such spot `drop` m lower and at `k`; a copy, as the boxes come in more than once)
+      const FRm = (F as unknown as { rooms?: { k: number; drop: number } }).rooms;
+      const TRm = ((neonCfg as unknown as { terraces?: { rooms?: number[][] } }).terraces?.rooms ?? []) as number[][];
+      const cellT = (neonCfg.rules as unknown as { districts: { terraces?: { cell?: number } } }).districts.terraces?.cell ?? 5;
+      const inTerr = (q: THREE.Vector3) => TRm.some(([x0, z0, floor, top]) => q.x - BR_X > x0 && q.x - BR_X < x0 + cellT && q.z - BR_Z > z0 && q.z - BR_Z < z0 + cellT && q.y > floor && q.y < top);
+      FILL.spots = raw.map((q) => (FRm && inTerr(q) ? q.clone().setY(q.y - FRm.drop) : q)).filter((q) => !solid(q));
       // (a tower floor's lamp: inside the tower's square, over its lowest new floor)
       const sq = neonCfg.tower.square as number[];
       const lowest = Math.min(...Object.keys(neonCfg.rules.tower.floors.at).map(Number));
       // (and a High City room's, cfg.highRooms, Milestone 1126: its storey 3 m under a pale ceiling, as a tower floor's)
       const HRm = (neonCfg as unknown as { highRooms?: { rooms: Array<{ floor: number; top: number; rects: number[][] }> } }).highRooms?.rooms ?? [];
       const inRoom = (q: THREE.Vector3) => HRm.some((r) => q.y > r.floor && q.y < r.top && r.rects.some(([x0, x1, z0, z1]) => q.x - BR_X > x0 && q.x - BR_X < x1 && q.z - BR_Z > z0 && q.z - BR_Z < z1));
-      FILL.power = FILL.spots.map((q) => ((q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest) || inRoom(q) ? F.tower : F.intensity));
+      FILL.power = FILL.spots.map((q) => (FRm && inTerr(q) ? FRm.k : (q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest) || inRoom(q) ? F.tower : F.intensity));
       // (a tower floor's lamp in its floor's `light`, the floor the highest of floors.at under it; any other spot, and a
       // floor that names none, the fill's own colour: one pool, so a light takes its spot's colour each frame)
       const FA = neonCfg.rules.tower.floors.at as unknown as Record<string, { light?: string }>;

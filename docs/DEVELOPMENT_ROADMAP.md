@@ -20560,3 +20560,93 @@ and baked as one version with the map agent's own 1144 to 1148.
   ALLEYS' brick found by its material (1128), THE CANYON's tone and frame (1131, 1129), the perches' count (1141), the
   bands (1077).
 - **Checked:** verify, rules and tsc. Map files version 144: lo 245.7 MB, hi 329.8 MB, max 649.7 MB.
+
+## Milestones 1149 to 1157 — batch 12: the plaza's places coloured and named by the compass, the lookout in one kit and the bridges in their blocks' colours, the atrium's box, the court and THE VAULT's door, GLASS HEIGHTS' cover as walls, THE WORKS' containers lit, THE TERRACES' hedges and room, THE STACKS' ground, the broken by picture, the tower in one light but THE VAULT's gold
+
+From the twenty-fifth fresh reviews (2026-11-12, on version 144: the centre 6.4 and 6.4, held; the districts 6.3 and 6.3,
+from 6.2 and 6.3). Batch 12 kept batch 11's two rules (build where the cameras look; what is built must read as what it is)
+and added a third: no material clash. Each colour was measured where the camera sees it, in shade. Eight proposal agents
+measured the items as dry runs on version 144's files; they were applied here one at a time, each checked live first, then
+laid and baked as one version with the map agent's own 1157.
+
+- **1149, the plaza's twelve places read from the drop** (round 25, both centre reviewers, first: "the twelve places
+  cannot be told apart from the drop: each type its own big coloured roof or canopy"; both: "a MOTEL KIOSK sign beside THE
+  LOBBY"; B "06: a brick-and-moss crate on a glossy black base"). The shelters' own roofs worn red, a blue 8 by 4 m canopy
+  over each kiosk pair at 3.6 m and a yellow 4 by 2 m one over each post at 4.2 m, each on two slim pipe legs, their tops
+  glowing (the near quarter in 02 sits in shade, its ground 1 to 33 of 255) and their edges lit; every crate in its set's
+  colour; the sets named by the compass (NORTH KIOSK, NE STOP, SW CORNER), the 16 boards renamed in place.
+- **1150, the lookout in one kit, the bridges in their blocks' colours** (round 25, both centre reviewers: "10b: a brick
+  plinth under a steel cap", "the plain concrete slabs panel detail and a lit edge"; A "a yellow machine clipping the wall";
+  A and B "each bridge of the ring its own deck colour"). The "plinth" is the raised middle's four brick legs, part of the
+  tower's model: each of their 16 faces clad in the cap's steel (the pack's corner piece, drawn only), not the brick
+  remapped, which would turn the court's brick to steel as well. The middle's seven panels wear the lit kit wall of the
+  north deck's lobe; the chest 1.5 m north, its end clear of the west wall in 10b; each of the four ring bridges in the
+  colour of the block it leaves (rules.bridges.wear).
+- **1151, the atrium's box, the court's west room and middle lane, THE VAULT's door** (round 25, both centre reviewers:
+  "29: the atrium sign box's face blank pale cyan"; B "20: the court's west room a beige box, its ceiling opening's ragged
+  wavy edge"; A "a solid block halfway down the court's middle lane", "30: the tiled wall shows between the round door and
+  its frame", "28: green smudges on the gold"). The blank face was the box's underside glow: a board may now be pitched, and
+  THE LOBBY hangs face-down under it, upright in 29. The ragged edge is where the base's ground slab, cut in 0.1 m cells
+  round the tower's round-cornered tiles, meets them: one plate covers the seam with magenta strips, and LOWER COURT in
+  magenta goes over the fan unit. A 0.8 by 1.6 by 2.4 m block of the court's own pillar piece stands half down the lane,
+  0.45 m off the bots' link. A gold skin covers the tiles round the round door's ring. The vault's gold mirrored the
+  plaza's reflection picture: its walls' smoothness is halved (a `%s` factor on `~` specs in the bake).
+- **1152, GLASS HEIGHTS' cover as walls** (round 25, both district reviewers, first: "the white bench-and-screen loungers",
+  "a furniture showroom": "frosted walls on concrete plinths in L and U shapes"). The 40 kit benches on the street taken
+  up; every street screen on a solid 2 by 0.6 by 1.2 m plinth; each base's strip body white with its cyan line (it rendered
+  a dark brown bar in shade, 55, 36, 33); 33 wings of the kit's low screen on 25 units, 8 U's and 17 L's, each 1.6 m clear of
+  all else, off the bots' grid, the name's sight lines and the lift's line. glass-lift-s's climb goes onto its screen's top.
+- **1153, THE WORKS' containers lit, its hall ceiling** (round 25, both district reviewers: "d22: black slabs, no ribs or
+  colour"; both "d23: the ceiling a noisy striped moire"). Measured in d22, the containers' faces in shade rendered 1, 1, 3
+  and 0, 7, 23: the ribbed map is dark (linear 0.122) and batch 11's tints multiplied it. Each paint now glows its own ribbed
+  map (red `~#ff785c|2.1`, blue `~#5e9eff|2.6`, grey the deck's `~#c8d4e8|1.5`), predicted about 160, 59, 42 and 52, 100,
+  165 in d22's shade. The hall's ceiling is 2 m grey steel panels for the 0.3 m grooves.
+- **1154, THE TERRACES' hedges and room** (round 25, both district reviewers: "the hedge cubes flat green crates";
+  "d06: the ceiling blown out", "the stepped bench reads as a stair"). The hedges (the street cover's sets facing THE
+  TERRACES, measured 29, 50, 27 in d04) wear the cypresses' own leaf, lit a little to show in shade, each in a terracotta
+  trough laid after the fill's test (districtCover.troughs), the bins and boxes terracotta planters with leafy tops. The
+  "bench" was the rack seen end on: a 2 m timber counter of four bar modules in its place. The room's lamps hung 0.18 m
+  under its ceiling at the base's 60: 0.8 m lower at 15 (game.fill.rooms).
+- **1155, THE STACKS' ground and cover, its roof** (round 25, both district reviewers: "the pink pavement like a rubber
+  mat", "the cooling units the only cover"; B "d12: an odd floating mast"). A 1 m band of the deck's cobble along every 10 m
+  seam of the court, the plaza before Building 10 and the hotel roof's wings, kerbs flush along each band, gullies where
+  they cross and 12 painted bays, all drawn only (stacks.ground.dress). The mast was the stacks-roof perch's street box laid
+  twice: both keep only their 1 m cabinet (hotel.roofPlant), the perch itself untouched. A half-size capsule pod with two
+  ticket machines in the court cell d11 looks into, and two ticket machines at the mouth d10 sees (districtCover.posts).
+- **1156, the broken by picture** (round 25: both district reviewers "d17: a pink streak", "d20: the smeared window
+  texture"; B "d16: the same ad four times", "d09: the yellow slab"; centre A "27: the pad column half inside the face",
+  "21: the black marble's white smears"). The streak was the pyramid's step outlines laid at the collision's 0.76 m a metre
+  where the drawn face slopes 0.714: steps 8 to 12 cut into it and step 14 shared the rim band's plane; the 14 lie 1 cm proud
+  of the measured face. The stage's four screens four ads; pad e-out's column off (1.31 m from the facade, the pillar
+  behind it the same pink); the station's marble at `@2y`; THE CANYON's storey panes at twice their texels; the catwalk's
+  end tiles the deck's own tile lit amber. Measured and left: d21's discs are THE CANYON's four pads, 14's beam is zip rope 2
+  at 2.3 m, 17's rope foot is at catch height by design, 17's crate is level (the lens tilts it).
+- **1157, the tower in one light but THE VAULT's gold, and the lantern pools halved** (round 25, B rank 2: "replace the
+  rainbow storey bands (09, 14) with one palette so THE VAULT's gold stands alone"; round 24 B rank 5, "THE VAULT's 32 m band
+  lit gold from outside", not seen; round 25 A, night 23: "the plaza's lamp pools read as a field of evenly spread polka
+  dots"). Every played storey of the tower but THE VAULT's now lights its bands and window strips in one cyan (Light06
+  #2ee6ff at 1.5, a light the map wears already), so the vault's two storeys are the one gold band up it; thirteen colours
+  made the gold one band among many, and twelve glow variants leave the draw. Measured off a crop of night 23, the polka dots
+  are the small red pools under NOODLE ROW's and LANTERN ALLEYS' lanterns, 2.4 m round at 0.7 under every third lantern, 261
+  in rows along each line: now under every sixth at 0.55, each its own size and strength (`vary`, as the street lamps' since
+  Milestone 1148).
+- **1157 also, THE WORKS' name larger** (round 25, districts A: "d22: THE WORKS signs too small to read at 40 m"): the name
+  on hall s2's north face is 14 by 2.8 m for 9 by 1.8, the works block's own size (works12 measured it 104 by 35 pixels in
+  d22, partly behind the gantry's legs).
+- **Batch 12's loop** (Milestone 1157): the first loop cut 14 street nodes off the rest (two checks: the street one
+  network, the bots' way to every capture zone): the plaza's canopies' legs moved MARKET's first stations off the
+  south-west fork, and a stall set on sw-w with the one across from it shut the node at (-45, 35) in the game's graph off
+  the baked columns. The stations keep 4 m off that node (rules.dress.carriage.keep, as the stations between already did).
+  Tried and dropped from the first pictures: GLASS HEIGHTS' street planters' soil in the hedges' leaf (d13b: the white
+  planter before each plinth reads as a seat). The planter's soil material also covers parts of its sides, so it drew as
+  green patches on a white box, and two checks hold GLASS HEIGHTS' cover to its decks' white kit. Left as glass12 built it. THE
+  STRIP's step outlines (d17) now lie clean on the face; from the pyramid's top they still close into one band, looked
+  along their own slope.
+- **Checks that learned the new work:** 485 map checks at every size, 477 before (eight more), draws 205 primitives at the low size and 218 at the largest of the 220 ceiling. Each new one fails with its fault put back (the agents' proofs in
+  T/proposals12/*-dry and *-tools). Changed: the stations' road-height exemption for the canopies' legs (1137), the
+  floor-tile and racks checks (1154), Milestone 786's, THE WORKS' pad trims, 1086's `@` handling and 1129's frame (1156),
+  the positions' climb at glass-lift-s (1152).
+- **Checked:** verify, rules and tsc. Map files version 145: lo 246.5 MB, hi 332.5 MB, max 652.9 MB.
+- **Beside the batch:** docs/PLAN_MAP_TO_8.md, the owner's ask of 2026-11-13: what holds the map at 6.4, measured off the
+  collision (tools/neon-mapstats.cjs), and a ranked plan. It asks that this be the last batch built from the reviewers'
+  item lists until its first three steps have been tried.
