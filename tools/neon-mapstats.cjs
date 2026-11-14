@@ -11,7 +11,11 @@ const ROOT = path.join(__dirname, "..");
 const SNAP = process.env.SNAP ? process.env.SNAP.replace(/[\/]?$/, "/") : null;
 const FILE = (n) => (SNAP ? SNAP + n : path.join(ROOT, "src", "config", n === "neonmap.solids.json" ? "neon/neonmap.solids.json" : n));
 const OUT = (process.env.OUT ?? process.cwd()).replace(/[\/]?$/, "/");
-const S = JSON.parse(fs.readFileSync(FILE("neonmap.solids.json"), "utf8")).solids.filter((b) => b[2] < 160 && b[3] > -160);
+let S = JSON.parse(fs.readFileSync(FILE("neonmap.solids.json"), "utf8")).solids.filter((b) => b[2] < 160 && b[3] > -160);
+// (a change tried before a bake, as tools/neon-lines.ts takes it: LESS a file of boxes [minX, maxX, minZ, maxZ, base, top],
+// every collision box whose middle is inside one taken out; EXTRA a file of boxes added)
+if (process.env.LESS) { const less = JSON.parse(fs.readFileSync(process.env.LESS, "utf8")); S = S.filter((b) => !less.some((r) => (b[0] + b[1]) / 2 > r[0] && (b[0] + b[1]) / 2 < r[1] && (b[2] + b[3]) / 2 > r[2] && (b[2] + b[3]) / 2 < r[3] && (b[4] + b[5]) / 2 > r[4] && (b[4] + b[5]) / 2 < r[5])); }
+if (process.env.EXTRA) S = S.concat(JSON.parse(fs.readFileSync(process.env.EXTRA, "utf8")));
 const R = 150; // the play square's half side (the fence)
 // the world's floor (src/game/neonmap.ts): 0 everywhere but the court, its halls and the underground's rects, lowered to
 // their own; the street's slab over a hall and the station where the config names one
@@ -148,20 +152,22 @@ const DIRS = Array.from({ length: 48 }, (_, k) => [Math.cos((k / 48) * 2 * Math.
 const high = [];
 for (let i = 2; i < N1; i += 5) for (let j = 2; j < N1; j += 5) for (const q of at(i, j)) if (q[0] >= 6 && q[0] <= 60) { const [x, z] = xz(i, j); high.push({ x, y: q[0], z, roofed: q[1], sees: 0 }); }
 {
-  for (const p of street) p.seenBy = 0;
+  for (const p of street) { p.seenBy = 0; p.seenTop = 0; }
   const open = street.filter((p) => !p.roofed);
   for (const h of high) {
     for (const p of open) {
       const d = Math.hypot(h.x - p.x, h.z - p.z);
       if (d > 120 || d < 6) continue;
-      if (los([h.x, h.y + 1.6, h.z], [p.x, p.y + 1.0, p.z])) { h.sees++; p.seenBy++; }
+      // (and from the top tier alone, 20 m up and more: a shooter there looks down past street cover a lower roof's does not,
+      // and a lower roof can be shot back at from the next one)
+      if (los([h.x, h.y + 1.6, h.z], [p.x, p.y + 1.0, p.z])) { h.sees++; p.seenBy++; if (h.y >= 20) p.seenTop++; }
     }
   }
-  const z = {};
-  for (const p of open) { const o = (z[p.zone] ??= []); o.push(p.seenBy); }
+  const z = {}, zt = {};
+  for (const p of open) { const o = (z[p.zone] ??= []); o.push(p.seenBy); (zt[p.zone] ??= []).push(p.seenTop); }
   out.highGround = {
     highSpots: high.length, openStreetSpots: open.length,
-    byZone: Object.fromEntries(Object.entries(z).map(([k, a]) => [k, { seenByNoHighSpot: +(a.filter((n) => n === 0).length / a.length).toFixed(2), seenBy10plus: +(a.filter((n) => n >= 10).length / a.length).toFixed(2), seenBy40plus: +(a.filter((n) => n >= 40).length / a.length).toFixed(2), median: pct(a, 0.5) }])),
+    byZone: Object.fromEntries(Object.entries(z).map(([k, a]) => [k, { seenByNoHighSpot: +(a.filter((n) => n === 0).length / a.length).toFixed(2), seenBy10plus: +(a.filter((n) => n >= 10).length / a.length).toFixed(2), seenBy40plus: +(a.filter((n) => n >= 40).length / a.length).toFixed(2), median: pct(a, 0.5), seenBy10plusFrom20mUp: +(zt[k].filter((n) => n >= 10).length / a.length).toFixed(2), medianFrom20mUp: pct(zt[k], 0.5) }])),
     top: [...high].sort((a, b) => b.sees - a.sees).slice(0, 14).map((h) => ({ at: [h.x, +h.y.toFixed(1), h.z], inside: !!h.roofed, seesShareOfOpenStreet: +(h.sees / open.length).toFixed(2) })),
   };
 }
@@ -253,7 +259,7 @@ for (let i = 2; i < N1; i += 5) for (let j = 2; j < N1; j += 5) for (const q of 
   const inRing = (x, z) => { const m = Math.max(Math.abs(x), Math.abs(z)); return m > 50 && m <= 100; };
   const qOf = (x, z) => (z < 0 ? "N" : "S") + (x > 0 ? "E" : "W");
   const Q = {};
-  const get = (x, z) => (Q[qOf(x, z)] ??= { cells: 0, open: 0, roofed: 0, runMean: [], runBest: [], seen: [], roof: [0, 0, 0, 0], wall: 0, islands: 0, noLeap: 0 });
+  const get = (x, z) => (Q[qOf(x, z)] ??= { cells: 0, open: 0, roofed: 0, runMean: [], runBest: [], seen: [], seenTop: [], roof: [0, 0, 0, 0], wall: 0, islands: 0, noLeap: 0 });
   const { top, info, deg } = out._roofId;
   for (let i = 0; i < N1; i++) for (let j = 0; j < N1; j++) {
     const [x, z] = xz(i, j);
@@ -265,7 +271,7 @@ for (let i = 2; i < N1; i += 5) for (let j = 2; j < N1; j += 5) for (const q of 
     const t = top[i * N1 + j];
     if (t >= 6) o.roof[t < 12 ? 0 : t < 20 ? 1 : t < 30 ? 2 : 3]++;
   }
-  for (const p of street) if (inRing(p.x, p.z)) { const o = get(p.x, p.z); o.runMean.push(p.runMean); o.runBest.push(p.runBest); if (!p.roofed) o.seen.push(p.seenBy); }
+  for (const p of street) if (inRing(p.x, p.z)) { const o = get(p.x, p.z); o.runMean.push(p.runMean); o.runBest.push(p.runBest); if (!p.roofed) { o.seen.push(p.seenBy); o.seenTop.push(p.seenTop); } }
   for (const r of out._runs) if (inRing(r.x, r.z)) get(r.x, r.z).wall += r.len;
   for (const q of info) if (inRing(q.at[0], q.at[2])) { const o = get(q.at[0], q.at[2]); o.islands++; if (!deg.has(q.n)) o.noLeap++; }
   delete out._runs;
@@ -273,6 +279,7 @@ for (let i = 2; i < N1; i += 5) for (let j = 2; j < N1; j += 5) for (const q of 
     openStreet: +(o.open / o.cells).toFixed(2), streetUnderARoof: +(o.roofed / o.cells).toFixed(2),
     meanFreeRun_median: pct(o.runMean, 0.5), bestFreeRun_median: pct(o.runBest, 0.5),
     openSpotsSeenBy10plus: +(o.seen.filter((n) => n >= 10).length / o.seen.length).toFixed(2), openSpotsSeenBy40plus: +(o.seen.filter((n) => n >= 40).length / o.seen.length).toFixed(2),
+    openSpotsSeenBy10plusFrom20mUp: +(o.seenTop.filter((n) => n >= 10).length / o.seenTop.length).toFixed(2), seenFrom20mUp_median: pct(o.seenTop, 0.5),
     openRoof_m2: { "6to12": o.roof[0], "12to20": o.roof[1], "20to30": o.roof[2], over30: o.roof[3] },
     wallToRunAlong_m: Math.round(o.wall), roofIslands: o.islands, islandsWithNoLeap: o.noLeap,
   }]));
