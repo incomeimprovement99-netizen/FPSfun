@@ -2480,6 +2480,64 @@ function zebraSpots(): Array<{ street: string; c: Pt; t: Pt }> {
   }
   return out;
 }
+// The lanes (rules.dress.lanes, Milestone 1165; docs/PLAN_NE_QUARTER.md change 5): on its streets nothing stands on the
+// carriageway, and its ground is held by a few tall sets laid by hand, not by the street cover's fill. The sprint is 14 m/s:
+// cover 5 m apart is a third of a second apart, and a sprint down a spoke stopped twice on the stations in its middle
+type Lanes1165 = { streets: string[]; half: number; ground: { quadrant: number[]; loop: number; corner: number }; chunk: string; kits: Record<string, Array<[string, number, number, number, number, number]>>; wear: Record<string, string>; trim: string; sets: Array<[string, number, number, number]> };
+const LANES1165 = (R.dress as unknown as { lanes?: Lanes1165 }).lanes;
+/** the median's blocks passed over on a lane street: the blocks after them keep their turn at the tall board */
+const LANES1165_PASSED = { n: 0 };
+const lanes1165Street = (id: string): boolean => !!LANES1165 && LANES1165.streets.includes(id);
+/** the lanes' ground: no street to the street cover's fill */
+const lanes1165Ground = (x: number, z: number): boolean => {
+  const G = LANES1165?.ground;
+  if (!G || x * G.quadrant[0] <= 0 || z * G.quadrant[1] <= 0) return false;
+  const m = Math.max(Math.abs(x), Math.abs(z));
+  return Math.hypot(x, z) >= G.loop && m <= (R.ring[1] as number) && (m < (R.low.edge as number) || (Math.abs(x) > G.corner && Math.abs(z) > G.corner));
+};
+/** whether a piece comes within the lane's half width of a lane street's middle line (its corners, its sides' middles, its own) */
+const lanes1165InLane = (o: OBox): boolean => {
+  if (!LANES1165) return false;
+  const pts: Pt[] = [];
+  for (const s of [-1, 0, 1]) for (const t of [-1, 0, 1]) pts.push([o.c[0] + o.u[0] * s * o.hu + o.v[0] * t * o.hv, o.c[1] + o.u[1] * s * o.hu + o.v[1] * t * o.hv]);
+  return pts.some(([x, z]) => [...SF.near(x, z, LANES1165.half + 1)].some(([st, d]) => LANES1165.streets.includes(st.id) && d < LANES1165.half));
+};
+/** the lanes' sets, laid whole at their measured spots: each part solid, in the street's model and the stations' list of
+ * what stands, so the parked cars, the median and the street cover read it as standing */
+function lanes1165Lay(SG: ReturnType<typeof streetGraph>): void {
+  const LN = LANES1165;
+  if (!LN) return;
+  const TR = R.dress.trim as { piece: string } | undefined;
+  const within = (R.dress.cover as { tall?: { within?: number } }).tall?.within ?? Infinity;
+  const laid: Array<{ kind: string; c: Pt; yaw: number; parts: Array<{ piece: string; c: Pt; yaw: number; hu: number; hv: number; top: number }> }> = [];
+  for (const [kind, x, z, turn] of LN.sets) {
+    const parts: Array<{ piece: string; c: Pt; yaw: number; hu: number; hv: number; top: number }> = [];
+    for (const [name, along, across, yaw, scale, foot] of LN.kits[kind]) {
+      const row = piece(name).row;
+      const [ox, oz] = rotY(turn, along, across);
+      const t = turn + yaw;
+      const o: OBox = { c: [x + ox, z + oz], u: rotY(t, 1, 0), v: rotY(t, 0, 1), hu: (row.size![0] / 2) * scale, hv: (row.size![2] / 2) * scale, top: foot + row.size![1] * scale };
+      placeTurned(LN.chunk, name, o.c[0], o.c[1], t, "s", foot - row.min![1] * scale, LN.wear[name], scale);
+      // (a poster sheet on each face of the 5 m panel inside the middle, as the street's tall boards)
+      if (row.size![0] >= 5 && Math.max(Math.abs(o.c[0]), Math.abs(o.c[1])) < within) dressBoard(LN.chunk, name, o.c[0], o.c[1], t, foot);
+      // (its lit edge: the trim's strip end to end along its top, drawn only)
+      if (TR) {
+        const strip = piece(TR.piece).row;
+        const n = Math.max(1, Math.floor((row.size![0] * scale) / strip.size![0]));
+        for (let k = 0; k < n; k++) {
+          const a = (k - (n - 1) / 2) * strip.size![0];
+          placeTurned(LN.chunk, TR.piece, o.c[0] + o.u[0] * a, o.c[1] + o.u[1] * a, t, "g", o.top - strip.min![1], LN.trim);
+        }
+      }
+      SG.add(o);
+      CARRIAGE.push(o);
+      parts.push({ piece: name, c: [+o.c[0].toFixed(3), +o.c[1].toFixed(3)], yaw: +t.toFixed(2), hu: +o.hu.toFixed(3), hv: +o.hv.toFixed(3), top: +o.top.toFixed(2) });
+    }
+    laid.push({ kind, c: [x, z], yaw: turn, parts });
+  }
+  cfg.lanes = laid;
+  console.log(`the lanes: ${LN.streets.join(", ")} clear kerb to kerb, ${laid.length} sets, ${laid.reduce((a, q) => a + q.parts.length, 0)} panels`);
+}
 function carriageway(SG: ReturnType<typeof streetGraph>): void {
   // (a part's sixth field, Milestone 1112: `y` its foot over the road, a crate stood on a crate; `mat` its wear; `faced`, a
   // piece with a front, turned about on the street's other side so its front keeps toward the middle line, where a turn
@@ -2710,9 +2768,13 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
     cfg.pockets = POCKETS;
     console.log(`the Loop's pockets: ${POCKETS.length} sets (${[...new Set(POCKETS.map((q) => q.kind))].map((k) => `${POCKETS.filter((q) => q.kind === k).length} ${k}s`).join(", ")}), ${POCKETS.reduce((a, q) => a + q.parts.length, 0)} pieces`);
   }
+  // (the lanes' sets first, Milestone 1165: every station after them keeps a body's way off them)
+  lanes1165Lay(SG);
   for (const st of STREETS) {
     // (the Loop's own stations its pockets, laid above, Milestone 1137)
     if (PK && st.closed) continue;
+    // (a lane street takes no station of the carriageway, Milestone 1165)
+    if (lanes1165Street(st.id)) continue;
     const L = (st.pts.length - (st.closed ? 0 : 1)) * 0.5;
     let last = -Infinity, side = 1, k = 0;
     for (let u = 0; u < L; u += 1) {
@@ -2739,6 +2801,7 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
     for (const st of STREETS) {
       // (none between the Loop's pockets, Milestone 1137: the reviews asked for fewer, larger sets with lanes between them)
       if (PK && st.closed) continue;
+      if (lanes1165Street(st.id)) continue;
       const L = (st.pts.length - (st.closed ? 0 : 1)) * 0.5;
       const own = STATIONS.filter((q) => q.street === st.id).sort((a, b) => a.at - b.at);
       const gaps: Array<[number, number, number]> = own.slice(1).map((q, i) => [own[i].at, q.at, own[i].side]);
@@ -2834,6 +2897,8 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
         // (none in a view kept open, `cars.keep` [x0, x1, z0, z1], Milestone 974: the grand stair's axis across the ring road;
         // after its draws, so the cars after it lie where they did)
         if ((D.cars.keep as number[][] | undefined)?.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) continue;
+        // (none in a lane street's kerb lanes, Milestone 1165; after its draws, as `keep`, so every other car lies where it did)
+        if (lanes1165Street(st.id)) continue;
         const vr = van ? piece(van).row : null;
         const name = van && vr && !SG.splits({ c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: vr.size![0] / 2, hv: vr.size![2] / 2, top: vr.size![1] }) ? van : pick;
         // (nor across a walk-in's door, `cars.doors`, Milestone 1058: its body over the door's line, out to the street's middle.
@@ -2874,7 +2939,7 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
         const [x, z] = st.pts[i];
         // (every `tall.every`-th of them a tall piece, over a standing eye: the third review saw street sightlines past
         // 60 m, and a block 1.2 m high stops none)
-        const name = MD.tall && medians.length % MD.tall.every === MD.tall.every - 1 ? MD.tall.piece : MD.piece;
+        const name = MD.tall && (medians.length + LANES1165_PASSED.n) % MD.tall.every === MD.tall.every - 1 ? MD.tall.piece : MD.piece;
         const pr = piece(name).row;
         const plen = Math.max(pr.size![0], pr.size![2]);
         if (!clear(x, z, plen / 2, st) || kept.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < plen / 2 + MD.keep)) continue;
@@ -2885,6 +2950,12 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
         if (CARRIAGE.some((q) => overlaps(o, q, (D as { carriage?: { clear: number } }).carriage?.clear ?? 0))) continue;
         if (SG.splits(o)) {
           passed++;
+          continue;
+        }
+        // (none on a lane street's middle line, Milestone 1165: passed over where it would have stood and counted, so the
+        // blocks after it are the pieces they were)
+        if (lanes1165Street(st.id)) {
+          LANES1165_PASSED.n++;
           continue;
         }
         SG.add(o);
@@ -3007,10 +3078,12 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
     return [c * x + s * z, -s * x + c * z];
   };
   const same = (p: number[], q: number[]) => Math.abs(p[0] - q[0]) < 1e-6 && Math.abs(p[1] - q[1]) < 1e-6;
-  const put = (name: string, y: number, yaw: number, [cx, cz]: number[], mid: [number, number], mat?: string) => {
+  const put = (name: string, y: number, yaw: number, [cx, cz]: number[], mid: [number, number], mat?: string, without?: string[]) => {
     const [ox, oz] = rot(yaw, ...mid);
     const row: Place = [piece(name).key, +(cx - ox).toFixed(3), +y.toFixed(3), +(cz - oz).toFixed(3), yaw, "o"];
-    if (mat) row[6] = mat;
+    if (mat || without) row[6] = mat ?? null;
+    // (a deck's rail opened where a route steps on, rules.bridges.open, Milestone 1160)
+    if (without) row[7] = without;
     add("c-bridges", "c", row);
   };
   // (the straight's middle in its own frame: it runs along its own x from its pivot; the corner's, back along its -x)
@@ -3042,8 +3115,14 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
   // (each path's decks in its wear, rules.bridges.wear, Milestone 1150: the ring's four in the colour of the High City
   // block each leaves going round, the centre's twenty-fifth reviews' "each bridge its own deck colour"; its stairs the pack's)
   const wear = ((B.wear ?? []) as Array<string | null>);
+  // (a path's decks each at its own top, null one left out, rules.bridges.tops, Milestone 1160: the north-east span lowered,
+  // stepped to its blocks and broken over the two spokes; `open` a cut out of one deck's piece)
+  const TOPS13 = (B.tops ?? {}) as Record<string, Array<number | null>>;
+  const OPEN13 = (B.open ?? {}) as Record<string, Record<string, string[]>>;
   for (const [pi, path] of (B.paths as number[][][]).entries()) {
     const worn = wear[pi] ?? undefined;
+    const tops13 = TOPS13[String(pi)];
+    let deckNo = 0;
     for (let i = 0; i + 1 < path.length; i++) {
       const [a, b] = [path[i], path[i + 1]];
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -3052,6 +3131,10 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
       const from = i === 0 ? cell / 2 : cell;
       const to = i + 2 === path.length ? len - cell / 2 : len - cell;
       for (let t = from; t <= to + 1e-6; t += cell) {
+        const top13 = tops13 ? tops13[deckNo] : undefined;
+        const open13 = OPEN13[String(pi)]?.[String(deckNo)];
+        deckNo++;
+        if (top13 === null) continue;
         const gap = gaps.find((g) => Math.hypot(g.at[0] - (a[0] + d[0] * t), g.at[1] - (a[1] + d[1] * t)) < 0.01);
         if (gap) {
           gap.cut++;
@@ -3060,7 +3143,7 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
         // (the cell at an end that runs into a building at its window's sill: on the deck's height a body's head met the
         // window's head, 1.66 m over it; the step up to the rest is the sill's 0.46 m under the deck)
         const low = (i === 0 && t === from ? sillAt(a) : null) ?? (i + 2 === path.length && t + cell > to + 1e-6 ? sillAt(b) : null);
-        put(B.straight.piece, (low ?? B.deck) - B.straight.deck, yaw, [a[0] + d[0] * t, a[1] + d[1] * t], sMid, worn);
+        put(B.straight.piece, (low ?? top13 ?? B.deck) - B.straight.deck, yaw, [a[0] + d[0] * t, a[1] + d[1] * t], sMid, worn, open13);
         decks++;
       }
       // the corner at the far end of every leg but the last, its open sides toward this leg and the next
@@ -3072,7 +3155,9 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
           const opens = [rot(y, 1, 0), rot(y, 0, 1)];
           return opens.some((o) => same(o, [-d[0], -d[1]])) && opens.some((o) => same(o, on));
         })!;
-        put(B.corner.piece, B.deck - B.corner.deck, cyaw, b, cMid, worn);
+        const ctop13 = tops13 ? tops13[deckNo] : undefined;
+        deckNo++;
+        if (ctop13 !== null) put(B.corner.piece, (ctop13 ?? B.deck) - B.corner.deck, cyaw, b, cMid, worn);
         decks++;
       }
     }
@@ -3945,6 +4030,35 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     console.log(`the perches' cover: ${perches.map((q) => `${q.name} ${q.at.length}`).join(", ")}; the pieces of roof each leaves a body: ${roofCounts.join(", ")}`);
   }
 }
+// Cover overhead in the north-east quarter (rules.overhead13, Milestone 1163; docs/PLAN_NE_QUARTER.md, change 4): canopies
+// over the two spokes' pavements between the lamps and arcades along the High City blocks' feet, so a rotation is not
+// watched from every roof. Each a floor tile of the pack on slim pipe legs, its spot measured off the collision and written
+// in the rules, as the High City's cover is: nothing of the last bake is read, so nothing of it moves from run to run. A
+// tile collides as its own faces ("o": a roof over a head, a floor for whoever drops onto it), a leg as its columns ("s").
+// Each tile's record for the map check; a leg on a carriageway stops the layout
+function overhead13(): void {
+  type OH = { chunk: string; top: number; most: number; leg: { piece: string; scale: number; kerb: number }; kits: Record<string, { slab: string; leg: string }>; modules: Array<[string, string, string, number, number, number, number, number[][]]> };
+  const O = (R as unknown as { overhead13?: OH }).overhead13;
+  if (!O) return;
+  if (O.top > O.most) throw new Error(`overhead13: the canopies' top ${O.top} m is over ${O.most} m`);
+  const out: Array<{ run: string; kit: string; c: number[]; yaw: number; hu: number; hv: number; y: number; top: number; legs: number[][] }> = [];
+  const lr = piece(O.leg.piece).row;
+  for (const [run, kit, name, x, z, yaw, scale, legs] of O.modules) {
+    const K = O.kits[kit];
+    if (!K) throw new Error(`overhead13: no kit ${kit}`);
+    // (the tile pivots on its top, Milestone 644: laid by its top, its underside its own thickness under)
+    const q = placeTurned(O.chunk, name, x, z, yaw, "o", O.top - piece(name).row.max![1] * scale, K.slab, scale);
+    for (const [lx, lz] of legs) {
+      if (onRoad(lx, lz) < O.leg.kerb) throw new Error(`overhead13: a leg of ${run} at (${lx}, ${lz}) stands ${onRoad(lx, lz).toFixed(2)} m off a carriageway`);
+      // (to the slab's underside)
+      placeTurned(O.chunk, O.leg.piece, lx, lz, 0, "s", -lr.min![1] * O.leg.scale, K.leg, O.leg.scale);
+    }
+    out.push({ run, kit, c: [x, z], yaw, hu: +q.hu.toFixed(3), hv: +q.hv.toFixed(3), y: +(O.top - piece(name).row.size![1] * scale).toFixed(3), top: O.top, legs });
+  }
+  cfg.overhead13 = out;
+  console.log(`cover overhead: ${out.length} canopy tiles on ${out.reduce((s, q) => s + q.legs.length, 0)} legs (${[...new Set(out.map((q) => q.run))].join(", ")})`);
+}
+overhead13();
 // Solid cover on the Sky Ring, the bridge ring and the lookout (rules.highCover, Milestone 971; the centre's twelfth
 // review: "solid cover every 8-10 m ... the glass rails are see-through and do not count as cover"). Its spots are written
 // into the rules, each read off the collision: drawn at random, spots on the ring's curved 4 m deck stopped the walk round
@@ -3966,6 +4080,19 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     console.log(`the high cover: ${Object.entries(out).map(([k, v]) => `${k} ${v.length}`).join(", ")}`);
   }
 }
+// The north-east quarter's routes (rules.routes, Milestones 1160 to 1162): the risers under the lowered span's steps, roof C's
+// step onto it, its piers and the two hoardings to run, each drawn only and its collision typed, so the movement lines
+// (rules.lines) run on the boxes they were measured on. In the High City cover's chunk, as hand-placed cover is
+function routes13(): void {
+  const RT = (R as unknown as { routes?: { rows: Array<[string, string, number, number, number, number, number, string | null]>; boxes: number[][] } }).routes;
+  const HC13 = R.highCover as { chunk: string } | undefined;
+  if (!RT || !HC13) return;
+  for (const [, name, x, z, yaw, y, scale, mat] of RT.rows) placeTurned(HC13.chunk, name, x, z, yaw, "g", y - piece(name).row.min![1] * scale, mat ?? undefined, scale);
+  for (const b of RT.boxes) STAIR_SOLIDS.push(b.map((v) => +v.toFixed(3)));
+  cfg.routes = { rows: RT.rows.length, boxes: RT.boxes };
+  console.log(`the north-east routes: ${RT.rows.length} pieces drawn, ${RT.boxes.length} typed boxes`);
+}
+routes13();
 // (a scaled placement carries its scale as a ninth field, past what Place names: the bake reads it, tools/import-neon.ts)
 // each corner block's sign (rules.low.identity; the centre's first review: "NOODLE ROW, MARKET and THE WELL show nothing
 // of their names"): one of the pack's neon signs `scale` times its size, standing on a roof of its block at `at`, `top`
@@ -5067,6 +5194,8 @@ const DEPOT: Array<{ id: string; box: number[]; top: number; parts: number }> = 
     // north-east post)
     const PKo = (R.dress as { pockets?: { keepOff: number } }).pockets;
     if (PKo) for (const o of POCKET_PARTS) for (const k of cellsOf(o, PKo.keepOff)) street[k] = 0;
+    // (nor the lanes' ground, rules.dress.lanes, Milestone 1165: its own sets hold it, to head-high cover at the sprint's reach)
+    if (LANES1165) for (let k = 0; k < N * N; k++) if (street[k] && lanes1165Ground(mid(k)[0], mid(k)[1])) street[k] = 0;
     // (each cell's distance to cover, two passes of a chamfer in cells)
     const D = new Float32Array(N * N);
     const field = () => {
@@ -5099,7 +5228,9 @@ const DEPOT: Array<{ id: string; box: number[]; top: number; parts: number }> = 
     const fits = (o: OBox, quick = false): boolean => {
       const r = Math.hypot(o.hu, o.hv);
       const [x, z] = o.c;
-      const k = !cellsOf(o).every((c) => street[c] && open(c)) ? "street"
+      // (never within a lane's half width of a lane street's middle line, Milestone 1165: at the lanes' ends outside their ground too)
+      const k = lanes1165InLane(o) ? "lane"
+        : !cellsOf(o).every((c) => street[c] && open(c)) ? "street"
         : cellsOf(o, CO.clear).some((c) => body[c]) ? "clear"
         : cellsOf(o).some((c) => over[c] < o.top + CO.headroom) ? "under"
         : pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + R.dress.padClear) ? "pad"

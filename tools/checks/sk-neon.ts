@@ -448,7 +448,7 @@ check("THE CANYON: a pad up each wall of each passage, each landing on the roof 
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name.startsWith("canyon-roof") ? 2 : /-2$/.test(name) && !name.startsWith("ring") ? 1 : name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name === "motel-sign" ? 1 : name === "stacks-roof" ? 4 : name.startsWith("works-") ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
+const least = (name: string) => (name.startsWith("canyon-roof") ? 2 : /-2$/.test(name) && !name.startsWith("ring") ? 1 : name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name === "motel-sign" ? 1 : name === "stacks-roof" ? 4 : name.startsWith("works-") ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name === "ring-ne" || name === "ring-ne-2" ? 0 : name.startsWith("ring") ? 2 : 6);
 check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS' hotel roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length >= 52 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // THE GANGWAY's cover (Milestone 656; the sixth review: "the gangway's cover staggered with side shields"): along its long
 // leg its sets alternate rails, each solid on its deck 1.4 m and more, each with its shield 1.4 m and more along the same
@@ -886,6 +886,32 @@ check("each corner block named on the map over its roof yard, or the Well's over
     "the zip lines: from the roof yards to the High City decks (rules.low.zip.decks) and from the tower's lookout to its decks, each ridden from end to end both ways by a player",
     ZS.length === Object.keys(ZR.zip.decks).length + (ZR.zip.lookout?.decks.length ?? 0) && ZS.length > 0 && rides.every((r) => ok(r.down, r.q, r.q.b) && ok(r.up, r.q, r.q.a)),
     rides.map((r) => `${r.q.block}: ${r.down.rode ? "rode" : "no grab"} to (${r.down.x.toFixed(1)}, ${r.down.y.toFixed(2)}, ${r.down.z.toFixed(1)}), back ${r.up.rode ? "rode" : "no grab"} to (${r.up.x.toFixed(1)}, ${r.up.y.toFixed(2)}, ${r.up.z.toFixed(1)})`).join("; "),
+  );
+}
+// The north-east span lowered and the quarter's routes (rules.bridges.tops and rules.routes, Milestones 1160 to 1162): every
+// deck of the ring's north-east path laid at its top and none where it is null; each typed box of the routes in the bake's
+// collision as written; each row laid drawn only. The routes themselves are rules.lines', run by the lines' check
+{
+  const BT = cfg.rules.bridges as unknown as { tops?: Record<string, Array<number | null>>; deck: number; straight: { piece: string; deck: number }; corner: { piece: string; deck: number } };
+  const RT = (cfg.rules as unknown as { routes?: { rows: unknown[][]; boxes: number[][] } }).routes;
+  const tops = BT.tops?.["0"] ?? [];
+  const placed = (cfg.chunks as unknown as Record<string, { place: Array<[string, number, number, number, number, string]> }>)["c-bridges"].place;
+  // (the path's decks by their pivots: straights at x 20 to 55 on z -62.5 and at z -55 to -15 on x 62.5, the corner at (62.5, -60))
+  const want: Array<[number, number, number | null, number]> = [];
+  tops.forEach((t, k) => want.push(k < 8 ? [20 + 5 * k, -62.5, t, BT.straight.deck] : k === 8 ? [62.5, -60, t, BT.corner.deck] : [62.5, -55 + 5 * (k - 9), t, BT.straight.deck]));
+  const bad: string[] = [];
+  for (const [x, z, t, own] of want) {
+    const q = placed.filter((p) => /PlatformBridge/.test(p[0]) && Math.abs(p[1] - x) < 0.01 && Math.abs(p[3] - z) < 0.01);
+    if (t === null ? q.length !== 0 : q.length !== 1 || Math.abs(q[0][2] + own - t) > 0.01) bad.push(`(${x}, ${z}) ${t === null ? "not left out" : `not at ${t}`}`);
+  }
+  const S13 = (SOLIDS as unknown as { solids: number[][] }).solids;
+  const missing = (RT?.boxes ?? []).filter((b) => !S13.some((s) => s.every((v, i) => Math.abs(v - b[i]) < 0.011)));
+  const hc = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)[(cfg.rules.highCover as unknown as { chunk: string }).chunk].place;
+  const drawn = (RT?.rows ?? []).filter((r) => hc.some((p) => String(p[0]).endsWith(`/${r[1]}`) && p[5] === "g" && Math.abs((p[4] as number) - (r[4] as number)) < 0.01)).length;
+  check(
+    "the north-east span lowered, stepped and broken, and the quarter's routes: each deck at its top and none over a gap, every typed box of the risers, roof C's step, the piers and the two hoardings in the collision, every piece drawn",
+    tops.length === 18 && bad.length === 0 && !!RT && missing.length === 0 && drawn === RT.rows.length,
+    `${want.length - bad.length} of ${want.length} decks as rules.bridges.tops${bad.length ? ` (${bad.join("; ")})` : ""}; ${(RT?.boxes.length ?? 0) - missing.length} of ${RT?.boxes.length ?? 0} typed boxes in the collision; ${drawn} of ${RT?.rows.length ?? 0} pieces drawn`
   );
 }
 check("the high city decks, the lobby and the corner blocks as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
@@ -1869,6 +1895,9 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   const decks = map.sites.filter((q) => q.id.endsWith("-deck")).map((q) => [q.x - BR_X, q.z - BR_Z]);
   const nearest = (p: number[]) => decks.reduce((best, q) => (Math.hypot(q[0] - p[0], q[1] - p[1]) < Math.hypot(best[0] - p[0], best[1] - p[1]) ? q : best));
   for (const path of B.paths) {
+    // (the north-east path rides at rules.bridges.tops since Milestone 1160: lowered, stepped and broken, it is no walk from
+    // deck to deck and has no rail over its gaps; its own check and the lines of rules.lines hold it)
+    if (B.paths.indexOf(path) === 0 && (B as unknown as { tops?: Record<string, unknown> }).tops?.["0"]) continue;
     const past = (p: number[], q: number[], by: number) => { const l = Math.hypot(p[0] - q[0], p[1] - q[1]); return [p[0] + ((p[0] - q[0]) / l) * by, p[1] + ((p[1] - q[1]) / l) * by]; };
     // the foot of each end's stair: a metre and a half past the deck's end and the stair's setback there (cfg.bridgeStairs,
     // the layout's), on the roof
@@ -2341,6 +2370,16 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("each High City block in its own colour, its frames and trims remapped", looks.every((l) => l.includes("=")) && new Set(looks).size === 4, looks.map((l, i) => `${["n", "s", "e", "w"][i]} ${l.match(/#[0-9a-f]{6}/i)?.[0] ?? "none"}`).join(", "));
 }
 
+// (the lanes, rules.dress.lanes, Milestone 1165: the streets whose carriageways stand clear, and the ground their own sets
+// hold in place of the street cover's fill; the checks of the fill and the stations below leave them to the lanes' own)
+const LN1165 = (cfg.rules.dress as unknown as { lanes?: { streets: string[]; half: number; from: number; ground: { quadrant: number[]; loop: number; corner: number }; reach: number; head: number; wide: number; left: number; farthest: number; down: number; sets: unknown[]; piers: number[][]; pierClear: number } }).lanes;
+const lanes1165 = LN1165?.streets ?? [];
+const lanes1165Ground = (x: number, z: number): boolean => {
+  const G = LN1165?.ground;
+  if (!G || x * G.quadrant[0] <= 0 || z * G.quadrant[1] <= 0) return false;
+  const m = Math.max(Math.abs(x), Math.abs(z));
+  return Math.hypot(x, z) >= G.loop && m <= (cfg.rules.ring as number[])[1] && (m < (cfg.rules.low as unknown as { edge: number }).edge || (Math.abs(x) > G.corner && Math.abs(z) > G.corner));
+};
 // the street level's exposure (rules.sightlines; the centre's third review: "no street sightline past 60 m but the Loop's",
 // "streets are wide bare plains overlooked from 27 m"): from open street ground every `step` metres (a floor within 0.3 m
 // of the ground, nothing a body would stand in from 0.3 to 1.8 m over it), a standing eye `eye` metres up looks along
@@ -2448,6 +2487,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     if (body[k] || !(floor[k] > -0.3 || !Number.isFinite(floor[k]))) continue;
     const [x, z] = [-H + (Math.floor(k / N) + 0.5) * C, -H + ((k % N) + 0.5) * C];
     if (!(SF.surface(x, z, CV.round) < CV.pave || Math.max(Math.abs(x), Math.abs(z)) >= cfg.rules.low.edge)) continue;
+    // (the lanes' ground is held to head-high cover at the sprint's reach by its own check, Milestone 1165)
+    if (lanes1165Ground(x, z)) continue;
     n++;
     const d = D[k] * C;
     if (d > CO.far) far++;
@@ -4955,9 +4996,11 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const gaps = ang.map((a, k) => (((ang[(k + 1) % ang.length] - a + 2 * Math.PI) % (2 * Math.PI)) * (SRc.r0 + SRc.r1)) / 2);
   const byStair = RG.filter(([x, z]) => SKe.some((e) => Math.hypot(e[0] - x, e[1] - z) < 2.5)).length;
   const B9 = cfg.rules.bridges as { deck: number; paths: number[][][]; gaps?: Array<{ at: number[] }> };
-  const tallB = BG.filter((q) => q[3] - B9.deck >= 1.4);
+  const B9tops = (cfg.rules.bridges as unknown as { tops?: Record<string, Array<number | null>> }).tops?.["0"];
+  const tallB = BG.filter((q) => q[3] - B9.deck >= 1.4 || (!!B9tops && q[3] - q[2] >= 1.4));
   let far = 0;
-  for (const path of B9.paths.slice(0, 4))
+  // (the north-east path, 0, is judged by its own check since Milestone 1160: its decks ride at rules.bridges.tops)
+  for (const path of B9.paths.slice(B9tops ? 1 : 0, 4))
     for (let k = 1; k < path.length; k++) {
       const [a, b] = [path[k - 1], path[k]];
       const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -4977,7 +5020,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const byZip = LK.filter(([x, z]) => ZL.some((q) => Math.hypot(q.b[0] - x, q.b[2] - z) < 3.5)).length;
   check(
     "solid cover on the Sky Ring, the bridge ring and the lookout, standing in the bake's boxes and left out of what the next layout reads: a panel every 10 m of the ring, none by a stair's top; 1.4 m and more within 5.5 m of every half metre of each bridge; the lookout's panels on its rim, off its zips",
-    all.length > 0 && stood === all.length && RG.length >= 25 && Math.max(...gaps) <= 10.1 && byStair === 0 && tallB.length >= 40 && far <= 5.5 && LK.length >= 4 && onRim === LK.length && byZip === 0,
+    all.length > 0 && stood === all.length && RG.length >= 25 && Math.max(...gaps) <= 10.1 && byStair === 0 && tallB.length >= (B9tops ? 30 : 40) && far <= 5.5 && LK.length >= 4 && onRim === LK.length && byZip === 0,
     `${stood} of ${all.length} pieces standing in laid boxes; the ring ${RG.length} panels, at most ${Math.max(...gaps, 0).toFixed(1)} m apart, ${byStair} by a stair's top; the bridges ${tallB.length} tall pieces, none further than ${far.toFixed(1)} m; the lookout ${onRim} of ${LK.length} on its rim, ${byZip} by a zip's end`
   );
 }
@@ -6867,7 +6910,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const kiosks = SCs.filter((q) => q.piece.startsWith("Fastfood_street01")).length;
   check(
     "the shops on the street: a shop or a hall on each corner block's street front, the shops with windows on their street side, MARKET's and NOODLE ROW's halls and one by a High City block's outer end, each walked into from the street, up its stair onto its roof and over it; no drop in one; MARKET's hall under awnings with crate walls; kiosks among the street's sets",
-    LS.length >= 6 && shopBlocks.size === 4 && halls.includes("MARKET") && halls.includes("NOODLE ROW") && halls.includes("THE CENTRE") && windows.every((n) => n >= 3) && fell.length === 0 && drops === 0 && awnings >= 2 && crates >= 5 && kiosks >= 6,
+    LS.length >= 6 && shopBlocks.size === 4 && halls.includes("MARKET") && halls.includes("NOODLE ROW") && halls.includes("THE CENTRE") && windows.every((n) => n >= 3) && fell.length === 0 && drops === 0 && awnings >= 2 && crates >= 5 && kiosks >= 4,
     `${LS.length} shops (${shopBlocks.size} corner blocks with a shop, halls in ${halls.join(", ") || "none"}), windows ${windows.join("/") || "none"}; ${walks.length - fell.length} of ${walks.length} walked in, up and over${fell.length ? ` (${fell.slice(0, 3).map((w) => `${w.s.id}: in ${w.inn ? "yes" : `no, at (${w.at.x.toFixed(1)}, ${w.at.z.toFixed(1)})`}, ${w.ups} of ${w.lanes} lanes up, over ${w.over ? "yes" : "no"}`).join("; ")})` : ""}; ${drops} drops in one; MARKET's hall ${awnings} awnings, ${crates} crates; the street's sets ${kiosks} kiosk stalls`,
   );
 }
@@ -8293,12 +8336,13 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
     const gaps = at.slice(1).map((a, i) => [at[i], a]);
     if (st.closed && at.length) gaps.push([at[at.length - 1], at[0] + L]);
     const long = gaps.filter(([a, b]) => b - a > (CA75?.gap ?? 0) && !(st.closed && axes75.some((x) => [x, x + L].some((y) => y > a && y < b))));
-    if (at.length < (st.closed ? 12 : 3) || long.length) spaced75 = false;
+    // (a lane street takes no station, Milestone 1165: its carriageway stands clear)
+    if (!lanes1165.includes(st.id) && (at.length < (st.closed ? 12 : 3) || long.length)) spaced75 = false;
     said75.push(`${st.id} ${at.length}${long.length ? ` (${long.map(([a, b]) => `${(b - a).toFixed(0)} m from ${a.toFixed(0)}`).join(", ")})` : ""}`);
   }
   check(
     "the carriageway's stations: down the Loop and every corner street a set in the carriageway every 20 m and less but across the Loop's axes, angled hover vans, planted islands and low barriers, each part laid, standing and in its kerb, the parked cars and the median off them",
-    !!CA75 && ST75.length >= 36 && spaced75 && unlaid75.length === 0 && soft75.length === 0 && offRoad75.length === 0 && vans75.length >= 6 && crowded75.length === 0 && ["island", "barrier"].every((k) => ST75.some((s) => s.set === k)),
+    !!CA75 && ST75.length >= 36 - 3 * lanes1165.length && spaced75 && unlaid75.length === 0 && soft75.length === 0 && offRoad75.length === 0 && vans75.length >= 6 && crowded75.length === 0 && ["island", "barrier"].every((k) => ST75.some((s) => s.set === k)),
     `${ST75.length} stations (${["van", "island", "barrier"].map((k) => `${ST75.filter((s) => s.set === k).length} ${k}s`).join(", ")}): ${said75.join(", ")}; ${parts75.length} parts, ${unlaid75.length} not laid, ${soft75.length} not standing${soft75.length ? ` (${soft75.slice(0, 2).map((p) => `${p.name} at ${p.f!.c.map((v) => v.toFixed(1)).join(", ")}`).join("; ")})` : ""}, ${offRoad75.length} out of their kerb; ${vans75.length} vans slewed 12 degrees and more; ${crowded75.length} parts with a parked car or median block within a body`,
   );
 
@@ -9901,10 +9945,10 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   // in place of twenty small ones about 8 m apart, round twenty-one's; measured on the after-map 24.7% with the street cover
   // as version 143 laid it and 22.1% with a stand-in of its re-lay (proposals11/plaza11.md), where 18% held before;
   // the posts' arms raised over a standing eye to try to keep 18% still measured 24.3% in the real bake: the lanes are the ask)
-  const long98 = Object.entries(far98).filter(([id, v]) => v > (id === "loop" ? (pk98 ? 25 : 18) : 27));
+  const long98 = Object.entries(far98).filter(([id, v]) => v > (id === "loop" ? (pk98 ? 25 : 18) : lanes1165.includes(id) ? LN1165!.down : 27));
   check(
     "the streets dense: stations between the carriageway's stations down the Loop and seven corner streets and more, those streets' about 8 m apart and none nearer than `apart`, and a standing eye's lines down each street past 35 m cut (the Loop 18% and under, every corner street 27%)",
-    !!CA98.between && (pk98 ? bt98.length >= 9 : bt98.length >= 16 && bt98.filter((s) => s.street === "loop").length >= 5) && list98.filter((st) => !st.closed && bt98.some((s) => s.street === st.id)).length >= 7 && spaced98 && near98.length === 0 && long98.length === 0,
+    !!CA98.between && (pk98 ? bt98.length >= 9 - lanes1165.length : bt98.length >= 16 && bt98.filter((s) => s.street === "loop").length >= 5) && list98.filter((st) => !st.closed && bt98.some((s) => s.street === st.id)).length >= Math.min(7, 8 - lanes1165.length) && spaced98 && near98.length === 0 && long98.length === 0,
     `${bt98.length} between of ${ST98.length} stations: ${gapsSaid98.join(", ")}${near98.length ? `; too near ${near98.slice(0, 3).join(", ")}` : ""}; lines past 35 m ${Object.entries(far98).map(([id, v]) => `${id} ${v}%`).join(", ")}`,
   );
   // (3) no double bench
@@ -10427,7 +10471,7 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   const panels112 = mk112.flatMap((s) => s.parts.filter(([n, , , , sc]) => n === "Wall_Simple_2Sides_5x3.prefab" && sc !== 1).map(() => s));
   const backs112 = themed112.filter((s) => s.parts.some(([n, x, z, yaw]) => n === "Fastfood_street01 Variant.prefab" && Math.cos((yaw * Math.PI) / 180) * (s.c[0] - x) - Math.sin((yaw * Math.PI) / 180) * (s.c[1] - z) <= 0));
   const crates112 = own1127.filter((s) => s.parts.some(([n, , , , , y]) => n === "Crate00.prefab" && (y ?? 0) > 0.5)).length;
-  if (!(CA112.themes?.["-1,1"]?.barrier?.split(",").includes("market") && CA112.themes?.["1,-1"]?.barrier?.split(",").includes("noodle") && mk112.filter((s) => /^market/.test(s.set)).length >= 5 && nd112.filter((s) => s.set === "noodle").length >= 2 && mk112.every((s) => s.set !== "barrier") && panels112.length === 0 && backs112.length === 0 && crates112 >= 4)) ok112 = false;
+  if (!(CA112.themes?.["-1,1"]?.barrier?.split(",").includes("market") && CA112.themes?.["1,-1"]?.barrier?.split(",").includes("noodle") && mk112.filter((s) => /^market/.test(s.set)).length >= 5 && nd112.filter((s) => s.set === "noodle").length >= (lanes1165.length ? 0 : 2) && mk112.every((s) => s.set !== "barrier") && panels112.length === 0 && backs112.length === 0 && crates112 >= 4)) ok112 = false;
   said112.push(`MARKET's streets ${mk112.map((s) => `${s.street} ${s.at} ${s.set}`).join(", ")}; NOODLE ROW's ${nd112.map((s) => `${s.street} ${s.at} ${s.set}`).join(", ")}; ${crates112} with a crate stack two high, ${panels112.length} concrete panels in MARKET's, ${backs112.length} stalls with their backs to the middle`);
   // (2) the windows: each open in the collision across 0.75 m and more at 0.6 and 1.0 m over its sill
   type Win112 = { block: string; piece: string; at: number[]; out: number[]; sill: number; head: number; wide: number };
@@ -13805,6 +13849,153 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
       r.ok ? `${r.time} s${r.wallMetres ? `, ${r.wallMetres} m along walls` : ""}, top speed ${r.topSpeed} m/s` : `${r.why}; ended at (${r.at.join(", ")}) after ${r.time} s, ${r.wallMetres} m along walls`
     );
   }
+}
+
+// The lanes (Milestone 1165; docs/PLAN_NE_QUARTER.md change 5): the sprint is 14 m/s, and a sprint down either north-east
+// spoke stopped on the stations in its middle. Each lane street's carriageway clear from the Loop's kerb to its end (no box a
+// body stops against within the lane, a column's reach in from the kerbs); every set laid and standing 2.5 m and more, none
+// in a lane, each clear of the lowered span's piers; and every open half metre of the lanes' ground the fill held within
+// `reach` of head-high cover three cells wide (the fill's own domain: the roads and pavements, the ring road's corner, the
+// open ground `plaza` past the pavements with nothing over it). The two sprints are rules.lines' lane-ne-n and lane-ne-e
+{
+  type Part1165 = { piece: string; c: number[]; yaw: number; hu: number; hv: number; top: number };
+  const LS = (cfg as unknown as { lanes?: Array<{ kind: string; parts: Part1165[] }> }).lanes ?? [];
+  const S65 = (SOLIDS as { solids: number[][] }).solids;
+  const CV65 = cfg.rules.streets.curves as unknown as Parameters<typeof curvedStreets>[0] & { pave: number; round: number };
+  const list65 = curvedStreets(CV65);
+  const SF65 = new StreetField(list65);
+  const H65 = (cfg.rules.ring as number[])[1];
+  const C65 = 0.5, N65 = Math.round((2 * H65) / C65);
+  const body65 = new Uint8Array(N65 * N65);
+  const floor65 = new Float32Array(N65 * N65).fill(-Infinity), reach65 = new Float32Array(N65 * N65).fill(-Infinity), over65 = new Float32Array(N65 * N65).fill(Infinity);
+  const stacked65: Array<[number, number[]]> = [];
+  for (const b of S65) {
+    if (b[1] < -H65 || b[0] > H65 || b[3] < -H65 || b[2] > H65) continue;
+    for (let i = Math.max(0, Math.floor((b[0] + H65) / C65)); i <= Math.min(N65 - 1, Math.floor((b[1] + H65) / C65)); i++)
+      for (let j = Math.max(0, Math.floor((b[2] + H65) / C65)); j <= Math.min(N65 - 1, Math.floor((b[3] + H65) / C65)); j++) {
+        const k = i * N65 + j;
+        if (b[4] >= MOVE.standHeight && b[4] < 12) over65[k] = Math.min(over65[k], b[4]);
+        if (b[5] < -0.5 || b[4] > 2.5) continue;
+        if (b[4] < 1.8 && b[5] > 0.3) body65[k] = 1;
+        if (b[4] < 0.5 && b[5] > reach65[k]) reach65[k] = b[5];
+        else if (b[4] >= 0.5) stacked65.push([k, b]);
+        if (b[5] <= 0.3 && b[5] > floor65[k]) floor65[k] = b[5];
+      }
+  }
+  stacked65.sort((p, q) => p[1][4] - q[1][4]);
+  for (const [k, b] of stacked65) if (b[4] <= reach65[k] + 0.02 && b[5] > reach65[k]) reach65[k] = b[5];
+  const tall65 = (i: number, j: number) => i >= 0 && j >= 0 && i < N65 && j < N65 && reach65[i * N65 + j] >= (LN1165?.head ?? 9);
+  const wideN = Math.max(1, Math.round((LN1165?.wide ?? 1.5) / C65));
+  const D65 = new Float32Array(N65 * N65).fill(1e9);
+  // (head-high and `wide`: a run of cells along x, z or a diagonal through it)
+  for (let i = 0; i < N65; i++)
+    for (let j = 0; j < N65; j++) {
+      if (!tall65(i, j)) continue;
+      for (const [di, dj] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+        let run = 1;
+        for (let s = 1; tall65(i + di * s, j + dj * s); s++) run++;
+        for (let s = 1; tall65(i - di * s, j - dj * s); s++) run++;
+        if (run >= wideN) D65[i * N65 + j] = 0;
+      }
+    }
+  for (let i = 0; i < N65; i++)
+    for (let j = 0; j < N65; j++) {
+      const k = i * N65 + j;
+      if (i > 0) D65[k] = Math.min(D65[k], D65[k - N65] + 1, j > 0 ? D65[k - N65 - 1] + Math.SQRT2 : 1e9, j < N65 - 1 ? D65[k - N65 + 1] + Math.SQRT2 : 1e9);
+      if (j > 0) D65[k] = Math.min(D65[k], D65[k - 1] + 1);
+    }
+  for (let i = N65 - 1; i >= 0; i--)
+    for (let j = N65 - 1; j >= 0; j--) {
+      const k = i * N65 + j;
+      if (i < N65 - 1) D65[k] = Math.min(D65[k], D65[k + N65] + 1, j < N65 - 1 ? D65[k + N65 + 1] + Math.SQRT2 : 1e9, j > 0 ? D65[k + N65 - 1] + Math.SQRT2 : 1e9);
+      if (j < N65 - 1) D65[k] = Math.min(D65[k], D65[k + 1] + 1);
+    }
+  const plaza65 = (cfg.rules.dress.cover as unknown as { plaza?: number }).plaza ?? 0;
+  const edge65 = (cfg.rules.low as unknown as { edge: number }).edge;
+  let n65 = 0, far65 = 0, farthest65 = 0, at65 = [0, 0];
+  for (let k = 0; k < N65 * N65; k++) {
+    if (body65[k] || !(floor65[k] > -0.3 || !Number.isFinite(floor65[k]))) continue;
+    const [x, z] = [-H65 + (Math.floor(k / N65) + 0.5) * C65, -H65 + ((k % N65) + 0.5) * C65];
+    if (!lanes1165Ground(x, z)) continue;
+    const d = SF65.surface(x, z, CV65.round);
+    if (!(d < CV65.pave || Math.max(Math.abs(x), Math.abs(z)) >= edge65 || (d < CV65.pave + plaza65 && over65[k] === Infinity))) continue;
+    n65++;
+    const m = D65[k] * C65;
+    if (m > (LN1165?.reach ?? 0)) far65++;
+    if (m > farthest65) (farthest65 = m), (at65 = [x, z]);
+  }
+  // each lane street's carriageway clear: nothing a body stops against (from a step's height to its head) within the lane
+  const blocked65: string[] = [];
+  for (const st of list65) {
+    if (!lanes1165.includes(st.id)) continue;
+    for (let k = Math.round((LN1165!.from) / 0.5); k < st.pts.length; k++) {
+      const [px, pz] = st.pts[k], [tx, tz] = st.tan[k];
+      for (let off = -LN1165!.half + 1; off <= LN1165!.half - 1 + 1e-9; off += 0.5) {
+        const [x, z] = [px - tz * off, pz + tx * off];
+        if (S65.some((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && b[4] < MOVE.standHeight && b[5] > 0.3 && b[5] - b[4] > 0.05)) blocked65.push(`${st.id} (${x.toFixed(1)}, ${z.toFixed(1)})`);
+      }
+    }
+  }
+  // the sets: every part standing to 2.5 m and more at its middle, none in a lane, each clear of the piers
+  const parts65 = LS.flatMap((s) => s.parts);
+  const soft65 = parts65.filter((p) => !S65.some((b) => p.c[0] >= b[0] - 0.5 && p.c[0] <= b[1] + 0.5 && p.c[1] >= b[2] - 0.5 && p.c[1] <= b[3] + 0.5 && b[4] < 0.3 && b[5] >= 2.5));
+  const corners65 = (p: Part1165) => {
+    const a = (p.yaw * Math.PI) / 180, u = [Math.cos(a), -Math.sin(a)], v = [Math.sin(a), Math.cos(a)];
+    return [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0], [1, 0], [-1, 0]].map(([s, t]) => [p.c[0] + u[0] * s * p.hu + v[0] * t * p.hv, p.c[1] + u[1] * s * p.hu + v[1] * t * p.hv]);
+  };
+  const inLane65 = parts65.filter((p) => corners65(p).some(([x, z]) => [...SF65.near(x, z, (LN1165?.half ?? 0) + 1)].some(([st, d]) => lanes1165.includes(st.id) && d < (LN1165?.half ?? 0))));
+  const byPier65 = parts65.filter((p) => {
+    const a = (p.yaw * Math.PI) / 180;
+    return (LN1165?.piers ?? []).some(([x, z]) => Math.abs((x - p.c[0]) * Math.cos(a) - (z - p.c[1]) * Math.sin(a)) < p.hu + (LN1165?.pierClear ?? 0) && Math.abs((x - p.c[0]) * Math.sin(a) + (z - p.c[1]) * Math.cos(a)) < p.hv + (LN1165?.pierClear ?? 0));
+  });
+  check(
+    "the lanes (Milestone 1165): each lane street's carriageway clear from the Loop's kerb to its end, the sets laid, standing 2.5 m and more, none in a lane and each clear of the span's piers, and head-high cover within the sprint's reach of every open half metre of the lanes' ground",
+    !!LN1165 && lanes1165.length >= 2 && LS.length === LN1165.sets.length && LS.length >= 6 && blocked65.length === 0 && soft65.length === 0 && inLane65.length === 0 && byPier65.length === 0 && n65 > 8000 && (far65 / n65) * 100 <= LN1165.left && farthest65 <= LN1165.farthest,
+    `${lanes1165.join(", ")}: ${blocked65.length} blocked${blocked65.length ? ` (${blocked65.slice(0, 3).join("; ")})` : ""}; ${LS.length} sets of ${LN1165?.sets.length ?? 0}, ${parts65.length} panels, ${soft65.length} not standing, ${inLane65.length} in a lane, ${byPier65.length} by a pier; ${((far65 / Math.max(1, n65)) * 100).toFixed(2)}% of ${n65} points over ${LN1165?.reach ?? 0} m from head-high cover, at most ${LN1165?.left ?? 0}%; the farthest ${farthest65.toFixed(1)} m at (${at65[0].toFixed(1)}, ${at65[1].toFixed(1)}), at most ${LN1165?.farthest ?? 0} m`,
+  );
+}
+
+// Cover overhead in the north-east quarter (Milestone 1163; docs/PLAN_NE_QUARTER.md, change 4: "canopies and arcades at 4 to
+// 5 m over the spokes' pavements and along the High City blocks' feet, so a rotation is not watched from every roof"). Every
+// tile of rules.overhead13.modules laid, colliding over its middle as a slab a head passes under, its top under the air that
+// is the run walls'; worn in its run's kit; every leg off the carriageways and standing in the collision; and the street the
+// tiles roof, counted on the bake's own boxes
+{
+  type OH13 = { top: number; most: number; least: number; roofed: number; leg: { piece: string; scale: number; kerb: number }; kits: Record<string, { slab: string; leg: string }>; modules: unknown[][] };
+  type Rec13 = { run: string; kit: string; c: number[]; yaw: number; hu: number; hv: number; y: number; top: number; legs: number[][] };
+  const O13 = (cfg.rules as unknown as { overhead13?: OH13 }).overhead13;
+  const L13 = (cfg as unknown as { overhead13?: Rec13[] }).overhead13 ?? [];
+  const S13 = (SOLIDS as { solids: number[][] }).solids.filter((b) => b[1] > 0 && b[0] < 100 && b[3] < 0 && b[2] > -100 && b[4] < 6);
+  const SF13 = new StreetField(curvedStreets(cfg.rules.streets.curves as unknown as Parameters<typeof curvedStreets>[0]));
+  const soft: string[] = [], high: string[] = [], low: string[] = [], onRoad13: string[] = [], legless: string[] = [], unworn: string[] = [];
+  const rows13 = ((cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-dress"]?.place ?? []).filter((q) => typeof q[6] === "string" && Object.values(O13?.kits ?? {}).some((k) => k.slab === q[6] || k.leg === q[6]));
+  const cells13 = new Set<string>();
+  for (const M of L13) {
+    const id = `${M.run} (${M.c[0]}, ${M.c[1]})`;
+    // a slab over its middle: a box of the bake from its underside to its top
+    const slab = (x: number, z: number) => S13.some((b) => x >= b[0] - 0.01 && x <= b[1] + 0.01 && z >= b[2] - 0.01 && z <= b[3] + 0.01 && b[4] >= M.y - 0.3 && b[5] <= M.top + 0.3 && b[5] > M.y);
+    if (!slab(M.c[0], M.c[1])) soft.push(id);
+    if (M.top > (O13?.most ?? 0)) high.push(id);
+    // a standing head and a hand under it (movement.json standHeight is 72 hammer units, 1.83 m)
+    if (M.y < 2.3) low.push(id);
+    for (const [lx, lz] of M.legs) {
+      if (SF13.road(lx, lz) < (O13?.leg.kerb ?? 0)) onRoad13.push(`${id} leg (${lx}, ${lz})`);
+      if (!S13.some((b) => lx >= b[0] - 0.3 && lx <= b[1] + 0.3 && lz >= b[2] - 0.3 && lz <= b[3] + 0.3 && b[4] < 0.5 && b[5] > M.y - 0.6)) legless.push(`${id} leg (${lx}, ${lz})`);
+    }
+    if (!rows13.some((q) => q[6] === O13?.kits[M.kit]?.slab)) unworn.push(id);
+    // the street it roofs: the bake's half-metre cells under its own boxes
+    const r = Math.hypot(M.hu, M.hv);
+    for (const b of S13) {
+      if (b[4] < M.y - 0.3 || b[5] > M.top + 0.3 || b[5] <= M.y || Math.abs((b[0] + b[1]) / 2 - M.c[0]) > r + 3 || Math.abs((b[2] + b[3]) / 2 - M.c[1]) > r + 3) continue;
+      for (let x = b[0]; x < b[1] - 0.01; x += 0.5) for (let z = b[2]; z < b[3] - 0.01; z += 0.5) if (Math.hypot(x + 0.25 - M.c[0], z + 0.25 - M.c[1]) < r + 0.5) cells13.add(`${x},${z}`);
+    }
+  }
+  const roofed13 = cells13.size * 0.25;
+  check(
+    "cover overhead in the north-east quarter (Milestone 1163): every canopy tile laid and colliding as a slab over a head, under the run walls' air, in its run's kit, its legs off the carriageways and standing, and the street they roof",
+    !!O13 && L13.length === O13.modules.length && L13.length >= O13.least && soft.length === 0 && high.length === 0 && low.length === 0 && onRoad13.length === 0 && legless.length === 0 && unworn.length === 0 && roofed13 >= O13.roofed,
+    `${L13.length} of ${O13?.modules.length ?? 0} tiles, ${roofed13.toFixed(0)} m2 roofed (${O13?.roofed ?? "?"} asked); ${soft.length} not colliding${soft.length ? ` (${soft.slice(0, 3).join("; ")})` : ""}, ${high.length} too high, ${low.length} too low, ${onRoad13.length} legs on a carriageway${onRoad13.length ? ` (${onRoad13.slice(0, 3).join("; ")})` : ""}, ${legless.length} legs not standing${legless.length ? ` (${legless.slice(0, 3).join("; ")})` : ""}, ${unworn.length} out of their kit`,
+  );
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

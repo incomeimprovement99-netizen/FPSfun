@@ -20712,3 +20712,36 @@ From docs/PLAN_MAP_TO_8.md, step 2: the map had 485 checks and not one ran a roo
   seconds. Proven with the tool by a prop stood on each line (a block in the alley's leap, a box against the wall, a box on
   the low roof: each line stops and says where), and in the check by a line asked for 30 m of wall and one given 1 s.
 - **Checked:** verify, rules and tsc.
+
+## Milestones 1160 to 1165 — batch 13: the north-east quarter rebuilt for 14 m/s (map version 146)
+
+Step 3 of docs/PLAN_MAP_TO_8.md, built from docs/PLAN_NE_QUARTER.md and the first layout reviews (docs/LAYOUT_REVIEW.md:
+4 and 4.5 of 10 for play, both putting the 27 m bridge ring first). Three proposal agents measured and wrote it on version
+145's snapshot, each proving what it could with the real Player and the quarter's numbers on a forecast collision; applied
+here one at a time and baked. Judged by numbers and routes, not pictures.
+
+- **1160 to 1162, the span lowered, the way up, the walls and the roofs.** The bridge ring's north-east span rides at
+  rules.bridges.tops: decks at 16.1 m, two gaps where the spoke streets pass under, steps of 3.6 m (19.7, 23.3) up to each
+  block's 26.9 m with a solid riser under each, five piers on pavements and the block's own ground under the pieces that
+  stand free. A step on roof C's west eave (top 14.2 m) with the rail opened there, because a deck's slab with air under it
+  is not climbed: the body goes under it. Two hoardings of the pack's city wall, 9.5 to 16.5 m up, from roofs A and C over
+  the two spokes. Roof B's boxes moved east of the line across the three roofs.
+- **1163, cover overhead.** Seventeen floor tiles at 4.5 m on pipe legs over the spokes' pavements and along the two
+  blocks' feet, in materials the map draws. Twenty were proposed: two stood in the lane of the wall run along the north
+  block's south face and one put a leg where the east fire escape's face is measured (the flights were laid 9 m out).
+- **1164, not built.** The parapet on the blocks' roof edges was measured and dropped: a full wall on both edges moves the
+  exposure number from 71.2% to 70.9%. From 20 m up, 4,395 of 7,202 sight pairs onto the quarter's streets come from the
+  outer districts' roofs.
+- **1165, the lanes.** Both spokes' carriageways stand clear kerb to kerb (no station, median, parked car or fill piece
+  within 5 m of the middle line); the quadrant and the ring road's corner are taken from the street cover fill, and nine
+  sets of 3 m timber panels with a lit top edge hold them, head-high cover within 10 m of every open half metre (0.09%
+  past it).
+- **Measured on the bake, the north-east against version 145:** the street to the east block's roof with no pad 10.2 s
+  and to the north block's 9.9 s (no way before); the three roofs 3.28 s (5.9); each spoke sprinted 4.28 s (stopped on
+  cover); mean free run 14.6 m (10.7); roof between 12 and 20 m 521 m2 (175); street under a roof 16% (10%); street open
+  and seen by forty high spots or more, of all street, 59% (68%). Two wall runs of 16.2 m. The other three quarters did not
+  move. Short of the plan's aim: the exposure (50% asked) and the roofed street (20% asked).
+- **Checks that learned the new work:** 496 map checks at every size, 489 before, draws 205 primitives at the low size and 218 at the largest. Twelve movement lines run each bake. The old span's walk, rail and cover
+  checks skip the lowered path, which has its own; the kiosk count on the streets is 4 for 6 (the lanes took a quadrant
+  from the fill).
+- **Checked:** verify, rules and tsc. Map files version 146: lo 239.6 MB, hi 325.6 MB, max 645.9 MB. The quarter photographed from its ten spots.

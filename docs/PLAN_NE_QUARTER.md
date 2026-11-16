@@ -89,3 +89,12 @@ Each has a measure and, where it is a route, a movement line that must run.
 
 The districts past the ring road, the centre sector, the match's ending, the High City blocks' heights (step 6 of the
 plan), the bots' use of the roofs.
+
+## 6. The result (version 146, 2026-11-16)
+
+Built as Milestones 1160 to 1165 and measured on the bake (docs/DEVELOPMENT_ROADMAP.md has each number). Met: both ways
+up with no pad (10.2 s and 9.9 s for 18), the three roofs (3.28 s for 3.5), both spokes (4.28 s for 4.5), the mean free
+run (14.6 m for 14), the roof between 12 and 20 m (521 m2 for 500), two wall runs of 16.2 m. Not met: the exposure, 59%
+for 50 (the watchers are the outer districts' roofs, and the ring road's corner has no canopy), and the street under a
+roof, 16% for 20. Dropped: the parapet (it moves the number by 0.3 of a point) and a run wall at street level (it would
+stand in the lanes). Next: a layout review of this version, then the roll-out of what holds to the other three quarters.
