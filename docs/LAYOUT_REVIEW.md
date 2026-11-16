@@ -74,3 +74,43 @@ does not lower how many high spots see its streets (79% of open spots seen by fo
 by ten or more from 20 m up, before and after). The watchers that count are the two blocks' roofs, hundreds of spots
 against the span's eighteen. So the span's change is for routes and for a position with a counter, and the blocks' own
 edges need the parapet.
+
+## Round 2 (2026-11-16, on version 146: the north-east quarter rebuilt)
+
+Two new reviewers, C and D, given the same pack on version 146 and, beside it, the rebuilt quarter's numbers against the
+other three and the question whether to roll it out. Reviews in full: `%TEMP%/neon/layout2/review-C.md`, `review-D.md`.
+
+| | Whole map, C | Whole map, D | North-east alone, C | North-east alone, D |
+|---|---|---|---|---|
+| Flow | 5 | 4 | 7 | 6 |
+| Verticality | 5 | 5 | 6 | 6 |
+| Cover | 3 | 3 | 4 | 4 |
+| How readable the routes are | 6 | 4 | 7 | 6 |
+| Variety of fights | 4 | 4 | 6 | 5 |
+| The ending | 4 | 4 | 5 | 4 |
+| Overall for play | 4.5 | 4.5 | 5.5 | 5.5 |
+
+Round 1 gave the whole map 4.5 and 4. Both forecast 5.5 overall with all four quarters as the north-east is, and 7 with
+their changes and the ending mended.
+
+**The trial, both:** better by about a point, and to be rolled out changed first.
+
+- **Flow is mended, being seen is not.** The free run is up 40% and the roofs run at 9 m/s, but 75% of the quarter's open
+  street is still seen by forty high spots or more. The carriageways were cleared and the canopies put over the
+  pavements: "the pavement canopies cover the slow path, not the fast one" (C); "a 60 m bare lane crossed in 4.3 s under
+  two 27 m roofs" (D). Both: cover over the fast path. C, two or three decks at 8 to 10 m across each street; D, canopies
+  continuous on both pavements and a 6 m blocker every 35 to 40 m, offset so the lane bends and does not stop.
+- **The middle tier is a sixth of what the quarter needs** (C); double it (D). D: lower the blocks' own outer lobes to 16
+  to 20 m, not only the span.
+- **The two walls are set pieces, not a route** (C): chain four or five into a line that ends on a roof. D: 20 m is 1.3 s
+  of a 3 s run; build 35 to 45 m.
+- **Break each quarter differently** (C), so the four do not play alike.
+
+**New in this round, both:** GLASS HEIGHTS' 27 m spine into High City N is a free rotation with no counter, and the north
+squad walks in above everyone while the south squad crosses the worst ground on the map; the 27 m bridge from High City E
+to the tower should be broken; the ending wants zones on three heights, a hold of 25 to 30 s paused while contested, the
+tower closed above 12 m at the last wave, and walls round the plaza.
+
+**Taken up:** docs/PLAN_ROLLOUT.md (version 147): the other three quarters as the north-east with these changes, and the
+north-east brought up to them.
+

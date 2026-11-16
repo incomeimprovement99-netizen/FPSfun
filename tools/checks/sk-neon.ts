@@ -2376,7 +2376,7 @@ const LN1165 = (cfg.rules.dress as unknown as { lanes?: { streets: string[]; hal
 const lanes1165 = LN1165?.streets ?? [];
 const lanes1165Ground = (x: number, z: number): boolean => {
   const G = LN1165?.ground;
-  if (!G || x * G.quadrant[0] <= 0 || z * G.quadrant[1] <= 0) return false;
+  if (!G || !((G as unknown as { quadrants?: number[][] }).quadrants ?? [G.quadrant]).some((q) => x * q[0] > 0 && z * q[1] > 0)) return false;
   const m = Math.max(Math.abs(x), Math.abs(z));
   return Math.hypot(x, z) >= G.loop && m <= (cfg.rules.ring as number[])[1] && (m < (cfg.rules.low as unknown as { edge: number }).edge || (Math.abs(x) > G.corner && Math.abs(z) > G.corner));
 };

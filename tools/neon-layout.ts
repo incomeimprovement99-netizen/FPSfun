@@ -2491,7 +2491,8 @@ const lanes1165Street = (id: string): boolean => !!LANES1165 && LANES1165.street
 /** the lanes' ground: no street to the street cover's fill */
 const lanes1165Ground = (x: number, z: number): boolean => {
   const G = LANES1165?.ground;
-  if (!G || x * G.quadrant[0] <= 0 || z * G.quadrant[1] <= 0) return false;
+  // (`quadrants` where the lanes' ground is more than one, the roll-out of Milestone 1165; `quadrant` the first)
+  if (!G || !((G as unknown as { quadrants?: number[][] }).quadrants ?? [G.quadrant]).some((q) => x * q[0] > 0 && z * q[1] > 0)) return false;
   const m = Math.max(Math.abs(x), Math.abs(z));
   return Math.hypot(x, z) >= G.loop && m <= (R.ring[1] as number) && (m < (R.low.edge as number) || (Math.abs(x) > G.corner && Math.abs(z) > G.corner));
 };
