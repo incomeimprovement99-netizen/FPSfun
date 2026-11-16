@@ -156,12 +156,15 @@ the light, the shadows, the plain towers, the boxes past the fence.
 And the pictures cannot see play. The server's log shows the last three weeks: a few sessions, the longest 7 minutes, most
 under 3, no feedback left. So every claim about fun, in this document too, is an inference.
 
-### 3.6 Every match ends in the same place
+### 3.6 Half the matches end in the same place
 
-The four waves delete the eight outer sectors and the match ends in the centre sector: the tower, the base, the plaza and
-the court, with one of three capture zones on the Loop. The High City roofs are outside it. The last fight is always tower
-floors against the plaza. Shipped battle royales end somewhere new each match, and that is a large part of why a map stays
-interesting past ten matches.
+Corrected 2026-11-16: this section first said every match ends in the centre. It does not. The final sector is the centre
+with odds of a half (decay.json `finalCentre` 0.5, the owner's: the Spire is the biggest, hottest sector) and otherwise
+one of the eight outer sectors, drawn at random (decay.ts); the waves then take the sectors furthest from it first, and
+the capture zone opens at the final sector's middle. Two squads in the zone at once and neither fills it. So half the
+matches end at the tower, the base and the plaza, where the High City roofs are just outside the sector and the last
+fight is tower floors against the plaza; the other half end in a district or on a deck, and nothing in this document or
+in the layout reviews has yet looked at how those eight endings play.
 
 ### 3.7 What is already strong, and should be kept
 
@@ -211,8 +214,10 @@ NOODLE ROW, the ring road there), then measured against the other three, played,
 
 **Step 4. Roll out what the trial proves** to the other three quarters and the districts' mouths.
 
-**Step 5. The ending.** More capture zones in the centre sector, on other levels (the base roof, the Sky Ring, the court),
-or a final sector that is not always the centre. This is a match rule, the lobby's and the owner's.
+**Step 5. The ending.** For the half that end in the centre: capture zones on other levels (the base roof, the Sky Ring,
+the court) and walls to run round the plaza. For the other half: each outer sector's own ending looked at, by a layout
+review told the rule as it is. The hold's length (45 s) and the tower's floors late in the match are match rules: judged
+only after that review.
 
 **Step 6. The big shapes.** What the reviewers call "one model tinted four ways" and "a generic skyscraper": the four High
 City blocks at four heights, which also breaks the ring into stepped roofs. This is the largest build, and it should wait

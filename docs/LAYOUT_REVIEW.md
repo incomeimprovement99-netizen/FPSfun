@@ -114,3 +114,14 @@ tower closed above 12 m at the last wave, and walls round the plaza.
 **Taken up:** docs/PLAN_ROLLOUT.md (version 147): the other three quarters as the north-east with these changes, and the
 north-east brought up to them.
 
+
+
+## A correction to rounds 1 and 2: where the match ends
+
+Both rounds' briefs told the reviewers that every match ends in the centre sector. That was the map agent's misreading.
+The final sector is the centre with odds of a half and otherwise one of the eight outer sectors at random (decay.json
+`finalCentre`, decay.ts), and two squads in the zone at once already stop it filling. So what all four said of the ending
+(the tower holds the vault and the height and is never deleted; the same fight every match; end it in other sectors too;
+pause the hold while contested) holds for half the matches, is already so for the other half, and the pause is the rule
+today. What stands untouched: the hold is long against a kill under a second, the centre has 22 m of wall to run, and its
+zone is on one level. Round 3's brief states the rule as it is and asks about the outer endings.
