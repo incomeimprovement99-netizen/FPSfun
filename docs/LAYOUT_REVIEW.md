@@ -185,6 +185,42 @@ MARKET. F, ways up in the west and north-west outer band (THE STACKS, CAPSULE HO
 fire escape) and THE STRIP; one clear sprint lane and roof route in each outer district; two-level ending sites for W
 and NW; THE CANYON's plate broken; a second 27 m bridge into the tower, from High City W.
 
-**Taken up:** the endings first, where both put their first two changes and their lowest score: the outer zones moved
-off the ring road onto chosen spots, and the zone counted only up to a height. Then decks across the ring road and the
-centre's middle tier and walls.
+**Taken up:** see the correction below: the first answers on the endings measured the wrong spots.
+
+### A correction to round 3: where the zones open, and the scores asked again
+
+Round 3's brief said the capture zone opens "at its middle", and both reviewers took the sector's rectangle: x or z = 100,
+the ring road. It opens at the sector's own `middle` (neonmap.json game.sectors, decay.ts centreOf): the centre's at
+(0, -22) on the tower's base north of the tower, the four edge sectors' on the High City blocks themselves at 72 m, the
+four corners' on the corner blocks at (72, 72) and its mirrors. The map agent checked E's claim against the rectangles too
+and repeated it. The brief now says so, with a table of what each 14 m circle holds and the nine circles drawn on the map,
+and E and F answered questions 5, 6, 10 and 11 again (their reviews' addenda).
+
+| | E | F |
+|---|---|---|
+| The ending, asked again (first answer) | 6 (3) | 5.5 (3.5) |
+| Overall for play, asked again (first answer) | 5.5 (5) | 5.5 (5) |
+| By ending | corners 7, centre 6, edges 4 | ne 7, nw 7, c 6.5, se 6.5, sw 6, n s e w 4 to 5 |
+
+Both forecast 6.5 with their new top three. Gone from the first answers: the zones on the ring road and every number
+measured there, and the changes that moved them. Standing: the ring road as ground (78 to 95% seen by forty high spots
+or more, one roof crossing), the centre's 22 m of wall, and the quarters' scores.
+
+**What both say now:**
+
+- **The corners are the best endings on the map**: two tiers at 6 to 12 and 12 to 20 m, a third of their street roofed,
+  3 to 15% of it seen by forty or more. The batch 14 rebuild made them. Keep them as they are.
+- **The four edge endings are one flat-roof standoff four times**: each zone is a High City block's 27 m roof over two
+  thirds of its circle, bare, the highest point in its sector, its holder seeing every pad, rope and stack that lands on
+  it. Worst e and s, whose circles hang over the street at the block's foot (24 and 19% of them), so a squad 27 m below
+  by the pads at (85, 0) and (0, 85) freezes the roof's meter; w, all of its street seen by forty or more and nothing
+  landing inside it. Both: structures about 3 m tall inside each roof zone with the ways up landing behind them, and a
+  second way up onto the roof.
+- **The centre is a real layered fight** (the court under a 6 to 12 m deck, no street seen by forty) **spoiled by the
+  tower**: the circle reaches 2 m inside the tower's north wall, and the tower has a floor every 3 m to 110 m, so a body
+  in a north room at any height counts (measured by the map agent: tops at 14 to 110 m inside the circle). Both: count a
+  body only up to a height (E 13 m at the centre, F 30 m everywhere), and cover and walls to run on the bare deck.
+- **The rule:** E, a body contests only after 2 s inside, so a sprint through freezes nothing; F, a contested meter
+  drains slowly. Both keep the 45 s; E a radius of 18 m for the edges, F 14.
+
+**Taken up:** docs/PLAN_ENDINGS.md.
