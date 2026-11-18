@@ -129,3 +129,62 @@ zone is on one level. Round 3's brief states the rule as it is and asks about th
 A second slip in the same paragraph of both briefs: the zone was given as "14 m across". It is 14 m in radius, 28 m
 across (decay.json `capture.radius`), and it counts a body at any height over the circle (brmatch.ts updateCapture reads
 x and z only), so "the zone on one level" means one circle in plan, roof and street alike. Round 3's brief says so.
+
+## Round 3 (2026-11-18, on version 147: the whole inner ring rebuilt, each quarter its own way)
+
+Two new reviewers, E and F, neither told of the other, the plan or the earlier scores, given the pack rebuilt on version
+147 (`%TEMP%/neon/layout3/`: the brief with the ending's rule as it is, the four measured maps, each quarter from the tower
+and from one of its spokes, the numbers by quarter). Both measured the maps' pixels rather than reading them by eye.
+Reviews in full: `%TEMP%/neon/layout3/review-E.md`, `review-F.md`.
+
+| | E | F |
+|---|---|---|
+| Flow | 6 | 6 |
+| Verticality | 6 | 6 |
+| Cover | 4 | 4 |
+| How readable the routes are | 6 | 6.5 |
+| Variety of fights | 5 | 6 |
+| The ending | 3 | 3.5 |
+| Overall for play | 5 | 5 |
+| North-east / north-west / south-east / south-west | 6 / 4.5 / 5.5 / 5 | 6 / 4.5 / 6.5 / 5 |
+
+Round 2 gave the whole map 4.5 and 4.5 and forecast 5.5 for the roll-out as it stood: it came in at 5, with flow and
+verticality up from 4 and 5 to 6 and the ending down. Both forecast 6.5 with their top three changes. One slip in the
+brief: its quarter table put version 146's numbers in brackets, but its islands row's brackets are the islands with no
+leap; both read it so.
+
+**What both said, each without the other:**
+
+- **Every outer ending opens on the ring road.** The outer sectors' middles are at x or z = 100, the ring road's outer
+  edge (it runs 90 to 100 m out), so each 28 m circle is half bare asphalt under the 27 m blocks. Seen by forty high
+  spots or more, of each circle (E / F): S 95 / 100%, NW 91 / 100, W 84 / 100, E 80 / 93, N 79 / 93, NE 67 / 78, SW
+  23 / 41, SE 22 / 29. The worst S (bare road under High City S's rim), W and NW (a bare crossroads by a tower nobody
+  climbs); SE (THE WORKS) and SW (THE CANYON's corner) play. Both first: open each outer zone at a chosen spot 20 to 25 m
+  into its district (GLASS HEIGHTS' court, THE TERMINAL, THE TERRACES, THE STRIP, LANTERN ALLEYS, THE CANYON's junction),
+  keep the south-east's.
+- **"Any height" spoils the centre's.** Half the centre's circle is the tower's footprint, and the tower's top (60 m
+  and more, reached only by its two express ropes) is inside it with no counter. Both second: count a body only up to a
+  height (E 13 m, F 20 m). E also: the zone on the podium east of the tower, 20 m across the radius, a body contesting
+  only after 2 s in, a 35 s hold.
+- **The ring road is a moat:** 78 to 95% seen from forty high spots, 30 to 38 m of bare road, one roof crossing (the
+  6 m neck from GLASS HEIGHTS to High City N). Both: decks at 9 to 12 m across it.
+- **The middle tier is in the right ring and nowhere else**: none in the outer band or the centre (the centre jumps from
+  the 6 to 12 m podium to the 30 to 60 m base), so no ending has one; F: every piece of it sits under a 27 m rim within
+  30 m, a step below the top more than a tier of its own. The centre has 22 m of wall to run; both: run walls and a
+  ledge or balcony ring on the tower at 12 to 35 m.
+- **The quarters differ in detail and look alike from the tower.** North-east best or near it (its spokes 36 to 66%
+  roofed); south-east the most middle tier; north-west worst (78% of its street seen by forty or more, both ways up with
+  no pad start in one alley, its 19.7 m high leg owns the west spoke); MARKET's west spoke the barest on the map (53 to
+  64% seen by forty or more).
+- **The 5 and 10 m span gaps sit under the 11 m level leap** (E): they cost nothing; only MARKET's 15 m gap is a
+  decision.
+
+**One each:** E, a second way into MOTEL HILL's alley and a 12 m deck half way down the north-west's west spoke; two
+decks over MARKET's west spoke; leaps to the south-east's six dead islands; THE CANYON a cache, a rope and a zip to
+MARKET. F, ways up in the west and north-west outer band (THE STACKS, CAPSULE HOTEL, THE TERRACES have no pad, rope or
+fire escape) and THE STRIP; one clear sprint lane and roof route in each outer district; two-level ending sites for W
+and NW; THE CANYON's plate broken; a second 27 m bridge into the tower, from High City W.
+
+**Taken up:** the endings first, where both put their first two changes and their lowest score: the outer zones moved
+off the ring road onto chosen spots, and the zone counted only up to a height. Then decks across the ring road and the
+centre's middle tier and walls.
