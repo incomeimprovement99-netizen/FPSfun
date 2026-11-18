@@ -2503,6 +2503,22 @@ const lanes1165InLane = (o: OBox): boolean => {
   for (const s of [-1, 0, 1]) for (const t of [-1, 0, 1]) pts.push([o.c[0] + o.u[0] * s * o.hu + o.v[0] * t * o.hv, o.c[1] + o.u[1] * s * o.hu + o.v[1] * t * o.hv]);
   return pts.some(([x, z]) => [...SF.near(x, z, LANES1165.half + 1)].some(([st, d]) => LANES1165.streets.includes(st.id) && d < LANES1165.half));
 };
+/** whether a piece comes into one of MARKET's lanes (rules.sw14, Milestones 1177 to 1180): its spokes keep the stall line on
+ * the middle and are no lane streets, so the street cover's fill was free of them, and a lane either side, `band` metres
+ * off the middle line, is what the quarter's check runs clear to a standing head. Version 147's first bake laid four of the
+ * fill's pieces in them, at the forks and 14 m down the south spoke, where the sprints down them stopped (Milestone 1181) */
+const SW1177 = (R as unknown as { sw14?: { lanes: string[]; band: number[] } }).sw14;
+const marketInLane = (o: OBox): boolean => {
+  if (!SW1177) return false;
+  // (a quarter metre past the band each side: the collision's column round a piece)
+  const [lo, hi] = [SW1177.band[0] - 0.25, SW1177.band[1] + 0.25];
+  for (const s of [-1, 0, 1])
+    for (const t of [-1, 0, 1]) {
+      const [x, z] = [o.c[0] + o.u[0] * s * o.hu + o.v[0] * t * o.hv, o.c[1] + o.u[1] * s * o.hu + o.v[1] * t * o.hv];
+      if ([...SF.near(x, z, hi + 1)].some(([st, d]) => SW1177.lanes.includes(st.id) && d > lo && d < hi)) return true;
+    }
+  return false;
+};
 /** the lanes' sets, laid whole at their measured spots: each part solid, in the street's model and the stations' list of
  * what stands, so the parked cars, the median and the street cover read it as standing */
 function lanes1165Lay(SG: ReturnType<typeof streetGraph>): void {
@@ -3283,6 +3299,27 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
   const CLs = (R.blocks as { climbs?: { piece: string; shift: number; clear: number; at: Array<{ at: Pt; along: Pt }> } }).climbs;
   const climbSpots: Pt[] = CLs ? CLs.at.flatMap((A) => [-1, 1].map((k) => [A.at[0] + A.along[0] * k * CLs.shift, A.at[1] + A.along[1] * k * CLs.shift] as Pt)) : [];
   const climbR = CLs ? piece(CLs.piece).row.size![0] / 2 + CLs.clear + 1.5 : 0;
+  // (and off the ledge stacks, rules.blocks.ledges, the same way and for the same reason: the stacks are laid after the
+  // signs and throw on a sign within their clearance, and version 147's first bake reshuffled one onto the south block's
+  // lobe beside its stack, Milestone 1181. Each ledge's middle as the stacks lay it, both sides of the stack)
+  const LGs = (R.blocks as { ledges?: { piece: string; shift: number; inset: number; clear: number; at: Array<{ out: Pt; at?: Pt; along?: Pt; centre?: Pt; radius?: number; shift?: number }> } }).ledges;
+  const ledgeRow = LGs ? piece(LGs.piece).row : null;
+  const ledgeSpots: Pt[] = LGs && ledgeRow
+    ? LGs.at.flatMap((A) =>
+        [-1, 1].map((side) => {
+          const shift = A.shift ?? LGs.shift;
+          const deep = ledgeRow.size![0];
+          if (A.centre && A.radius) {
+            const a = Math.atan2(A.out[1], A.out[0]) + (side * shift) / A.radius;
+            const n: Pt = [Math.cos(a), Math.sin(a)];
+            return [A.centre[0] + n[0] * (A.radius + LGs.inset + deep / 2), A.centre[1] + n[1] * (A.radius + LGs.inset + deep / 2)] as Pt;
+          }
+          return [A.at![0] + A.along![0] * side * shift + A.out[0] * (LGs.inset + deep / 2), A.at![1] + A.along![1] * side * shift + A.out[1] * (LGs.inset + deep / 2)] as Pt;
+        }),
+      )
+    : [];
+  // (the stacks measure a ledge's middle against the sign's own origin; half a metre more so a sign is never on the line)
+  const ledgeR = LGs && ledgeRow ? Math.hypot(ledgeRow.size![0], ledgeRow.size![2]) / 2 + LGs.clear + 0.5 : 0;
   for (const { st, sides } of lines)
     for (const side of sides) {
       let lastU = -Infinity;
@@ -3322,6 +3359,7 @@ function carriageway(SG: ReturnType<typeof streetGraph>): void {
         const [bx, bz] = rotY(yaw, (row.min![0] + row.max![0]) / 2, row.min![2]);
         const f: Pt = [q[0] + dir[0] * d, q[1] + dir[1] * d];
         if (climbSpots.some((c) => Math.hypot(c[0] - f[0], c[1] - f[1]) < climbR + w / 2 + 1)) continue;
+        if (ledgeSpots.some((c) => Math.hypot(c[0] - (f[0] - bx), c[1] - (f[1] - bz)) < ledgeR)) continue;
         // (and not on the Sky Ring's deck, Milestone 970: its rail's columns are a front to the ray, and two signs stood on
         // the walk, drawn only, one across it)
         const skyW = R.skyring as { r0: number; r1: number; deck: number } | undefined;
@@ -5231,6 +5269,7 @@ const DEPOT: Array<{ id: string; box: number[]; top: number; parts: number }> = 
       const [x, z] = o.c;
       // (never within a lane's half width of a lane street's middle line, Milestone 1165: at the lanes' ends outside their ground too)
       const k = lanes1165InLane(o) ? "lane"
+        : marketInLane(o) ? "market lane"
         : !cellsOf(o).every((c) => street[c] && open(c)) ? "street"
         : cellsOf(o, CO.clear).some((c) => body[c]) ? "clear"
         : cellsOf(o).some((c) => over[c] < o.top + CO.headroom) ? "under"

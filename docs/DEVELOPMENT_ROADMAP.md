@@ -20745,3 +20745,73 @@ here one at a time and baked. Judged by numbers and routes, not pictures.
   checks skip the lowered path, which has its own; the kiosk count on the streets is 4 for 6 (the lanes took a quadrant
   from the fill).
 - **Checked:** verify, rules and tsc. Map files version 146: lo 239.6 MB, hi 325.6 MB, max 645.9 MB. The quarter photographed from its ten spots.
+
+## Milestones 1166 to 1181 — batch 14: the whole inner ring rebuilt for 14 m/s, each quarter its own way (map version 147)
+
+docs/PLAN_ROLLOUT.md, from the second layout reviews (docs/LAYOUT_REVIEW.md: the north-east 5.5 where the map is 4.5,
+roll it out changed first). Four proposal agents, one a quarter and one at a time, measured and wrote each on version
+146's snapshot and proved what they could with the real Player on a forecast collision; applied here one at a time and
+baked once for all four. Judged by numbers and routes, not pictures.
+
+- **1166 to 1168, the north-east brought up to the plan.** Six decks across its two spokes at 9 m, 5 m along the street
+  and 20 m across on the pack's concrete pillars on the pavements, three of them with a second floor at 12.5: under cover
+  every 12 to 17 m of a sprint, and the neighbours a level leap or a second jump apart. Two terraces at 12.5 and 13 m on
+  the blocks' faces. The north hoarding run 5 m west so the walls chain: the north terrace, along the hoarding, the three
+  roofs, down the east hoarding onto the east terrace: one line, two walls, ending on a roof. Two blockers 6 m tall on the
+  pavements (the plan asked one every 35 to 40 m: every other spot meets a canopy, a lamp, a crossing, a door's line or a
+  grid line).
+- **1169 to 1172, the north-west: the west leg high, the north leg low, the way up in MOTEL HILL's alley.** The span's
+  west leg is a 19.7 m road over the west spoke, broken only by its pad gap (the pads moved 1.5 m so the gap is leapt on
+  foot beside them); the corner steps down 3.6 m; the north leg runs at 16.1 m and is broken over the north spoke. Four
+  solid steps (4.2 to 14.2 m) up the 6 m alley between the rooms building and the motel, under the span's corner: the way
+  up with no pad. A roof deck over the motel at 12.2. Gantries across both spokes at 8.5 m, two with a second floor. A
+  terrace at 16.1 on the west block. A hoarding 13 to 20 m from the west terrace north over the fire escape's top to the
+  rooms building's roof, kept 1.7 m off the zip's rope. Eleven canopy tiles. Both spokes made lanes.
+- **1173 to 1176, the south-east: THE WELL, a span broken three ways.** A 5 m gap with its pads, a 10 m dip down onto the
+  walk-in's own terrace, and a 10 m gap over the south spoke. THE STAIR, a 10 m block beside the dip's step. The walk-in's
+  low south roofs raised to a deck at 12.1, a gallery at 12.5 over the wedge, the tower's south balcony at 12.5 with two
+  steps to 19.7, a 16.1 m terrace on each block's outer face, two hoardings 13 to 20 m (35 and 20 m long). Five gantries
+  at 8.5 m, three with a second deck. Seven canopy tiles. Both spokes made lanes.
+- **1177 to 1180, the south-west: MARKET, the block's end high and a sheer drop.** The span stays at 26.9 m off the south
+  block, then falls 14.4 m to a low gallery at 12.5; a 15 m gap over the south spoke, level (a second jump); the second leg
+  steps up to the west block (12.5, 16.1, a 10 m gap over the west spoke, 19.7, 23.3, 26.9). Two run walls of the pack's
+  city wall, 30 and 20 m. The upper market, a deck at 12.5 over the walk-in; a terrace at 12.5 off the south block with a
+  stair round its lobe to the roof. Two decks across the spokes at 9 m. **MARKET keeps its stall line** on the middle of
+  both spokes, with a clear lane either side (the stalls reach 1.4 m off the middle line, a lane runs 1.4 to 5 m): its
+  streets are not lane streets, the parked cars and one cover piece in a lane were moved.
+- **1181, what the bake found and what was mended.** The signs are hung at random against the bake's own collision,
+  and the first bake's new collision hung one fewer, which reshuffled the rest: one landed on the south block's lobe
+  beside its ledge stack, and the layout's rerun stopped there (the stacks are laid after the signs and refuse a sign
+  within their clearance). The signs now keep off the ledge stacks as they already kept off the climbs' balconies, for the
+  same reason, measured as the stacks measure. THE WELL's walk-in: a canopy leg moved out of its way in. MARKET: a bench
+  and a one-sided stall kept out of the lanes beside the stall line, and the west spoke asks two stalls where it asked
+  three (sw14's piers took the third's spot). The street cover's fill now keeps out of MARKET's lanes as it keeps off a
+  lane street's carriageway: MARKET's spokes are no lane streets, so the fill was free there, and the second bake laid four
+  of its pieces in them (at both forks and 14 m down the south spoke), where three of the four sprints down them stopped.
+  The north-west gap's pads stood 0.1 m off the deck's west rail and the bake read their floor off the rail's top, 0.85 m
+  over the deck: moved 0.4 m in, their marks in line with them so a throw does not drift onto the far rail, and the
+  runner's line past them on the deck's east side (the deck is 3 m between its rails). Two of the motel's panel sets on the
+  north-west ring road's west leg, mirrored from the north-east's, where the lanes' ground took the fill and the farthest
+  point was 15.5 m from head-high cover. NOODLE ROW's bistro by its northern stall left out: ne14's deck pillars made the
+  3 m beside it the bots' one way through. The Loop's sightline bar set from the bake, 31% (28.9 with four lane streets,
+  30.2 with six): a lane street's carriageway stands clear from the Loop's kerb, so its lines run out over the forks.
+  The north-west gap pads' light columns are left out, their rings kept: 0.6 m off the rail, the 1 m column stood in it
+  (game.padRings.column.trim, written by hand: tools/neon-pooltrim.ts rewrites the whole list and the lamps' pools, and
+  drops the trims set by hand for THE WORKS' atrium and the east fire escape's pad).
+- **Measured on the bake, by quarter, against version 146** (north-east, north-west, south-east, south-west): roof
+  between 12 and 20 m 1,037, 863, 1,232 and 890 m2 (521, 116, 72, 265: the ring's middle tier from 974 m2 to 4,022);
+  street under a roof 24, 17, 11 and 10% (15, 9, 6, 9); street open and seen by forty high spots or more, of all street,
+  33, 43, 40 and 37% (44, 46, 46, 40); mean free run 14.0, 13.8, 13.9 and 10.0 m (14.7, 10.5, 11.7, 10.1: MARKET keeps
+  its stall line); roof islands 16, 16, 14 and 11 (6, 7, 7, 7). In each quarter two ways from the street to a 27 m
+  block's roof with no pad, 9.2 to 13.9 s; three roofs in 2.7 to 3.6 s; wall runs of 30 to 42 m along walls; each lane
+  sprinted end to end in 4.2 to 4.5 s. The new decks are high spots too: the outer band's open street seen by forty or
+  more rose from 42 to 52%, over the ring road and the districts' edges.
+- **Checks that learned the new work:** 517 map checks at every size, 496 before. Each quarter its own check (its
+  span's cells at their tops, its decks, terraces and walls, its lanes or MARKET's lanes clear to a standing head, its
+  boxes off the zip), and 44 movement lines run each bake, 12 before. Checks the lanes cut by design now read them: the
+  lanes' own carriageway test starts at the Loop's kerb (proven with a box planted in a lane); the street cover's test
+  skips the lane bands; the stations ask vans and kinds only of corner streets that take them, and two of sw-w
+  (rules.dress.carriage.fewer); the streets-dense test asks stations between on every street that takes them and the
+  Loop's lines past 35 m against rules.dress.lanes.loop; the pocket panels 12, THE WORKS' low panels 3, NOODLE ROW's
+  bistro sets 3, the corner streets' bins 5 with lanes, the counts the lanes and the decks left.
+- **Checked:** verify, rules and tsc. Map files version 147: lo 237.6 MB, hi 323.6 MB, max 644.0 MB. Each quarter photographed from six spots, the north-east's mirrored into the other three (24 pictures).

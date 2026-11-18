@@ -47,3 +47,25 @@ the north-east added (rules.bridges.tops and open, rules.routes rows and boxes, 
 rules.dress.lanes streets, quadrants and sets, rules.lines). Applied one at a time, baked as version 147, measured by
 quarter, photographed, and sent to a third layout review. Then the ending (zones on three heights, the hold, the tower
 closed late) and what both reviewers named beside it: GLASS HEIGHTS' spine, the east block's bridge to the tower.
+
+## 5. The result (version 147, 2026-11-18)
+
+Built as Milestones 1166 to 1181 and measured on the bake (docs/DEVELOPMENT_ROADMAP.md has each quarter's design and
+number). Against section 3's aims, north-east, north-west, south-east and south-west:
+
+| Aim | NE | NW | SE | SW |
+|---|---|---|---|---|
+| Street to each block's roof with no pad, inside 18 s | 10.2, 9.9 | 9.7, 9.2 | 11.5, 10.9 | 11.1, 13.9 |
+| Three roofs, 30 m inside 3.5 s | 3.28 | 2.65 | 3.19 | 3.57 (missed) |
+| Each spoke sprinted, inside 4.5 s | 4.28 | 4.24 | 4.26 | 4.24 to 4.48 |
+| Mean free run, 14 m or more | 14.0 | 13.8 (missed) | 13.9 (missed) | 10.0 (missed) |
+| Roof between 12 and 20 m, 1,000 m2 or more | 1,037 | 863 (missed) | 1,232 | 890 (missed) |
+| Street open and seen by forty or more, 50% or less | 33% | 43% | 40% | 37% |
+| Walls on one line, 30 m or more | 42.1 | 30.3 | 30.9 | 32.0 |
+
+Met everywhere: the ways up with no pad, the spokes, the exposure (the north-east was 59% before its decks), the walls.
+Missed: MARKET's free run, by design (its stall line stays on the middle of both spokes, the lanes either side run 1.4 to
+5 m off its middle line); the north-west's and south-east's free run by a few tenths; the middle tier in the north-west and the south-west,
+by about a seventh; MARKET's three roofs by 0.07 s. The ring's middle tier as a whole went from 974 m2 to 4,022, and its
+roof islands from 27 to 57. What the bake found on the way is Milestone 1181. Next: the third layout review on this
+version (docs/LAYOUT_REVIEW.md), then the ending.

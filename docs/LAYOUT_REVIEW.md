@@ -125,3 +125,7 @@ The final sector is the centre with odds of a half and otherwise one of the eigh
 pause the hold while contested) holds for half the matches, is already so for the other half, and the pause is the rule
 today. What stands untouched: the hold is long against a kill under a second, the centre has 22 m of wall to run, and its
 zone is on one level. Round 3's brief states the rule as it is and asks about the outer endings.
+
+A second slip in the same paragraph of both briefs: the zone was given as "14 m across". It is 14 m in radius, 28 m
+across (decay.json `capture.radius`), and it counts a body at any height over the circle (brmatch.ts updateCapture reads
+x and z only), so "the zone on one level" means one circle in plan, roof and street alike. Round 3's brief says so.
