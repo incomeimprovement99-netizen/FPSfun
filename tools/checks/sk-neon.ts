@@ -719,18 +719,30 @@ check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS
         for (let di = -k; di <= k && ok; di++) for (let dj = -k; dj <= k && ok; dj++) if ((di * C4) ** 2 + (dj * C4) ** 2 <= W * W && i + di >= 0 && j + dj >= 0 && i + di < NI && j + dj < NJ && !lv[(i + di) * NJ + j + dj]) ok = false;
         g[i * NJ + j] = ok ? 1 : 0;
       }
-    // (from the walkable cell nearest the site)
+    // (the deck's largest walkable piece, Milestone 1184: it was the piece holding the walkable cell nearest the site, and the
+    // site, the middle of the roof's graph nodes, moved into a 2 m² patch walled in by High City N's crown when the roof's new
+    // pieces took some of its nodes. The question is whether every arrival is on one piece of the deck, so: every piece
+    // flooded, the biggest the deck, the site's own piece said beside it)
+    const lb = new Int32Array(NI * NJ);
+    let size = 0, deckLab = 0, labs = 0;
+    for (let c0 = 0; c0 < g.length; c0++) {
+      if (!g[c0] || lb[c0]) continue;
+      labs++;
+      lb[c0] = labs;
+      const stack = [c0];
+      let n = 0;
+      while (stack.length) {
+        const c = stack.pop()!;
+        n++;
+        const i = Math.floor(c / NJ), j = c % NJ;
+        for (const [m, okn] of [[c - NJ, i > 0], [c + NJ, i < NI - 1], [c - 1, j > 0], [c + 1, j < NJ - 1]] as Array<[number, boolean]>) if (okn && g[m] && !lb[m]) (lb[m] = labs, stack.push(m));
+      }
+      if (n > size) (size = n, deckLab = labs);
+    }
     let s0 = -1, best = Infinity;
     for (let c = 0; c < g.length; c++) if (g[c]) { const d = Math.hypot(P.box[0] + Math.floor(c / NJ) * C4 - (site.x - BR_X), P.box[2] + (c % NJ) * C4 - (site.z - BR_Z)); if (d < best) (best = d, s0 = c); }
-    const stack = s0 >= 0 ? [s0] : [];
-    if (s0 >= 0) g[s0] = 2;
-    let size = 0;
-    while (stack.length) {
-      const c = stack.pop()!;
-      size++;
-      const i = Math.floor(c / NJ), j = c % NJ;
-      for (const [n, okn] of [[c - NJ, i > 0], [c + NJ, i < NI - 1], [c - 1, j > 0], [c + 1, j < NJ - 1]] as Array<[number, boolean]>) if (okn && g[n] === 1) (g[n] = 2, stack.push(n));
-    }
+    for (let c = 0; c < g.length; c++) if (lb[c] === deckLab) g[c] = 2;
+    const siteOn = s0 >= 0 && lb[s0] === deckLab;
     const mine = arrivals.filter(([, x, z]) => x >= P.box[0] && x <= P.box[1] && z >= P.box[2] && z <= P.box[3]);
     const reach = (x: number, z: number, r: number) => {
       for (let i = Math.max(0, Math.floor((x - r - P.box[0]) / C4)); i <= Math.min(NI - 1, Math.ceil((x + r - P.box[0]) / C4)); i++)
@@ -739,9 +751,9 @@ check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS
       return false;
     };
     for (const [what, x, z, r] of mine) if (!reach(x, z, r ?? 1.5)) cut.push(`${P.name}: ${what}`);
-    said.push(`${P.name} ${mine.length} arrivals, ${(size * C4 * C4).toFixed(0)} m² walked`);
+    said.push(`${P.name} ${mine.length} arrivals, ${(size * C4 * C4).toFixed(0)} m² walked${siteOn ? "" : ", its site in a pocket off it"}`);
   }
-  check("the decks' cover cuts no deck in two: from each deck's site a body walks its roof to every pad landing, lift top, bridge stair and zip top on it", said.length === 4 && cut.length === 0, said.join("; ") + (cut.length ? `; cut off: ${cut.join(", ")}` : ""));
+  check("the decks' cover cuts no deck in two: on each deck's largest walkable piece a body walks its roof to every pad landing, lift top, bridge stair and zip top on it", said.length === 4 && cut.length === 0, said.join("; ") + (cut.length ? `; cut off: ${cut.join(", ")}` : ""));
 }
 const downs = SPINE.down.map((q, k) => {
   const { p } = ride(map.pads[cfg.pads.length + SPINE.up.length + k]);
@@ -10122,7 +10134,8 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   const topUnder = (x: number, z: number, below: number, own: boolean) => F9.solids.reduce((t, b, i) => (x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && b[4] < below && b[5] > t && (own || !laid9[i]) ? b[5] : t), -Infinity);
   const inBlock = (x: number, z: number, y: number) => F9.solids.some((b, i) => !laid9[i] && x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && b[4] < y && b[5] > y);
   const said: string[] = [];
-  let ok = !!LR && LDs.length >= 3 && LDs.length === LR.at.length && new Set(LDs.map((s) => s.block)).size === LDs.length;
+  // (each stack its own place: a block may carry two, the west's bay its second since Milestone 1186)
+  let ok = !!LR && LDs.length >= 3 && LDs.length === LR.at.length && new Set(LDs.map((s) => `${s.block} ${s.deck[0]} ${s.deck[1]}`)).size === LDs.length;
   const DT = 1 / 144;
   const goal = (p: InstanceType<typeof Player>, to: number[]) => (Math.atan2(-(to[0] - (p.pos.x - BR_X)), -(to[1] - (p.pos.z - BR_Z))) * 180) / Math.PI;
   // (a ledge's footprint as laid, `pad` past it: its middle, its own x out of the face, its own z along it; a body stands on
@@ -14210,6 +14223,230 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
     "the north-east quarter brought up to the roll-out (Milestones 1166 to 1168): the decks across both spokes at their tops with the carriageway clear under them, the upper floors and the two terraces at theirs, wall-a run on west, the walls' chain named with 30 m and more on walls",
     !!NE && NE.decks.filter((d) => d.street === "ne-n").length >= 2 && NE.decks.filter((d) => d.street === "ne-e").length >= 2 && bad1166.length === 0 && NE.terraces.length === 2 && wallA1166 && !!chain1166 && (chain1166.wall ?? 0) >= NE.chainWall,
     `${NE?.decks.length ?? 0} decks, ${NE?.terraces.length ?? 0} terraces${bad1166.length ? `; ${bad1166.slice(0, 4).join("; ")}` : ""}; wall-a ${wallA1166 ? "as rules.ne14.wallA" : "not in the collision as rules.ne14.wallA"}; the chain ${chain1166 ? `${chain1166.wall ?? 0} m on walls` : "not in rules.lines"}`,
+  );
+}
+
+// The four High City roofs as places to fight (Milestones 1184 to 1186; docs/PLAN_ENDINGS.md part B item 1; the third layout
+// reviews: each edge zone "a flat 27 m roof, bare", whose holder sees every pad, rope and stack that lands on it): each piece
+// of rules.roofs15 in the bake's collision as typed, inside its zone, off every way onto its roof and off the bots' graph (no
+// node within a body's clearance of it, none on its top); each arrival the design hides still out of the zone's middle's
+// sight, eye to eye; and a way up other than a pad landing inside the south, east and west zones (the two blocks' fire
+// escapes, the west bay's ledge stack), the stack's line in rules.lines. The pieces' rows and boxes are the routes' check's,
+// the stack's climb the ledge stacks' check's, the line the lines' check's
+{
+  type P1184 = { kind: string; at: number[]; boxes: number[][] };
+  type Z1184 = { middle: number[]; pieces: P1184[]; hidden: Array<[string, number, number, number]> };
+  type R1184 = { inside: number; eye: number; node: number; keep: Record<string, number>; zones: Record<string, Z1184>; ways: Record<string, { kind: string; at: number[] }>; line: string };
+  const RF = (cfg.rules as unknown as { roofs15?: R1184 }).roofs15;
+  const { centreOf: centre1184 } = await import("../../src/game/decay");
+  const Rz1184 = ((await import("../../src/config/decay.json")).default as { capture: { radius: number } }).capture.radius;
+  const S1184 = (SOLIDS as unknown as { solids: number[][] }).solids;
+  // (the eye line from a to b, [x, y, z] in the map's metres, meets a box of the collision: every tenth of a metre, 0.35 m
+  // off each end so the floor under an eye does not count)
+  const cut1184 = (a: number[], b: number[]) => {
+    const near = S1184.filter((q) => q[1] >= Math.min(a[0], b[0]) && q[0] <= Math.max(a[0], b[0]) && q[3] >= Math.min(a[2], b[2]) && q[2] <= Math.max(a[2], b[2]) && q[5] >= Math.min(a[1], b[1]) && q[4] <= Math.max(a[1], b[1]));
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    for (let s = 0.35; s <= L - 0.35; s += 0.1) {
+      const [x, y, z] = [0, 1, 2].map((i) => a[i] + ((b[i] - a[i]) * s) / L);
+      if (near.some((q) => x >= q[0] && x <= q[1] && z >= q[2] && z <= q[3] && y >= q[4] && y <= q[5])) return true;
+    }
+    return false;
+  };
+  // the ways onto the roofs, each [x, z, the metres a piece keeps off it, its name]: the pads' landings (3 m in from the face,
+  // padsolve.ts), the glass lifts' landings and the feet of their stairs, the zips' roof ends, the balcony and ledge stacks'
+  // decks, the fire escapes' step-off (as the perches read it), the bridge paths' roof ends, and the lifts' bridges and the
+  // paths' stairs as laid
+  const K = RF?.keep ?? {};
+  const C1184 = cfg as unknown as { pads: Array<{ id: string; face: number[]; out: number[] }>; lifts?: Array<{ id: string; land: number[]; foot: number[] }>; zips?: Array<{ block: string; a: number[] }>; climbs?: Array<{ block: string; deck: number[] }>; ledges?: Array<{ block: string; deck: number[] }>; highFires?: Array<{ block: string; at: number[]; yaw: number }>; chunks: Record<string, { place: unknown[][] }> };
+  const ways1184: Array<[number, number, number, string]> = [];
+  for (const q of C1184.pads) ways1184.push([q.face[0] - q.out[0] * 3, q.face[1] - q.out[1] * 3, K.pad, `pad ${q.id}`]);
+  for (const q of C1184.lifts ?? []) ways1184.push([q.land[0], q.land[1], K.lift, `lift ${q.id}`], [q.foot[0], q.foot[1], K.liftFoot, `the foot of lift ${q.id}`]);
+  for (const q of C1184.zips ?? []) if (q.a[1] > 24 && q.a[1] < 32) ways1184.push([q.a[0], q.a[2], K.zip, `zip ${q.block}`]);
+  for (const q of [...(C1184.climbs ?? []), ...(C1184.ledges ?? [])]) ways1184.push([q.deck[0], q.deck[1], K.stack, `the stack on ${q.block} at (${q.deck[0]}, ${q.deck[1]})`]);
+  for (const f of C1184.highFires ?? []) {
+    const a = (f.yaw * Math.PI) / 180;
+    ways1184.push([f.at[0] + Math.cos(a) * -1.5 + Math.sin(a) * -2.5, f.at[1] - Math.sin(a) * -1.5 + Math.cos(a) * -2.5, K.fire, `fire ${f.block}`]);
+  }
+  const BR1184 = cfg.rules.bridges as unknown as { paths: number[][][]; into?: number[][] };
+  for (const p of BR1184.paths) for (const e of [p[0], p[p.length - 1]]) if (!(BR1184.into ?? []).some((q) => q[0] === e[0] && q[1] === e[1])) ways1184.push([e[0], e[1], K.bridge, `the bridge end (${e[0]}, ${e[1]})`]);
+  for (const ch of ["c-lifts", "c-bridges"]) for (const q of C1184.chunks[ch]?.place ?? []) if ((q[2] as number) > 24) ways1184.push([q[1] as number, q[3] as number, /Stairs/.test(String(q[0])) ? K.stair : K.walk, `${ch}'s ${String(q[0]).split("/").pop()} at (${q[1]}, ${q[3]})`]);
+  const bad1184: string[] = [];
+  let pieces1184 = 0;
+  let hidden1184 = 0;
+  for (const [id, Z] of Object.entries(RF?.zones ?? {})) {
+    const m = centre1184(id);
+    if (Math.hypot(Z.middle[0] - m.x, Z.middle[2] - m.z) > 1.5) bad1184.push(`${id}: its middle (${Z.middle[0]}, ${Z.middle[2]}) is not the zone's`);
+    for (const P of Z.pieces) {
+      pieces1184++;
+      const at = `${id}'s ${P.kind} at (${P.at.join(", ")})`;
+      for (const b of P.boxes) if (!S1184.some((s) => s.every((v, i) => Math.abs(v - b[i]) < 0.011))) bad1184.push(`${at}: its box ${b.join(", ")} not in the collision`);
+      if (Math.hypot(P.at[0] - m.x, P.at[1] - m.z) > RF!.inside) bad1184.push(`${at}: ${Math.hypot(P.at[0] - m.x, P.at[1] - m.z).toFixed(1)} m from the zone's middle`);
+      const off = (x: number, z: number) => Math.min(...P.boxes.map((b) => Math.hypot(Math.max(b[0] - x, 0, x - b[1]), Math.max(b[2] - z, 0, z - b[3]))));
+      for (const [x, z, k, name] of ways1184) if (off(x, z) < k - 1e-6) bad1184.push(`${at}: ${off(x, z).toFixed(2)} m off ${name}`);
+      for (const n of map.nodes) {
+        const [x, z, y] = [n.x - BR_X, n.z - BR_Z, n.y ?? 0];
+        if (Math.hypot(x - P.at[0], z - P.at[1]) < 8 && P.boxes.some((b) => y > b[4] - 1 && y < b[5] + 0.5) && off(x, z) < RF!.node) bad1184.push(`${at}: the bots' node (${x}, ${z}) at ${y.toFixed(1)} m ${off(x, z).toFixed(2)} m off it`);
+      }
+    }
+    for (const [name, x, y, z] of Z.hidden) {
+      hidden1184++;
+      if (!cut1184([Z.middle[0], Z.middle[1] + RF!.eye, Z.middle[2]], [x, y + RF!.eye, z])) bad1184.push(`${id}: ${name} at (${x}, ${z}) seen from the middle`);
+    }
+  }
+  for (const [id, W] of Object.entries(RF?.ways ?? {})) {
+    const m = centre1184(id);
+    const at = W.kind === "fire" ? ways1184.find((q) => q[3] === `fire ${id}`) : (C1184.ledges ?? []).filter((q) => q.block === id).map((q) => q.deck).find((q) => Math.hypot(q[0] - W.at[0], q[1] - W.at[1]) < 0.5);
+    if (!at || Math.hypot(at[0] - m.x, at[1] - m.z) > Rz1184) bad1184.push(`${id}: no ${W.kind} landing inside its zone`);
+  }
+  const line1184 = ((cfg.rules as unknown as { lines?: Array<{ id: string }> }).lines ?? []).some((l) => l.id === RF?.line);
+  check(
+    "the four High City roofs as places to fight (Milestones 1184 to 1186): each roof's pieces in the collision as typed, inside its zone, off every way onto the roof and off the bots' graph; the arrivals they hide out of the zone's middle's sight; a way up other than a pad landing inside the south, east and west zones, the west bay's stack with its line",
+    !!RF && Object.keys(RF.zones).length === 4 && Object.values(RF.zones).every((Z) => Z.pieces.length >= 3) && Object.keys(RF.ways).length === 3 && bad1184.length === 0 && line1184,
+    `${pieces1184} pieces, ${hidden1184} arrivals hidden${bad1184.length ? `; ${bad1184.slice(0, 4).join("; ")}` : ""}${line1184 ? "" : "; the stack's line not in rules.lines"}`,
+  );
+}
+
+// The centre's deck as a place to fight (Milestones 1187 and 1188; docs/PLAN_ENDINGS.md part B item 2; the third layout
+// reviews: "the deck is bare", the centre "22 m of wall to run"): each piece of rules.centre15, the panels on the zone's deck
+// and the two run walls on its arms, in the bake's collision as typed, its top inside the centre's band (a body on it
+// counts: a 7 m wall is topped with a jump and a climb, so nothing taller stands in or by the zone), each panel inside the
+// zone and each wall within `near` of its middle, all off every way onto or off the deck and off the bots' deck nodes; each
+// wall's lane clear and its line in rules.lines; and the zone's deck seen eye to eye, the most of it one spot sees under
+// `most` (6.6 of 10 on the forecast, 8 of 10 before: the bar fails with the panels taken out)
+{
+  type P1187 = { kind: string; at: number[]; yaw: number; box: number[] };
+  type W1187 = P1187 & { lane: number[]; line: string };
+  type R1187 = { middle: number[]; eye: number; step: number; most: number; near: number; node: number; keep: Array<[number, number, number, string]>; cover: P1187[]; walls: W1187[] };
+  const RC = (cfg.rules as unknown as { centre15?: R1187 }).centre15;
+  const { centreOf: centre1187, zoneCounts: counts1187 } = await import("../../src/game/decay");
+  const Rz1187 = ((await import("../../src/config/decay.json")).default as { capture: { radius: number } }).capture.radius;
+  const S1187 = (SOLIDS as unknown as { solids: number[][] }).solids;
+  const bad1187: string[] = [];
+  const m1187 = centre1187("c");
+  const rd1187 = (b: number[], x: number, z: number) => Math.hypot(Math.max(b[0] - x, 0, x - b[1]), Math.max(b[2] - z, 0, z - b[3]));
+  let most1187 = 1;
+  let spots1187 = 0;
+  if (RC) {
+    for (const P of [...RC.cover, ...RC.walls]) {
+      const b = P.box;
+      const at = `${P.kind} at (${P.at.join(", ")})`;
+      if (!S1187.some((s) => s.every((v, i) => Math.abs(v - b[i]) < 0.011))) bad1187.push(`${at}: its box not in the collision`);
+      if (!counts1187("c", b[5])) bad1187.push(`${at}: its top ${b[5]} m outside the centre's band`);
+      const panel = RC.cover.includes(P);
+      if (panel && Math.hypot((b[0] + b[1]) / 2 - m1187.x, (b[2] + b[3]) / 2 - m1187.z) > Rz1187 - 1) bad1187.push(`${at}: outside the zone`);
+      if (!panel && rd1187(b, m1187.x, m1187.z) > RC.near) bad1187.push(`${at}: ${rd1187(b, m1187.x, m1187.z).toFixed(2)} m from the zone's middle`);
+      for (const [x, z, k, name] of RC.keep) if (rd1187(b, x, z) < k - 1e-6) bad1187.push(`${at}: ${rd1187(b, x, z).toFixed(2)} m off ${name}`);
+      for (const n of map.nodes) {
+        const [x, z, y] = [n.x - BR_X, n.z - BR_Z, n.y ?? 0];
+        if (y > b[4] - 1 && y < b[5] + 0.5 && rd1187(b, x, z) < RC.node) bad1187.push(`${at}: the bots' node (${x}, ${z}) ${rd1187(b, x, z).toFixed(2)} m off`);
+      }
+    }
+    const lines1187 = new Set(((cfg.rules as unknown as { lines?: Array<{ id: string }> }).lines ?? []).map((l) => l.id));
+    for (const W of RC.walls) {
+      const [L, f] = [W.lane, W.box[4]];
+      const hit = S1187.filter((q) => q[0] < L[1] && q[1] > L[0] && q[2] < L[3] && q[3] > L[2] && q[4] < f + 2 && q[5] > f + 0.5).length;
+      if (hit) bad1187.push(`the wall at (${W.at.join(", ")}): its lane holds ${hit} boxes`);
+      if (!lines1187.has(W.line)) bad1187.push(`the wall at (${W.at.join(", ")}): its line ${W.line} not in rules.lines`);
+    }
+    // (the deck seen: the collision over the zone as cells a quarter metre across and a tenth up, from the deck to 4 m over
+    // it, a cell solid where a box holds its middle; the deck's spots every `step` metres in the circle, where a box's top is
+    // the deck and nothing stands from a step to a standing body over it within a body's radius; each eye line sampled every
+    // tenth of a metre, 0.35 m off each end)
+    const [y0, c, cy] = [RC.middle[1], 0.25, 0.1];
+    const [x0, x1, z0, z1] = [m1187.x - Rz1187 - 1, m1187.x + Rz1187 + 1, m1187.z - Rz1187 - 1, m1187.z + Rz1187 + 1];
+    const [nx, nz, ny] = [Math.ceil((x1 - x0) / c), Math.ceil((z1 - z0) / c), Math.ceil(4 / cy)];
+    const occ = new Uint8Array(nx * nz * ny);
+    for (const q of S1187) {
+      if (q[5] <= y0 || q[4] >= y0 + 4 || q[1] <= x0 || q[0] >= x1 || q[3] <= z0 || q[2] >= z1) continue;
+      const i0 = Math.max(0, Math.floor((q[0] - x0) / c + 0.5)), i1 = Math.min(nx, Math.max(i0 + 1, Math.floor((q[1] - x0) / c + 0.5)));
+      const j0 = Math.max(0, Math.floor((q[2] - z0) / c + 0.5)), j1 = Math.min(nz, Math.max(j0 + 1, Math.floor((q[3] - z0) / c + 0.5)));
+      const k0 = Math.max(0, Math.floor((q[4] - y0) / cy + 0.5)), k1 = Math.min(ny, Math.max(k0 + 1, Math.floor((q[5] - y0) / cy + 0.5)));
+      for (let i = i0; i < i1; i++) for (let j = j0; j < j1; j++) for (let k = k0; k < k1; k++) occ[(i * nz + j) * ny + k] = 1;
+    }
+    const spots: number[][] = [];
+    const n = Math.floor(Rz1187 / RC.step);
+    for (let i = -n; i <= n; i++)
+      for (let j = -n; j <= n; j++) {
+        const [x, z] = [m1187.x + i * RC.step, m1187.z + j * RC.step];
+        if (Math.hypot(x - m1187.x, z - m1187.z) > Rz1187) continue;
+        if (!S1187.some((q) => q[0] <= x && q[1] >= x && q[2] <= z && q[3] >= z && Math.abs(q[5] - y0) < 0.1)) continue;
+        if (S1187.some((q) => q[0] < x + 0.4064 && q[1] > x - 0.4064 && q[2] < z + 0.4064 && q[3] > z - 0.4064 && q[4] < y0 + 1.8288 && q[5] > y0 + 0.5588)) continue;
+        spots.push([x, y0 + RC.eye, z]);
+      }
+    const seen = spots.map(() => 0);
+    for (let a = 0; a < spots.length; a++)
+      for (let b = a; b < spots.length; b++) {
+        if (a === b) {
+          seen[a]++;
+          continue;
+        }
+        const [A, B] = [spots[a], spots[b]];
+        const L = Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]);
+        let ok = true;
+        for (let s = 0.35; s <= L - 0.35; s += 0.1) {
+          const [px, py, pz] = [0, 1, 2].map((t) => A[t] + ((B[t] - A[t]) * s) / L);
+          const [i, j, k] = [Math.floor((px - x0) / c), Math.floor((pz - z0) / c), Math.floor((py - y0) / cy)];
+          if (i >= 0 && i < nx && j >= 0 && j < nz && k >= 0 && k < ny && occ[(i * nz + j) * ny + k]) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) (seen[a]++, seen[b]++);
+      }
+    spots1187 = spots.length;
+    most1187 = spots.length ? Math.max(...seen) / spots.length : 1;
+    if (most1187 > RC.most + 1e-9) bad1187.push(`one spot sees ${most1187.toFixed(2)} of the zone's deck (${spots.length} spots), ${RC.most} asked at most`);
+  }
+  check(
+    "the centre's deck as a place to fight (Milestones 1187 and 1188): the panels in the zone and the two run walls on the deck's arms in the collision as typed, their tops inside the centre's band, off every way onto the deck and off the bots' nodes, each wall's lane clear with its line, and no spot of the zone's deck seeing most of it",
+    !!RC && RC.cover.length >= 5 && RC.walls.length === 2 && bad1187.length === 0,
+    `${RC?.cover.length ?? 0} panels, ${RC?.walls.length ?? 0} walls; one deck spot sees at most ${most1187.toFixed(2)} of ${spots1187}${bad1187.length ? `; ${bad1187.slice(0, 4).join("; ")}` : ""}`,
+  );
+}
+
+// Decks across the ring road (Milestones 1189 and 1190; docs/PLAN_ENDINGS.md part B item 3; the third layout reviews, both:
+// "the ring road is a moat ... one roof crossing", decks at 9 to 12 m across it): each deck of rules.ring15 in the bake's
+// collision at its top and right across the ring road's carriageway (rules.ring's band), none of the routes' typed boxes on the
+// carriageway under its slab (its piers, columns and ledges stand on the pavements, the way through under it is the road's own),
+// each pier off the carriageway, what it joins at either end standing at its height (the inner ring's deck or terrace, the
+// outer band's roof), and its lines named in rules.lines. The pieces' rows and typed boxes are the routes' check's, each line
+// the lines'
+{
+  type Deck1189 = { id: string; leg: string; rect: number[]; top: number; piers: number[][]; anchors: Array<[number, number, number, string]>; lines: string[] };
+  const RG1189 = (cfg.rules as unknown as { ring15?: { decks: Deck1189[]; least: number } }).ring15;
+  const [r01189, r11189] = (cfg.rules as unknown as { ring: number[] }).ring;
+  const S1189 = (SOLIDS as unknown as { solids: number[][] }).solids;
+  const RT1189 = (cfg.rules as unknown as { routes?: { boxes: number[][] } }).routes?.boxes ?? [];
+  const L1189 = new Set(((cfg.rules as unknown as { lines?: Array<{ id: string }> }).lines ?? []).map((l) => l.id));
+  const inBake1189 = (b: number[]) => S1189.some((s) => s.every((v, i) => Math.abs(v - b[i]) < 0.011));
+  const topAt1189 = (x: number, z: number, top: number) => S1189.some((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && Math.abs(b[5] - top) < 0.06);
+  // (how far outside the carriageway a spot is, negative on it: the band r0 to r1 out from the middle on either axis)
+  const road1189 = (x: number, z: number) => { const m = Math.max(Math.abs(x), Math.abs(z)); return Math.max(r01189 - m, m - r11189); };
+  const bad1189: string[] = [];
+  for (const d of RG1189?.decks ?? []) {
+    const [x0, x1, z0, z1] = d.rect;
+    if (!inBake1189([x0, x1, z0, z1, d.top - 0.5, d.top])) bad1189.push(`${d.id}'s deck not in the collision at ${d.top}`);
+    // (right across: the deck's span over its leg covers the band from its inner edge to its outer)
+    const [lo, hi] = d.leg === "e" ? [x0, x1] : d.leg === "w" ? [-x1, -x0] : d.leg === "s" ? [z0, z1] : [-z1, -z0];
+    if (lo > r01189 || hi < r11189) bad1189.push(`${d.id} not across the carriageway (${lo} to ${hi})`);
+    // (the carriageway under it: no typed box of the routes below its slab, every half metre of it)
+    let over = 0;
+    for (let x = x0 + 0.25; x < x1; x += 0.5)
+      for (let z = z0 + 0.25; z < z1; z += 0.5) {
+        if (road1189(x, z) >= 0) continue;
+        over++;
+        const b = RT1189.find((q) => x >= q[0] && x <= q[1] && z >= q[2] && z <= q[3] && q[4] < d.top - 0.51 && q[5] > 0.3);
+        if (b) bad1189.push(`${d.id}: a typed box on the carriageway under it at (${x}, ${z}), ${b[4]} to ${b[5]} m`);
+      }
+    if (over < 150) bad1189.push(`${d.id} over only ${over / 4} m2 of carriageway`);
+    for (const p of d.piers) if ([[p[0], p[2]], [p[1], p[2]], [p[0], p[3]], [p[1], p[3]]].some(([x, z]) => road1189(x, z) < 0) || !inBake1189(p)) bad1189.push(`${d.id}'s pier at (${(p[0] + p[1]) / 2}, ${(p[2] + p[3]) / 2}) on the carriageway or not in the collision`);
+    for (const [x, z, top, what] of d.anchors) if (!topAt1189(x, z, top)) bad1189.push(`${d.id}: ${what} not at ${top} at (${x}, ${z})`);
+    for (const id of d.lines) if (!L1189.has(id)) bad1189.push(`${d.id}: line ${id} not in rules.lines`);
+  }
+  check(
+    "decks across the ring road (Milestones 1189 and 1190): each in the collision at its top and right across the carriageway, nothing typed on the carriageway under it, its piers off it, what it joins at either end at its height, its lines named",
+    !!RG1189 && RG1189.decks.length >= RG1189.least && new Set(RG1189.decks.map((d) => d.leg)).size === RG1189.decks.length && bad1189.length === 0,
+    `${RG1189?.decks.length ?? 0} decks (${(RG1189?.decks ?? []).map((d) => `${d.id} at ${d.top} m`).join(", ")})${bad1189.length ? `; ${bad1189.slice(0, 5).join("; ")}` : ""}`,
   );
 }
 

@@ -20843,3 +20843,42 @@ layered fight spoiled by the tower). A rule and config release: no bake.
   over High City W's band when read), and its test of the asphalt's flattened shader compiles the scene first: a
   material has its uniforms only once drawn, and one of the two asphalts had not been from where the test stood.
 - **Checked:** verify, rules, tsc, and the e2e sections brsolo and speedkills.
+
+## Milestones 1184 to 1190 — batch 15: the ground the last fights are fought on (map version 148)
+
+docs/PLAN_ENDINGS.md part B, from the third layout reviews asked again with the zones where they open (docs/LAYOUT_REVIEW.md:
+the ending 6 and 5.5; the corners the best endings, the four edge zones "the same fight four times" on bare 27 m roofs, the
+centre's deck bare). Three proposal agents, one at a time, measured and wrote each on version 147's snapshot and proved
+what they could with the real Player on a forecast collision; applied here one at a time and baked once.
+
+- **1184 to 1186, the four High City roofs as places to fight.** On each of n, s, e and w, four pieces inside its zone: the
+  decks' stair house (RoofEndRoom03, 4.25 m) and screens and corners of the pack's 5 and 2.5 m panels, 3 m tall, in the
+  roofs' own lit kit wall (16 pieces, 19 typed boxes, no new material). Placed off every way onto the roof, off the bots'
+  graph and so that the arrivals hide from the zone's middle: 26 of the 34 do; the 8 that do not lie on the bots' own way
+  to their node. The zone's roof seen from its middle, on the forecast: n 60 to 41%, s 83 to 59%, e 92 to 72%, w 64 to 37%;
+  the most of it a single spot sees, 67 to 81%. A second way up onto the west block, a ledge stack in the bay (its deck
+  11.6 m from the middle and hidden from it); s and e had a fire escape stepping off inside their zones already, and a
+  stack on e does not fit beside its pad. On the bake: 16 pieces in the collision as typed, 26 arrivals hidden; the west bay's stack climbed from its first ledge into the zone in 5.05 s.
+- **1187 and 1188, the deck north of the tower.** Six of the pack's concrete panels, 4 and 2 m long and 2.4 m tall, inside
+  the centre's zone on the base's deck: a body behind one is hidden, a body on one stands at 12.9 m and still counts (the
+  band ends at 13). Two 10 m walls to run along on the deck's west and east arms, each with a clear lane on its south face
+  into the zone, 7.2 and 7.3 m run at 17.6 m/s. 2.4 m tall, not the 7 m the plan asked: the game's Player gets on top of an
+  8 m wall with a jump and a climb, and 7 m walls' tops at 17.5 m saw 71 to 89% of the zone's deck from just outside it,
+  where a body does not count. The ledge ring round the tower's base was not built for the same reason: inside the zone it
+  must stay under 13 m, outside it looks down on the zone without counting. The most of the zone's deck one spot sees, 81
+  to 57%. On the bake: the walls run 7.2 and 7.3 m on the wall in 2.65 and 2.05 s; the most of the zone's deck one spot sees, 66% (57 on the forecast).
+- **1189 and 1190, decks across the ring road.** Four, one a leg, each joined to one of batch 14's inner decks or terraces:
+  ring-n at 9 m, level with the north spoke's last deck, down by a column and two ledges to GLASS HEIGHTS' street; ring-e
+  at 12 m, a riser to the east terrace and out to THE STRIP's 14 m tower; ring-s at 12 m, a step and a riser to the
+  south-west terrace's 19.7 m step, a way from the street to the south block's roof with no pad; ring-w at 12 m, up to the
+  west terrace and down beside THE TERRACES. Crossings of the ring road above it from one (the neck from GLASS HEIGHTS) to
+  five. What they do not do: the road's exposure moves from 91 to 90% (a body under a deck is still seen along the road);
+  they are routes, not cover. On the bake, all eight lines: in from GLASS HEIGHTS' street to the north block's terrace 5.5 s, the street to the south block's roof over ring-s 7.2 s, THE STRIP's roof to the east terrace 4.9 s, THE TERRACES' first tier to the west terrace 4.6 s.
+- **1184, a check made to ask its own question.** The decks' walk check flooded each High City deck from the walkable cell
+  nearest its site, the middle of the roof's graph nodes; the roof's new pieces took some nodes, the middle moved into a
+  2 m² patch walled in by High City N's crown, and the check reported five arrivals cut off a deck that is whole. It now
+  floods the deck's largest piece and asks every arrival be on it, saying where a site lies off it; proven with a pad's
+  arrival walled in on a copy of the collision.
+- **Measured on the bake:** the whole map moves little (the batch is the zones'): roof between 12 and 20 m in the north-west 863 to 948 m2, the south-east 1,232 to 1,301, the south-west 890 to 980; roof islands 137 (133), leapable gaps 106 (102); exposure and free runs within a point. The centre's 2.4 m walls are under the 4 m the map's wall-run measure counts, so it stays at 22 m there; the lines measure them.
+- **Checks that learned the new work:** 532 map checks at every size (518 before), 52 movement lines (44). Each proposal its own check (the roofs' pieces as typed and off every way up and the bots' graph, the arrivals hidden; the deck's panels and walls inside the band and off its ways, no spot of the zone's deck seeing most of it; the ring decks at their tops right across the carriageway with nothing typed under them, their piers off it); the ledge stacks' check reads a block's second stack; the decks' walk check as above.
+- **Checked:** verify, rules and tsc. Map files version 148: lo 239.0 MB, hi 325.0 MB, max 645.3 MB. Each quarter from the tower, the street, a High City roof and above by day (24), and the batch's pieces by day and by night (14 each), each roof's zone again from its middle (4).

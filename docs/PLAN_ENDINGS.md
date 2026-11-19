@@ -43,3 +43,13 @@ tsc. Shipped as a config and code release, no bake.
    outer ending.
 4. After a fourth layout review on version 148: the north-west's inner streets roofed, MARKET's west spoke decked, ways
    up in the west band, THE CANYON's plate.
+
+## The result (version 148, 2026-11-19)
+
+Part A shipped on version 147 as Milestones 1182 and 1183; part B as Milestones 1184 to 1190, baked as version 148
+(docs/DEVELOPMENT_ROADMAP.md has each number). Built as planned: the four roofs' pieces with the arrivals hidden (26 of
+34) and a second way up onto the west block; the centre's deck panels and two run walls; four decks across the ring road.
+Changed on the way: the deck's walls are 2.4 m, not 7 (a 7 m wall's top overlooked the zone from outside it, where a body
+does not count), and no ledge ring round the tower's base (for the same reason); a second way onto e did not fit beside
+its pad (its fire escape steps off inside the zone already). Not met: the ring road's exposure, 91 to 90% (the decks are
+routes, not cover). Next: the fourth layout review and a picture round on version 148.
