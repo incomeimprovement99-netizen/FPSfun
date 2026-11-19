@@ -53,3 +53,37 @@ Changed on the way: the deck's walls are 2.4 m, not 7 (a 7 m wall's top overlook
 does not count), and no ledge ring round the tower's base (for the same reason); a second way onto e did not fit beside
 its pad (its fire escape steps off inside the zone already). Not met: the ring road's exposure, 91 to 90% (the decks are
 routes, not cover). Next: the fourth layout review and a picture round on version 148.
+
+## C. Batch 16, from the fourth layout reviews (version 148: 5.5 and 5.5, the ending 5 and 5)
+
+Both reviewers, each without the other (docs/LAYOUT_REVIEW.md round 4): the centre's ending is watched from above by what
+it does not count; a contest freezes the meter and nothing makes it end; the four edge zones are still one flat-roof
+fight; the centre has 22 m of wall to run where half the matches end; the ring road wants cover, not only crossings.
+
+0. **dress16, the new structures finished, first (Milestones 1192 and 1193).** The picture review of the same version
+   (docs/CENTRE_REVIEW.md round 26) scored the centre 6.0 where round 25 on version 144 gave 6.4: batches 13 to 15's decks,
+   terraces, gantries and hoardings are thin tinted floor tiles and wall panels on lattice legs, "greybox beside the pack's
+   art", and seen edge on a deck is its lit edge strips alone, bars in the air (day-26). Each in the pack's own metal and
+   floor materials with a fascia and beams under it and one lit edge strip of colour, every hoarding framed down to what
+   it stands on, each quarter's in one colour family with its corner block; the unsupported and leaning pieces and the odd
+   materials it names put right. The play changes below follow, renumbered after it. One proposal agent, judged by pictures
+   as well as the checks.
+1. **A contest that ends (the rule, no bake), Milestone 1191.** Once a zone has been contested for 8 s running
+   (decay.json `capture.reveal`), every body in it, inside its circle and its heights, is shown to every player who stands
+   in it too, by the game's own reveal (the red glow SCOUT's scan and SMOKE's passive use), until the contest ends (H). It
+   makes the squads in the zone fight instead of hiding on its three floors. G's other way, the squad with more bodies in
+   ticking at half rate, rewards numbers over the fight, and is left.
+2. **centre16, the deck under the tower, Milestones 1192 and 1193.** A lid at about 16 m over the deck's north half (G),
+   so a body on the deck has cover from the tower's floors and the base's annex; the tower's and the annex's openings that
+   look onto the deck shut from 13 to 40 m (G); 4 m walls to run along on the backs of the Loop's kiosks, chained onto the
+   deck (H); nothing a body stands on over the zone's 13 m that sees the deck. One proposal agent.
+3. **roofs16, the four edge roofs as two levels, Milestones 1194 and 1195.** On each, a raised platform at 31 to 33 m and
+   a lower level at 24 m (a sunken court or the block's top floor opened, both inside the band), and 8 to 10 cover pieces,
+   each roof laid out its own way (G and H); W first (the worst: nothing lands inside its circle from the street side). One
+   proposal agent.
+4. **ring16, cover over the ring road, Milestones 1196 and 1197.** Roofs at 4.5 m over its pavements on the south and
+   west legs (G) and over its north leg and south-west corner (H), and walls down its middle where the carriageway is
+   widest (G). One proposal agent.
+5. Then, smaller and left for after a fifth review: the north-west's west spoke under canopies, the outer band's roof
+   routes cleared, leaps to the south-east's dead islands, something to drop for in THE TERRACES and the CAPSULE HOTEL, a
+   kiosk and a hoarding half way down each spoke.

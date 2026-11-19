@@ -224,3 +224,53 @@ or more, one roof crossing), the centre's 22 m of wall, and the quarters' scores
   drains slowly. Both keep the 45 s; E a radius of 18 m for the edges, F 14.
 
 **Taken up:** docs/PLAN_ENDINGS.md.
+
+## Round 4 (2026-11-19, on version 148: the endings' ground)
+
+Two new reviewers, G and H, neither told of the other, the plan or the earlier scores, given the pack rebuilt on version
+148 with the zones' rule as the code has it (each zone its own heights, a body counted after 2 s in it), the nine zones
+drawn and measured, and pictures from inside each High City roof's zone, the centre's deck and two of the ring road's
+decks (`%TEMP%/neon/layout4/`). Reviews in full: `review-G.md`, `review-H.md`.
+
+| | G | H |
+|---|---|---|
+| Flow | 5 | 6 |
+| Verticality | 6.5 | 7 |
+| Cover | 4 | 4 |
+| How readable the routes are | 5 | 6 |
+| Variety of fights | 6 | 6 |
+| The ending | 5 (corners 6.5, edges 4.5, centre 4.5) | 5 (corners 6 to 7) |
+| Overall for play | 5.5 | 5.5 |
+| North-east / north-west / south-east / south-west | 6.5 / 5 / 5.5 / 5.5 | 6 / 4.5 / 5.5 / 5.5 |
+
+Round 3, asked again with the zones where they open, gave 5.5 and 5.5: batch 15 held the score and moved where the asks
+are. Both forecast 6.5 with their top three.
+
+**What both said, each without the other:**
+
+- **The centre's ending is watched from above by what it does not count.** The zone's circle reaches the base's annex (30
+  to 60 m) and lies 9 m off the tower's north face, whose floors to 110 m look straight down on the deck; the 2.4 m panels
+  give no cover from above, so the hold moves under the deck and into the court, three counted floors with no sight
+  between them, and the meter freezes. G: a lid at about 16 m over the deck's north half and the tower's and annex's
+  openings toward the deck shut from 13 to 40 m; H: the tower above 20 m decays when the centre's zone opens.
+- **A contest freezes the meter and nothing makes it end.** G: the squad with more settled bodies in the zone ticks at
+  half rate, and a 30 s hold; H: after 8 s of contest every body in the zone is shown to everyone in it.
+- **The four edge zones are still one fight.** A flat 27 m roof with four 3 m pieces in a 616 m2 circle, climbed up to by
+  attackers into a defender who has the height; N the best (the level walk from GLASS HEIGHTS), W the worst (86% of its
+  circle bare roof, nothing landing in it from the street side), then E (a quarter of its circle street, its pad throwing
+  climbers into view). Both: a raised platform at 31 to 33 m and a lower level at 24 m on each roof (G the block's top
+  floor opened as a counted room, H a sunken court), each roof laid out its own way.
+- **Walls to run where half the matches end**: the centre sector has 22 m of them. G two 4 m walls; H 4 m walls on the
+  backs of the Loop's kiosks chained onto the deck at (0, -36), and a 15 to 18 m tier on the base.
+- **The ring road**: G arcades at 4.5 m on the south and west legs' pavements and walls down their middles; H roofs at
+  4.5 m over its north leg and south-west corner. The four new decks are routes over it, not cover on it.
+- **The corners are the best endings** (6 to 7), the north-west the worst quarter (78% of its street seen by forty high
+  spots or more), 47 of the 137 roof islands dead ends (6 of the south-east's 15), the outer band's roof routes still at
+  5 m/s, and THE TERRACES and the CAPSULE HOTEL nowhere anyone would drop.
+
+**One each:** G, THE WORKS' ten pads thinned to six with four moved to the west and east bands; a counted 25 m stall tower
+in MARKET's zone, or THE CANYON's facing edge lowered a storey, since its 27 m plate overlooks the zone uncounted. H, a
+hoarding to slide under and an offset kiosk half way down each spoke, so the sprint stays and the straight sightline from
+the Loop does not; corner zones counted only up to 20 m (THE WELL's underground counts at any height).
+
+**Taken up:** batch 16 (docs/PLAN_ENDINGS.md part C), after the picture round on the same version.

@@ -7767,7 +7767,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     JSON.stringify(toward && { start: toward.start, goal: toward.goal, steps: toward.path.length - 1, along: toward.path.indexOf(toward.goal) }),
   );
   // (set on the node the bots aim for in the zone, at a height it counts, Milestone 1182: dropped from 150 m over its middle
-  // the body was still falling at 42 m over High City W 3.5 s on, over its band; and 5 s, the zone's 2 s settle first, 1183)
+  // the body was still falling at 42 m over High City W 3.5 s on, over its band; and 5 s, the zone's 2 s settle first, 1183)
   // holding the zone alone wins: the bots kept out of it, you in it (dropped from above onto whatever floor
   // stands there: the Spire is solid to its tiers now), its meter near full
   // the kill feed carries the gun and the head (Milestone 701): an enemy bot dropped by your round to the head, through
@@ -7778,6 +7778,22 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       foe.bot.dummy.hit(R.gameTime(), "head", 9999, 2, 1, q.clone().setY(q.y + 1.6)); d.localHit(foe.bot.remote, 9999, true, "r97", 12); return R.hud.feedKills[0]; })()`,
   );
   check("speedkills: a kill in the feed carries the gun's outline and the head (USSO, to the head)", !!fk && fk.weapon === "r97" && fk.head && fk.victim.length > 0, JSON.stringify(fk));
+  // a contest that ends (Milestone 1191): an enemy in the zone, the zone contested, a player standing in it; under the
+  // config's 8 s nothing is shown, past them the enemy is (the game's own reveal, counted through the match's call to it)
+  const shown = await ev<{ early: number | null; late: number | null } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const z = d.captureZone(); if (!z) return null;
+      const t = d.zoneTree(z); const n = t && t.target >= 0 ? d.map.nodes[t.target] : null; if (!n) return null;
+      const foe = d.bots.find((b) => !d.isFriend(b.bot.remote.id) && b.bot.alive && !b.bot.dropping); if (!foe) return null;
+      const keep = foe.bot.pos.clone(); foe.bot.pos.set(n.x + 1, n.y ?? 0, n.z);
+      const me = { x: n.x, y: n.y ?? 0, z: n.z }; let count = null; const was = d.revealWhere.bind(d); d.revealWhere = (w, s) => (count = was(w, s));
+      const h0 = d.capture.holder; d.capture.holder = -2; d.contestFor = 0; d.contestShownAt = -Infinity;
+      d.revealContest(3, me); const early = count; count = null;
+      d.revealContest(6, me); const late = count;
+      d.revealWhere = was; d.capture.holder = h0; d.contestFor = 0; foe.bot.pos.copy(keep);
+      return { early, late }; })()`,
+  );
+  check("speedkills capture: a zone contested 8 s shows the enemies in it to a player in it, and not before (Milestone 1191)", !!shown && shown.early === null && (shown.late ?? 0) >= 1, JSON.stringify(shown));
   const won = await ev<{ phase: string; placement: number | null; zone?: number[]; me?: number[]; health?: number; progress?: Record<string, number> }>(
     page,
     `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; for (const b of d.bots) if (b.bot.alive) { b.bot.pos.set(b.bot.pos.x + 400, b.bot.pos.y, b.bot.pos.z); } const z = d.captureZone(); d.health = 100;

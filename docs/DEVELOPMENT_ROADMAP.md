@@ -20882,3 +20882,24 @@ what they could with the real Player on a forecast collision; applied here one a
 - **Measured on the bake:** the whole map moves little (the batch is the zones'): roof between 12 and 20 m in the north-west 863 to 948 m2, the south-east 1,232 to 1,301, the south-west 890 to 980; roof islands 137 (133), leapable gaps 106 (102); exposure and free runs within a point. The centre's 2.4 m walls are under the 4 m the map's wall-run measure counts, so it stays at 22 m there; the lines measure them.
 - **Checks that learned the new work:** 532 map checks at every size (518 before), 52 movement lines (44). Each proposal its own check (the roofs' pieces as typed and off every way up and the bots' graph, the arrivals hidden; the deck's panels and walls inside the band and off its ways, no spot of the zone's deck seeing most of it; the ring decks at their tops right across the carriageway with nothing typed under them, their piers off it); the ledge stacks' check reads a block's second stack; the decks' walk check as above.
 - **Checked:** verify, rules and tsc. Map files version 148: lo 239.0 MB, hi 325.0 MB, max 645.3 MB. Each quarter from the tower, the street, a High City roof and above by day (24), and the batch's pieces by day and by night (14 each), each roof's zone again from its middle (4).
+
+## Milestone 1191 — a contest that ends: a zone contested 8 s shows everyone in it
+
+docs/PLAN_ENDINGS.md part C 1, from the fourth layout reviews (docs/LAYOUT_REVIEW.md round 4: 5.5 and 5.5, the ending 5 and
+5). Both reviewers, each without the other: a contest freezes the meter and nothing makes it end. The centre's zone counts
+the court under the base, the street and the deck, three floors with no sight between them, and a body hidden on one froze
+both meters for good. A rule and config release: no bake.
+
+- **1191.** Once a zone has been contested `capture.reveal` seconds running (decay.json, 8), every enemy over its circle and
+  inside its heights is shown to a player standing in it too, by the game's own reveal (Duel.revealWhere, the red glow
+  SCOUT's scan and SMOKE's passive use), a second at a time until the contest ends (brmatch.ts revealContest, on every page:
+  a guest has the host's word for the contest, capture.holder -2). H's ask; G's other way, the squad with more bodies in
+  ticking at half rate, rewards numbers over the fight and is left.
+- **The fourth layout reviews and the picture round** of version 148 are recorded (docs/LAYOUT_REVIEW.md round 4,
+  docs/CENTRE_REVIEW.md round 26 and the districts' 20): the play held at 5.5 and 5.5, the districts' look at 6.3, and the
+  centre's look fell from 6.4 to 6.0 for batches 13 to 15's structures, which read as greybox. Batch 16 finishes them first
+  (dress16), then the play.
+- **Checks that learned the new work:** the speedkills e2e section: an enemy in the open zone, the zone contested, a player
+  in it: under the config's 8 s nothing is shown, past them the enemy is; proven with the config's reveal taken out (the
+  test fails, nothing shown past 8 s).
+- **Checked:** verify, rules, tsc, the e2e section speedkills.

@@ -1061,3 +1061,50 @@ the plaza's places coloured roofs from the drop (both centre, first); GLASS HEIG
 (both districts, first); THE WORKS' d22 containers coloured and lit (both districts); THE TERRACES' hedges and room d06
 (both districts); the shadows (all four); the lookout (both centre); the atrium sign box's face (both centre); THE STACKS'
 ground (both districts); the court's west room (both centre).
+
+## Round 26 (the centre) and the districts' round 20, 2026-11-19 (map version 148)
+
+The same spots as round 25 on map version 148's high bake, the first picture round since the play reviews began
+(docs/LAYOUT_REVIEW.md), there to check the look had not slipped while the play rose. Since version 144: batches 13 to 15
+(Milestones 1160 to 1190): the inner ring rebuilt for how the game moves (the bridge ring lowered and broken, decks across
+the spokes, terraces, hoardings, canopies, the spokes cleared), the capture zones' ground (the High City roofs' pieces, the
+deck north of the tower), decks across the ring road. One fresh agent each this round, reading the brief from its file,
+seeing nothing but the pictures.
+
+CENTRE ROUND 26 reviewer (2026-11-19, map version 148): overall 6.0 (round 25: 6.4 and 6.4).
+Scores: visual 6, readability 6, flow 7, play-style 6.5, finish 5, fun 6.5, overall 6.
+Why down: "the new decks and hoardings are flat untextured red, teal, yellow and pink planes on lattice legs and read as
+greybox beside the pack's art" (02, 03, 05, 08, 15, 22); from the air the inner ring a mosaic of coloured slabs, which deck
+joins which roof hard to read. Flow up to 7: "fire escapes, zip lines on A-frame hoists, stairs, the gangway, footbridges,
+the Sky Ring, and now a mid tier of decks between street and roof".
+Ten: 1 every new deck and hoarding in the pack's metal and floor materials, beams and lights under, trimmed edges, one lit
+edge strip of colour; 2 the floating pieces (26 pink neon bars, 18 yellow timber panels on poles, 17 leaning grey beams),
+every hoarding framed to its deck; 3 each quarter's decks one colour family with its corner block; 4 the open 26 m floor
+furnished (11); 5 THE VAULT legible from outside; 6 interior lighting contrast; 7 odd materials (the bark-textured column 05
+and night 24, scratched pink cylinders 16, the yellow shelter 06, flat red deck undersides 05); 8 cover on the lookout's
+landing; 9 wayfinding on the decks; 10 loot crates spread out.
+Broken: 26 two pink light bars in mid-air (a deck's lit edges seen edge on, its slab too thin to show); 18 timber panels on
+thin poles, one unsupported; 17 two leaning grey beams; 05 and night 24 a flat red deck underside, a bark-textured pillar;
+02 red tilted panels like loose sheets; 15 no bridge underfoot, a blank brown hoarding; 03 bright green squares on the west
+ground; 01 a black horizontal cylinder like a fallen tower; 30 the vault door's frame a flat gold box against the ceiling;
+12 a bare rusty plank stair; 06 a toy-like yellow shelter.
+
+DISTRICTS ROUND 20 reviewer (2026-11-19, map version 148): overall 6.3 (round 19: 6.3 and 6.3).
+Scores: LANTERN 6.5, TERRACES 6.0, TERMINAL 6.5, STACKS 5.5, GLASS 6.5, STRIP 6.5, CANYON 6.5, WORKS 7.0. Together: visual
+7.0, readability 6.5, flow 6.0, play-style 6.0, finish 5.5, fun 6.0, overall 6.3.
+Ten: 1 varied mid-height cover on the open floors (THE STACKS' plaza d10 and court d11, THE TERRACES' forecourt d04,
+LANTERN's court d02); 2 THE TERRACES' lime hedge cubes rounded, leafy, darker, at two heights; 3 each district its own ads;
+4 THE STACKS' ticket machines out; 5 GLASS HEIGHTS' cover varied; 6 LANTERN's roofs and plank bridges lit and capped; 7 THE
+CANYON's walkways widened at the booths, its smeared windows, ledges up its cliffs; 8 THE TERMINAL's catwalk covered, its
+flank road broken; 9 THE WORKS' hall ceiling steel, the blue container dimmer; 10 the edge a wall or viaduct, the ring
+road's lane marks dimmer at night.
+Broken: d02 the pavilion covers half of LANTERN ALLEYS' name; d06 tint patches on the room's floor; d12 a black triangular
+slab out of the capsule tower; d13b a glossy black lump on a planter; d16 and d17 gibberish ad text, ads repeated; d18 THE
+CLUB on a plain grey block; d20 smeared window texture; d22 the blue container glowing; d98 the night street one flat
+magenta. The ring road's decks "hardly show in the aerials".
+
+What the map agent read besides: the districts held at 6.3; the centre fell from 6.4 to 6.0, and the reason is the map
+agent's: batches 13 to 15 built their decks, terraces and hoardings as tinted floor tiles and wall panels with lit edges,
+judged by numbers and routes and never put in front of a picture review until now. The play rose over the same versions
+(the layout reviews from 4.5 and 4 to 5.5 and 5.5); the look of what made it did not keep up. Taken up first in batch 16
+(docs/PLAN_ENDINGS.md part C, dress16).

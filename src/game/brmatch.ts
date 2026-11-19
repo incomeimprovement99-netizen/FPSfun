@@ -498,6 +498,9 @@ export class BrMatch extends Duel {
   capture: { holder: number; held: number; open: boolean; progress: Map<number, number> } = { holder: -1, held: 0, open: false, progress: new Map() };
   /** each body's seconds in the open zone running, on the host: it counts once settled in (decay.json capture.settle) */
   private zoneTime = new Map<number, number>();
+  /** seconds the open zone has been contested running, on this page (a guest has the host's word for it, capture.holder -2) */
+  private contestFor = 0;
+  private contestShownAt = -Infinity;
 
   /** SpeedKills: the restores this player has had this match (two at most) */
   restores = 0;
@@ -2203,6 +2206,27 @@ export class BrMatch extends Duel {
    * meter, two at once fill neither, and a meter full ends the match: a side
    * of players wins it, or a bot squad does and everyone else is placed behind.
    */
+  /**
+   * A contest that ends (Milestone 1191; the fourth layout reviews, H: "after 8 s of contest every body in the zone is
+   * shown to everyone in it"): the centre's zone counts the court, the street and the deck, three floors with no sight
+   * between them, and a body hidden on one froze both meters for good. Once a zone has been contested `capture.reveal`
+   * seconds running, every enemy over its circle and inside its heights is shown to a player standing in it too, by the
+   * reveal SCOUT's scan and SMOKE's passive use, a second at a time until the contest ends
+   */
+  private revealContest(dt: number, local: LocalState): void {
+    const zone = this.captureZone();
+    const after = (decayCfg.capture as { reveal?: number }).reveal;
+    this.contestFor = zone && this.capture.holder === -2 ? this.contestFor + dt : 0;
+    if (!zone || !after || this.contestFor < after || !this.alive) return;
+    const fin = this.decay?.final ?? "";
+    const inZone = (x: number, y: number, z: number): boolean => Math.hypot(x - zone.x, z - zone.z) <= zone.r && zoneCounts(fin, y);
+    if (!inZone(local.x, local.y, local.z)) return;
+    const now = wallClock();
+    if (now - this.contestShownAt < 0.5) return;
+    this.contestShownAt = now;
+    this.revealWhere((at) => inZone(at.x, at.y, at.z), 1);
+  }
+
   private updateCapture(dt: number, local: LocalState): void {
     const zone = this.captureZone();
     const c = this.capture;
@@ -2709,6 +2733,7 @@ export class BrMatch extends Duel {
       }
     }
     this.updateCapture(dt, local);
+    this.revealContest(dt, local);
     if (now >= this.ringSendNext) {
       this.ringSendNext = now + 0.5;
       // (one gone from the match gives the crown up here too)
