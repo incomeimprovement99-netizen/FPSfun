@@ -2347,7 +2347,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
 // the zone. The nearest of all was a roof only a player climbs, the court under the tower, a gallery down THE WELL
 {
   const { navTree, reachedFrom } = await import("../../src/game/navgraph");
-  const { SECTOR_RECTS, centreOf } = await import("../../src/game/decay");
+  const { SECTOR_RECTS, centreOf, zoneCounts } = await import("../../src/game/decay");
   const R = ((await import("../../src/config/decay.json")).default as { capture: { radius: number } }).capture.radius;
   const streetNodes = map.nodes.flatMap((n, i) => (Math.abs(n.y ?? 0) < 0.5 && n.links.length ? [i] : []));
   const reach = reachedFrom(map.nodes, streetNodes);
@@ -2357,9 +2357,30 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     const n = map.nodes[t.target];
     const off = Math.hypot(n.x - BR_X - m.x, n.z - BR_Z - m.z);
     const cut = streetNodes.filter((i) => t.toward[i] === -2).length;
-    return off > R || cut ? [`${s.id} ${off.toFixed(1)} m off, ${cut} street nodes without a way`] : [];
+    // (and at a height its zone counts, Milestone 1182: a bot that walks there and stands holds it)
+    const counts = zoneCounts(s.id, n.y ?? 0);
+    return off > R || cut || !counts ? [`${s.id} ${off.toFixed(1)} m off at ${(n.y ?? 0).toFixed(1)} m${counts ? "" : ", outside its band"}, ${cut} street nodes without a way`] : [];
   });
-  check(`the bots' way to every sector's capture zone: from every street node, ending inside its ${R} m`, bad.length === 0, bad.join("; ") || `${SECTOR_RECTS.length} sectors`);
+  check(`the bots' way to every sector's capture zone: from every street node, ending inside its ${R} m and at a height it counts`, bad.length === 0, bad.join("; ") || `${SECTOR_RECTS.length} sectors`);
+  // each zone's heights (game.sectors `band`, Milestone 1182; the third layout reviews asked with the zones where they open):
+  // the centre's counts none of the tower's floors its circle reaches into, the High City blocks' none of the street at
+  // their feet, and every zone with a band has floors inside it to fight on
+  const inZone = (s: (typeof SECTOR_RECTS)[number]) => {
+    const m = centreOf(s.id);
+    return map.nodes.filter((q) => Math.hypot(q.x - BR_X - m.x, q.z - BR_Z - m.z) <= R);
+  };
+  const said: string[] = [];
+  let okBand = true;
+  for (const s of SECTOR_RECTS.filter((q) => q.band)) {
+    const nodes = inZone(s);
+    const counted = nodes.filter((q) => zoneCounts(s.id, q.y ?? 0)).length;
+    // (the tower's floors, over the base's deck; the street at a block's foot, under its roof)
+    const stray = s.id === "c" ? nodes.filter((q) => (q.y ?? 0) > 14 && zoneCounts(s.id, q.y ?? 0)) : nodes.filter((q) => Math.abs(q.y ?? 0) < 0.5 && zoneCounts(s.id, q.y ?? 0));
+    if (counted < 6 || stray.length) okBand = false;
+    said.push(`${s.id} ${s.band!.join(" to ")} m: ${counted} of ${nodes.length} nodes counted, ${stray.length} ${s.id === "c" ? "tower floors" : "street"} counted`);
+  }
+  const tower = inZone(SECTOR_RECTS.find((q) => q.id === "c")!).filter((q) => (q.y ?? 0) > 14).length;
+  check("each capture zone counts its own heights: the centre's none of the tower's floors in its circle, the High City blocks' none of the street under their roofs, each with floors inside its band", okBand && tower > 0 && said.length >= 5, `${said.join("; ")}; ${tower} tower floors in the centre's circle`);
 }
 
 // each High City block its own colour (rules.high.<dir>.looks; the centre's fourth review: "the four High City blocks are

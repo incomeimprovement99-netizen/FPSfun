@@ -231205,7 +231205,11 @@
      0,
      -22
     ],
-    "reach": 30
+    "reach": 30,
+    "band": [
+     -8,
+     13
+    ]
    },
    {
     "id": "n",
@@ -231219,7 +231223,11 @@
      0,
      -72
     ],
-    "reach": 25
+    "reach": 25,
+    "band": [
+     24,
+     36
+    ]
    },
    {
     "id": "s",
@@ -231233,7 +231241,11 @@
      0,
      72
     ],
-    "reach": 25
+    "reach": 25,
+    "band": [
+     24,
+     36
+    ]
    },
    {
     "id": "e",
@@ -231247,7 +231259,11 @@
      72,
      0
     ],
-    "reach": 25
+    "reach": 25,
+    "band": [
+     24,
+     36
+    ]
    },
    {
     "id": "w",
@@ -231261,7 +231277,11 @@
      -72,
      0
     ],
-    "reach": 25
+    "reach": 25,
+    "band": [
+     24,
+     36
+    ]
    },
    {
     "id": "ne",
@@ -238449,7 +238469,8 @@
   "_boards1151": "Milestone 1151 (the centre's twenty-fifth reviews of version 144, both, 29: 'the atrium sign box's face toward the camera blank pale cyan'; B rank 6: 'the court's west room (20) colour and a focal point'). THE LOBBY under the atrium's box: picture 29 looks up 68 degrees from under it, so the face it sees is the box's underside, the cyan glow (rules.base.clad 'sign underside'), at pixels 526..665 by 315..478 of the 1600 by 900 frame, 3.8 to 4.4 m off. A board facing down (`pitch` 90, the plate tipped about its own x, then turned by `yaw`, src/game/neonmap.ts), 2 mm under the glow, the box's side boards' size and colours; its text's top toward +z, which picture 29 shows upright (pixels 503..672 by 371..432). LOWER COURT in the court's magenta on the wall picture 20 faces: the basement's face under the mezzanine at z -2.75 (x -1.225 to 1.275, -7 to -4, off the bake's triangles), 2 cm out, facing -z, from -4.6 (over the fan unit's top, -5.04) to -4.1 (under the mezzanine's underside, -4.0): pixels 718..897 by 330..373, 5.2 m off, the line to it over the fan unit.",
   "_outlines1151": "Milestone 1151: the court's lane block (rules.dress.caches' court-lane-block) lit as the court's pillars are: a strip round its top's edge, 3 cm in, and a frame of the pillars' (two posts and a lintel) on each of its two faces down the lane.",
   "_outlines1156": "Milestone 1156 (both district reviews of version 144, d17: 'a bright pink streak with stretched texture ... on the pyramid's edge or rail'): the fourteen 'the strip pyramid step' outlines' `rect` re-laid on the drawn face (rules.districts.strip.pyramid.face), each rect the face's own line at its strip's foot, so with `out` 0.01 its inner side 1 cm out at its foot and 4.6 cm at its top. They had followed the collision's steps (0.38 m in a 0.5 m step, 0.76 m a metre) up a face that leans 0.714 m a metre: steps 1 to 7 stood 0.14 to 0.0 m off it, 8 to 12 cut into it (the saw-tooth edges), 13 and 14 lay inside it, and 14's top shared the rim band's 7.0 m plane (half 5.20 to 5.26 m in the band's 5.00 to 5.32): the two drawn by turns. Projected through d17 (a proposal agent's tools/view.mts) steps 1 to 10 fall on the broad pink band (px 700 to 1040, piled at the grazing look from the pyramid's top) and 14 on the thin one along the top's edge (px 920 to 1160). Heights, widths, colour and glow as they were; step 14's inner side at 5.367 m, clear of the rim's edge.",
-  "_boards1149": "Milestone 1149: the Loop's places' boards (Milestone 1137's sixteen) renamed in place for where each set stands, rules.dress.pockets._sets1149; nothing added or moved."
+  "_boards1149": "Milestone 1149: the Loop's places' boards (Milestone 1137's sixteen) renamed in place for where each set stands, rules.dress.pockets._sets1149; nothing added or moved.",
+  "_band1182": "Milestone 1182 (docs/PLAN_ENDINGS.md A1): a sector's `band` [lowest, highest] is the heights its capture zone counts a body's feet at (decay.ts zoneCounts); a sector with none counts every height. The third layout reviews, asked with the zones where they open: the centre's circle, at (0, -22), reaches 2 m inside the tower's north wall, and the bots' graph has nodes on the tower's floors from 45 to 110 m inside it, so a body in a north room at any height counted: -8 to 13, the court under the base 7 m down, the street and the 6 to 12 m deck. The four edge sectors' circles lie on the High City blocks and hang over the street at their feet (19 and 24% of s and e) and over the blocks' offices, so a squad 27 m under the roof or one body in a room froze the roof's meter: 24 to 36, the roof at 26 to 27 m and High City N's drum. The corners count every height (both reviewers: the best endings, keep them). The node the bots aim for in each zone is inside its band (the edges' at 26 m, the centre's on the ground), checked by the map's checks."
  },
  "pads": [
   {

@@ -4366,7 +4366,9 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
     host,
     `(() => { const d = window.__range.duel(); const out = d.placedAt.get(d.sideOf(1)) ?? null; const link = d.links.get(1); const snd = link.send; const fin = d.finishBr;
       const told = []; d.finishBr = () => undefined; link.send = (m) => { if (m.t === "brend") told.push(m.placement); else snd.call(link, m); };
-      const run = (zone, at) => { d.captureZone = () => zone; d.capture.progress.clear(); d.updateCapture(9999, { x: at.x, y: 0, z: at.z }); d.brOver = false; delete d.captureZone; };
+      // (as a corner's final, which counts every height: an edge sector's zone counts only its block's roof, Milestone 1182,
+      // and this asks who is placed where, not at what height a body counts)
+      const run = (zone, at) => { const f0 = d.decay ? d.decay.final : null; if (d.decay) d.decay.final = "ne"; d.captureZone = () => zone; d.capture.progress.clear(); d.updateCapture(9999, { x: at.x, y: 0, z: at.z }); d.brOver = false; delete d.captureZone; if (d.decay) d.decay.final = f0; };
       const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping);
       if (b) run({ x: b.bot.pos.x, z: b.bot.pos.z, r: 0.2 }, { x: 1e5, z: 1e5 });
       const byBots = told.length ? told[told.length - 1] : null;
@@ -5689,12 +5691,15 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     );
     check("speedkills: every texture of the city's file filtered along a slant, at its kit's samples (Milestone 1063)", slant.textures > 50 && slant.under === 0, JSON.stringify(slant));
     // and the asphalt's cloud noise pulled to its mean in the shader the GPU runs (Milestone 1069), its keep the config's
-    const flat = await ev<{ asphalt: number; pulled: number; keep: number[] }>(
+    // (the scene compiled first, Milestone 1183: a material has its uniforms only once it is drawn, and version 147's run
+    // found two asphalts with one drawn from where the test stood; the names said, so a miss says which)
+    const flat = await ev<{ asphalt: number; pulled: number; keep: number[]; names?: string[] }>(
       page,
       `(() => { const R = window.__range; let root = null; R.scene.traverse((o) => { if (o.name === "neon:map") root = o; }); const r = R.renderer; const ms = new Set();
         if (root) root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) if (/^neon\\/Asphalt00/.test(m.name)) ms.add(m); });
+        r.compile(R.scene, R.camera);
         const u = [...ms].map((m) => r.properties.get(m).uniforms).filter((x) => x && x.uFlatKeep);
-        return { asphalt: ms.size, pulled: u.length, keep: u.map((x) => x.uFlatKeep.value) }; })()`,
+        return { asphalt: ms.size, pulled: u.length, keep: u.map((x) => x.uFlatKeep.value), names: [...ms].map((m) => m.name + (r.properties.get(m).uniforms?.uFlatKeep ? "" : " (not pulled)")) }; })()`,
     );
     check("speedkills: the asphalt's cloud noise pulled to its own mean in the shader the GPU runs (Milestone 1069)", flat.asphalt >= 1 && flat.pulled === flat.asphalt && flat.keep.every((k) => k === neonSectorsCfg.game.flatten.Asphalt00.keep), JSON.stringify(flat));
     // a REVEAL draws the bot through walls, its rim and its shape filled red, over anything in front (Milestone 690, the
@@ -7761,6 +7766,8 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     !!toward && toward.path.length > 1 && toward.path.indexOf(toward.goal) >= 1,
     JSON.stringify(toward && { start: toward.start, goal: toward.goal, steps: toward.path.length - 1, along: toward.path.indexOf(toward.goal) }),
   );
+  // (set on the node the bots aim for in the zone, at a height it counts, Milestone 1182: dropped from 150 m over its middle
+  // the body was still falling at 42 m over High City W 3.5 s on, over its band; and 5 s, the zone's 2 s settle first, 1183)
   // holding the zone alone wins: the bots kept out of it, you in it (dropped from above onto whatever floor
   // stands there: the Spire is solid to its tiers now), its meter near full
   // the kill feed carries the gun and the head (Milestone 701): an enemy bot dropped by your round to the head, through
@@ -7773,8 +7780,9 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   check("speedkills: a kill in the feed carries the gun's outline and the head (USSO, to the head)", !!fk && fk.weapon === "r97" && fk.head && fk.victim.length > 0, JSON.stringify(fk));
   const won = await ev<{ phase: string; placement: number | null; zone?: number[]; me?: number[]; health?: number; progress?: Record<string, number> }>(
     page,
-    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; for (const b of d.bots) if (b.bot.alive) { b.bot.pos.set(b.bot.pos.x + 400, b.bot.pos.y, b.bot.pos.z); } const z = d.captureZone(); d.health = 100; r.player.teleport(z.x, 150, z.z, 0);
-      d.capture.progress.set(d.sideOf(d.id), ${45} - 1.5); setTimeout(() => { const p = r.player.pos; ok({ phase: d.phase, placement: d.placement, zone: [Math.round(z.x), Math.round(z.z)], me: [Math.round(p.x), Math.round(p.y * 10) / 10, Math.round(p.z)], health: d.health, progress: Object.fromEntries([...d.capture.progress].map(([k, v]) => [k, Math.round(v * 10) / 10])) }); }, 3500); }))()`
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; for (const b of d.bots) if (b.bot.alive) { b.bot.pos.set(b.bot.pos.x + 400, b.bot.pos.y, b.bot.pos.z); } const z = d.captureZone(); d.health = 100;
+      const t = d.zoneTree(z); const n = t && t.target >= 0 ? d.map.nodes[t.target] : null; if (n) r.player.teleport(n.x, (n.y ?? 0) + 0.3, n.z, 0); else r.player.teleport(z.x, 150, z.z, 0);
+      d.capture.progress.set(d.sideOf(d.id), ${45} - 1.5); setTimeout(() => { const p = r.player.pos; ok({ phase: d.phase, placement: d.placement, zone: [Math.round(z.x), Math.round(z.z)], me: [Math.round(p.x), Math.round(p.y * 10) / 10, Math.round(p.z)], health: d.health, progress: Object.fromEntries([...d.capture.progress].map(([k, v]) => [k, Math.round(v * 10) / 10])) }); }, 5000); }))()`
   );
   check("speedkills capture: a squad alone in the zone for 45 s wins the match outright", won.phase === "matchEnd" && won.placement === 1, JSON.stringify(won));
   await ev(page, "window.__range.duel()?.leave()");

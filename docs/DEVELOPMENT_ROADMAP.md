@@ -20815,3 +20815,31 @@ baked once for all four. Judged by numbers and routes, not pictures.
   Loop's lines past 35 m against rules.dress.lanes.loop; the pocket panels 12, THE WORKS' low panels 3, NOODLE ROW's
   bistro sets 3, the corner streets' bins 5 with lanes, the counts the lanes and the decks left.
 - **Checked:** verify, rules and tsc. Map files version 147: lo 237.6 MB, hi 323.6 MB, max 644.0 MB. Each quarter photographed from six spots, the north-east's mirrored into the other three (24 pictures).
+
+## Milestones 1182 and 1183 — the capture zone counts its own heights, and a body counts once settled in
+
+docs/PLAN_ENDINGS.md part A, from the third layout reviews asked again with the zones where they open (docs/LAYOUT_REVIEW.md:
+the ending 6 and 5.5; the corners the best endings on the map, the four edge zones a bare roof standoff, the centre a
+layered fight spoiled by the tower). A rule and config release: no bake.
+
+- **1182, each zone its own heights.** A sector names a `band` in neonmap.json game.sectors, the heights its zone counts a
+  body's feet at (decay.ts zoneCounts, brmatch.ts updateCapture); a sector with none counts every height, as before. The
+  centre's circle, at (0, -22), reaches 2 m inside the tower's north wall, and the bots' graph has 25 nodes on the tower's
+  floors from 45 to 110 m inside it: a body in a north room at any height counted. Its band is -8 to 13 m, the court
+  under the base, the street and the 6 to 12 m deck. The four edge sectors' circles lie on the High City blocks and hang
+  over the street at their feet (19 and 24% of s and e) and over the blocks' offices: their bands are 24 to 36 m, the
+  roof and High City N's drum, so a squad 27 m below or one body in a room no longer freezes the roof's meter. The
+  corners count every height (both reviewers: the best endings, keep them). The node the bots aim for in each zone was
+  already inside its band (the edges' on the roofs at 26 m, the centre's on the ground), and is now checked to be.
+- **1183, a body counts once settled in.** decay.json `capture.settle`, 2 s: a body counts, holding or contesting, only
+  once it has been in the zone 2 s running, so a sprint through it or a pad's throw over it no longer freezes a held meter
+  (E). Summed from the update's own time step. F's other ask, a contested meter that drains, is left to a review after this.
+- **Checks that learned the new work:** the bots' way to each zone now ends at a height its zone counts; a new check holds
+  each banded zone to its heights (the centre counting none of its 25 tower floors, the High City blocks none of the street
+  under their roofs, each with floors inside its band to fight on). Both proven by putting the fault back (the centre's
+  band taken away, High City N's raised over its roof: both fail). The e2e test of a capture's result runs its captures as
+  a corner's final, since it asks who is placed where and not at what height a body counts. 518 map checks. The speedkills
+  section's capture win sets the body on the node the bots aim for (it had been dropped from 150 m and was still falling
+  over High City W's band when read), and its test of the asphalt's flattened shader compiles the scene first: a
+  material has its uniforms only once drawn, and one of the two asphalts had not been from where the test stood.
+- **Checked:** verify, rules, tsc, and the e2e sections brsolo and speedkills.

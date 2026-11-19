@@ -37,6 +37,8 @@ export interface SectorRect {
   maxZ: number;
   middle?: number[];
   reach?: number;
+  /** the heights its capture zone counts a body's feet at, [lowest, highest] metres; none, every height (Milestone 1182) */
+  band?: number[];
 }
 
 /**
@@ -52,6 +54,15 @@ const sectorIds = () => SECTOR_RECTS.map((s) => s.id);
 export const centreOf = (id: string): { x: number; z: number } => {
   const s = SECTOR_RECTS.find((x) => x.id === id)!;
   return s.middle ? { x: s.middle[0], z: s.middle[1] } : { x: (s.minX + s.maxX) / 2, z: (s.minZ + s.maxZ) / 2 };
+};
+/**
+ * whether a body's feet at height y count in a sector's capture zone (Milestone 1182): its own band where it names one,
+ * since a zone counts everything over its circle, and the centre's reached into the tower's floors to 110 m and the
+ * High City blocks' over the street 27 m under their roofs (the third layout reviews)
+ */
+export const zoneCounts = (id: string, y: number): boolean => {
+  const b = SECTOR_RECTS.find((x) => x.id === id)?.band;
+  return !b || (y >= b[0] && y <= b[1]);
 };
 
 /** a seeded random (mulberry32), so every browser draws the same plan */

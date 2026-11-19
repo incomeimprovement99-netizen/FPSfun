@@ -42,7 +42,7 @@
 //
 // The legacy game's loadout crates, Ring Consoles, Storm Surge and keycard
 // vault went in Milestone 524: SpeedKills ran none of them.
-import { decayPlan, decayRounds, sectorPhases, captureOpens, sectorIdAt, SECTOR_RECTS, centreOf, type DecayPlan, type SectorPhase } from "./decay";
+import { decayPlan, decayRounds, sectorPhases, captureOpens, sectorIdAt, SECTOR_RECTS, centreOf, zoneCounts, type DecayPlan, type SectorPhase } from "./decay";
 import { paidProp } from "./paidgun";
 import decayCfg from "../config/decay.json";
 import { PROFILE } from "./game";
@@ -496,6 +496,8 @@ export class BrMatch extends Duel {
   private decayCircle: Circle | null = null;
   /** the capture zone: which squad is in it alone (a human side, or 100 + a bot squad; -1 none), their seconds held, and whether it is open */
   capture: { holder: number; held: number; open: boolean; progress: Map<number, number> } = { holder: -1, held: 0, open: false, progress: new Map() };
+  /** each body's seconds in the open zone running, on the host: it counts once settled in (decay.json capture.settle) */
+  private zoneTime = new Map<number, number>();
 
   /** SpeedKills: the restores this player has had this match (two at most) */
   restores = 0;
@@ -2206,16 +2208,32 @@ export class BrMatch extends Duel {
     const c = this.capture;
     c.open = !!zone;
     if (!zone || this.role !== "host" || this.brOver || this.phase !== "fight") return;
-    const inside = (x: number, z: number): boolean => Math.hypot(x - zone.x, z - zone.z) <= zone.r;
+    // (over the circle and inside the final sector's own heights, decay.ts zoneCounts, Milestone 1182: the centre's
+    // circle reached into the tower's floors to 110 m and the High City blocks' over the street 27 m under their roofs)
+    const fin = this.decay?.final ?? "";
+    const inside = (x: number, y: number, z: number): boolean => Math.hypot(x - zone.x, z - zone.z) <= zone.r && zoneCounts(fin, y);
+    // (and a body counts once it has been in `settle` seconds running, Milestone 1183: a sprint through, or a pad's throw
+    // over the zone, froze a held meter; summed from this update's own dt, so a test's one long step settles at once)
+    const settle = (decayCfg.capture as { settle?: number }).settle ?? 0;
+    const seen = new Set<number>();
+    const settled = (id: number, there: boolean): boolean => {
+      if (!there) return false;
+      seen.add(id);
+      const t = (this.zoneTime.get(id) ?? 0) + dt;
+      this.zoneTime.set(id, t);
+      return t >= settle;
+    };
     const here = new Set<number>();
-    if (this.alive && !this.gulagIds.has(this.id) && inside(local.x, local.z)) here.add(this.sideOf(this.id));
+    if (this.alive && !this.gulagIds.has(this.id) && settled(this.id, inside(local.x, local.y, local.z))) here.add(this.sideOf(this.id));
     for (const r of this.remotes.values()) {
       // (a dropped friend's figure stands there for the host's whole hold: it took and contested the zone, Milestone 943)
       if (r.id >= Duel.BOT_ID || !r.alive || this.held.has(r.id)) continue;
       const last = r.samples[r.samples.length - 1];
-      if (last && inside(last.x, last.z)) here.add(this.sideOf(r.id));
+      if (settled(r.id, !!last && inside(last.x, last.y, last.z))) here.add(this.sideOf(r.id));
     }
-    for (const b of this.bots) if (b.bot.alive && !b.bot.dropping && inside(b.bot.pos.x, b.bot.pos.z)) here.add(CAPTURE_BOT + b.team);
+    for (const b of this.bots) if (settled(b.bot.remote.id, b.bot.alive && !b.bot.dropping && inside(b.bot.pos.x, b.bot.pos.y, b.bot.pos.z))) here.add(CAPTURE_BOT + b.team);
+    // (out of it, or out of the match: the clock starts again on the way back in)
+    for (const id of [...this.zoneTime.keys()]) if (!seen.has(id)) this.zoneTime.delete(id);
     if (here.size !== 1) {
       // empty, or contested: nobody's meter moves
       // (and what the last one held stays on the HUD: stepping off said 0 / 45 S, and it was all still there, Milestone 958)

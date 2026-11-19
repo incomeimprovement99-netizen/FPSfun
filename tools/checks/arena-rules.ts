@@ -350,7 +350,8 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   const br = read("brmatch.ts");
   const bots = read("bots.ts");
   check("crouching counts against the bots of a 1v1 and the Gulag", /hitsBody\(s\.from, s\.dir, feet, local\.crouch \? CROUCH_TOP : BODY_TOP\)/.test(bots) && /hitsBody\(s\.from, s\.dir, feet, local\.crouch \? CROUCH_TOP : BODY_TOP\)/.test(br));
-  check("bots do not fight a dropped friend's held figure, or take the zone by it", /unseen\(r\.id\) \|\| this\.held\.has\(r\.id\)/.test(br) && /!r\.alive \|\| this\.held\.has\(r\.id\)\) continue;\s+const last = r\.samples\[r\.samples\.length - 1\];\s+if \(last && inside/.test(br));
+  // (the zone's test of a figure read through its settling time since Milestone 1183: settled(r.id, !!last && inside(...)))
+  check("bots do not fight a dropped friend's held figure, or take the zone by it", /unseen\(r\.id\) \|\| this\.held\.has\(r\.id\)/.test(br) && /!r\.alive \|\| this\.held\.has\(r\.id\)\) continue;\s+const last = r\.samples\[r\.samples\.length - 1\];\s+if \((?:settled\(r\.id, !!)?last && inside/.test(br));
   check("nobody in the sky is a target", /if \(last && !inSky\(last\.stance, last\.y\)\) humans\.push/.test(br) && /!inSky\(local\.stance, local\.y\)\) humans\.push/.test(br));
   const page = readFileSync(new URL("../../src/main.ts", import.meta.url), "utf8");
   // (Milestone 954) what a press does where it cannot go off, and what comes of it
