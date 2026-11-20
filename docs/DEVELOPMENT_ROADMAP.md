@@ -20903,3 +20903,31 @@ both meters for good. A rule and config release: no bake.
   in it: under the config's 8 s nothing is shown, past them the enemy is; proven with the config's reveal taken out (the
   test fails, nothing shown past 8 s).
 - **Checked:** verify, rules, tsc, the e2e section speedkills.
+
+## Milestones 1192 to 1194 — the new structures finished, and two named faults (map version 149)
+
+docs/PLAN_ENDINGS.md part C 0, from the picture round of version 148 (docs/CENTRE_REVIEW.md round 26: the centre 6.0 where
+version 144 had 6.4, for batches 13 to 15's decks, terraces and hoardings, "flat untextured planes on lattice legs that read
+as greybox"). One proposal agent (dress16) measured and wrote it on version 148's snapshot; applied and baked here, then
+judged by a picture round on the same spots.
+
+- **1192 and 1193, dress16.** Drawn rows and material specs only, no collision, line or graph node changed and no material
+  the map did not already draw (520 before and after): every one of the 180 deck and terrace slabs and the ten canopy kits
+  given a floor of the pack's own on its top, a painted metal edge and the pack's riveted underside; 1,516 of the pack's
+  1.8 m light strips along the open edges, one colour family a quarter (the terraces and the ring road's decks their High
+  City block's); 1,207 girders under the open edges, each 7 m and more over the street or 2 m over anything walked; the
+  canopies' legs bare steel (the bark-textured pillar and the scratched pink cylinders); the run walls off flat plastic,
+  lit along both faces, a truss under where they hang. About 443,000 triangles more (5%); the files 11 MB larger.
+- **1194, fix16.** THE WORKS' painted containers "glowing like a lightbox" (the districts' round 20, d22): Milestone 1153's
+  glows blue 2.6 to 1.65 and red 2.1 to 1.55, over the 0.5 its check holds a face in shade to (at 1.5 and 1.4 they lit
+  0.50 and 0.51). THE TERRACES' hedges, "bright lime cubes" and from the air "bright green squares": the cypress's leaf map
+  glowing #4fa832 at 1.2 where it glowed #7aff3a at 1.8, every use swapped so no material is added.
+- **Judged:** the centre's picture round 27 on version 149: 6.1 (6.0 on 148). Finish 5.5 (5), readability 6.5 (6). The
+  bark pillar, the red undersides and the brown hoarding read right; the decks now read "as stacked dark plates from
+  above", and under them the street is "a black cave", near black at night: lights under the decks are its first ask.
+  Still named: the pink bar at the corner roofs (day-26), a leaning black and pink slab (day-17), pink collars on NOODLE
+  ROW's columns (day-16).
+- **Checks that learned the new work:** dress16's own (every deck and terrace row with its edge and under-frame, no batch
+  13 to 15 spec a bare tint, every hoarding with its frame), proven by the agent with eight faults put back; 533 map checks
+  at every size.
+- **Checked:** verify, rules and tsc. Map files version 149: lo 249.8 MB, hi 335.9 MB, max 656.3 MB.

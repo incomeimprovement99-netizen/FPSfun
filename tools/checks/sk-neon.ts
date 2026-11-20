@@ -14450,5 +14450,173 @@ const compiled76 = (m: THREE.Material | undefined, lib: { vertexShader: string; 
   );
 }
 
+// The structures batches 13 to 15 added finished as built parts of the city (rules.dress16; the centre's picture review of
+// version 148, 6.0 from 6.4: "flat untextured red, teal, yellow and pink planes on lattice legs that read as greybox beside
+// the pack's art", "two pink light bars hang in mid-air", "a bark-textured pillar", "scratched pink cylinders", "a blank
+// brown hoarding"). Held by rule, drawn pieces and materials only, so nothing a body or a line meets is touched:
+//  (1) every slab of rules.routes (the pack's floor tile, "g") and every canopy kit of rules.overhead13 in a family's finish,
+//      its top a pack floor, its edge a painted fascia, its underside the riveted panel: no flat tint, no edge that is all glow;
+//      every canopy leg in the pack's bare steel; every canopy on a spoke in its quarter's kit (one colour family a quarter);
+//  (2) along every edge of those slabs and canopies open to the air (no slab of the same top, no face of the collision
+//      beside it) the pack's lit strip at its top in the family's glow, every half metre of it lit;
+//  (3) every run wall's face in a textured pack metal, none in a flat plastic, and lit along its top on both faces;
+//  (4) the edge girders each hung under a slab, its top at the slab's underside, its foot at the carriageway's clear height
+//      or a standing head's room over what is under it;
+//  (5) no material the centre's file does not draw without dress16 (the centre's draws stand at their limit).
+// The decks' boxes, the canopies' faces and every line are the routes' and the lines' own checks'
+{
+  type Fin16 = { top: string; edge: string; glow: string };
+  type D16 = { fin: Record<string, Fin16>; under: string; leg: string; groups: Record<string, string>; kitFam: Record<string, string>; quarterKit: Record<string, string>; walls: Record<string, string>; strip: string; girder: string; most: number; clear: number; head: number; least: { strips: number; girders: number; wallStrips: number } };
+  const D16 = (cfg.rules as unknown as { dress16?: D16 }).dress16;
+  const RT16 = (cfg.rules as unknown as { routes?: { rows: Array<[string, string, number, number, number, number, number, string | null]>; boxes: number[][] } }).routes;
+  const OH16 = (cfg.rules as unknown as { overhead13?: { top: number; kits: Record<string, { slab: string; leg: string }>; modules: Array<[string, string, string, number, number, number, number, number[][]]> } }).overhead13;
+  const PAID16 = process.env.PAID_DIR ?? "C:/Users/jwilb/Downloads/speedkills-paid";
+  const cat16 = existsSync(join(PAID16, "neon", "catalogue.json")) ? (JSON.parse(readFileSync(join(PAID16, "neon", "catalogue.json"), "utf8")) as Array<{ path: string; size: number[] | null; min: number[] | null; max: number[] | null; materials: string[] }>) : [];
+  const byName16 = new Map<string, { size: number[]; min: number[]; max: number[]; materials: string[] }>();
+  for (const r of cat16) if (r.size && !byName16.has(r.path.split("/").pop()!)) byName16.set(r.path.split("/").pop()!, r as { size: number[]; min: number[]; max: number[]; materials: string[] });
+  const S16 = (SOLIDS as unknown as { solids: number[][] }).solids;
+  const CH16 = cfg.chunks as unknown as Record<string, { sector: string; place: unknown[][] }>;
+  const faults16: string[] = [];
+  const slabSpec16 = (f: string) => (D16 ? `PavementDirtTiles00b=${D16.fin[f].top};BrickDamaged00b=${D16.fin[f].edge};PlasterPannelsDirt00=${D16.under}` : "");
+  // (a piece's footprint on the map, as the layout's placeTurned lays it by its middle: x' = c x + s z, z' = -s x + c z)
+  type OB16 = { c: number[]; u: number[]; v: number[]; hu: number; hv: number };
+  const obox16 = (name: string, x: number, z: number, yaw: number, s: number): OB16 | null => {
+    const r = byName16.get(name);
+    if (!r) return null;
+    const a = (yaw * Math.PI) / 180;
+    return { c: [x, z], u: [Math.cos(a), -Math.sin(a)], v: [Math.sin(a), Math.cos(a)], hu: (r.size[0] / 2) * s, hv: (r.size[2] / 2) * s };
+  };
+  const inside16 = (o: OB16, x: number, z: number, tol: number) => {
+    const [dx, dz] = [x - o.c[0], z - o.c[1]];
+    return Math.abs(dx * o.u[0] + dz * o.u[1]) <= o.hu + tol && Math.abs(dx * o.v[0] + dz * o.v[1]) <= o.hv + tol;
+  };
+  // (the collision near the inner ring in 5 m cells, read many times)
+  const grid16 = new Map<string, number[][]>();
+  for (const b of S16) {
+    if (b[5] < 2 || Math.max(Math.abs(b[0]), Math.abs(b[1]), Math.abs(b[2]), Math.abs(b[3])) > 115) continue;
+    for (let i = Math.floor(b[0] / 5); i <= Math.floor(b[1] / 5); i++) for (let k = Math.floor(b[2] / 5); k <= Math.floor(b[3] / 5); k++) (grid16.get(`${i},${k}`) ?? grid16.set(`${i},${k}`, []).get(`${i},${k}`)!).push(b);
+  }
+  const at16 = (x: number, z: number) => (grid16.get(`${Math.floor(x / 5)},${Math.floor(z / 5)}`) ?? []).filter((b) => b[0] <= x && b[1] >= x && b[2] <= z && b[3] >= z);
+  // (1) the finishes
+  const slabs16: Array<{ i: number; g: string; f: string; o: OB16; top: number; under: number }> = [];
+  for (const [i, q] of (RT16?.rows ?? []).entries()) {
+    if (!/^FloorBasic00/.test(q[1])) continue;
+    const f = D16?.groups[q[0]];
+    const o = obox16(q[1], q[2], q[3], q[4], q[6]);
+    if (!f || !o) {
+      faults16.push(`slab ${i} (${q[0]}) in no family`);
+      continue;
+    }
+    const top = q[5] + byName16.get(q[1])!.size[1] * q[6];
+    slabs16.push({ i, g: q[0], f, o, top, under: q[5] });
+    if (q[7] !== slabSpec16(f)) faults16.push(`slab ${i} (${q[0]} at ${q[2]}, ${q[3]}) worn ${q[7]}`);
+  }
+  for (const [k, kit] of Object.entries(OH16?.kits ?? {})) {
+    const f = D16?.kitFam[k];
+    if (!f || kit.slab !== slabSpec16(f) || kit.leg !== `PlasticBare02=${D16!.leg}`) faults16.push(`canopy kit ${k} worn ${kit.slab} on ${kit.leg}`);
+  }
+  for (const [j, m] of (OH16?.modules ?? []).entries()) {
+    const want = m[0].startsWith("foot") ? m[1] : D16?.quarterKit[`${m[4] < 0 ? "n" : "s"}${m[3] > 0 ? "e" : "w"}`];
+    if (m[1] !== want) faults16.push(`canopy ${j} (${m[0]}) in ${m[1]}, its quarter's ${want}`);
+  }
+  // (2) the lit edges: every half metre of an edge open to the air, in a stretch of a metre and more, with a strip at its top
+  const hc16 = D16 ? (CH16[(cfg.rules.highCover as unknown as { chunk: string }).chunk]?.place ?? []) : [];
+  const sr16 = D16 ? byName16.get(D16.strip) : undefined;
+  const strips16 = hc16
+    .filter((q) => String(q[0]).endsWith(`/${D16!.strip}`) && q[5] === "g")
+    .map((q) => {
+      const s = Number(q[8] ?? 1);
+      const o = obox16(D16!.strip, 0, 0, Number(q[4]), s)!;
+      const [mx, mz] = [((sr16!.min[0] + sr16!.max[0]) / 2) * s, ((sr16!.min[2] + sr16!.max[2]) / 2) * s];
+      const a = (Number(q[4]) * Math.PI) / 180;
+      return { x: Number(q[1]) + Math.cos(a) * mx + Math.sin(a) * mz, z: Number(q[3]) - Math.sin(a) * mx + Math.cos(a) * mz, u: o.u, half: o.hu, top: Number(q[2]) + sr16!.max[1] * s, glow: String(q[6] ?? "") };
+    });
+  const own16 = new Set<number[]>();
+  for (const b of RT16?.boxes ?? []) for (const sl of slabs16) if (Math.abs(b[5] - sl.top) < 0.06 && inside16(sl.o, (b[0] + b[1]) / 2, (b[2] + b[3]) / 2, 0.05)) for (const s of at16((b[0] + b[1]) / 2, (b[2] + b[3]) / 2)) if (s.every((v, k) => Math.abs(v - b[k]) < 0.011)) own16.add(s);
+  let lit16 = 0, open16 = 0;
+  const dark16: string[] = [];
+  const edgeWalk16 = (o: OB16, top: number, glow: string, covered: (x: number, z: number) => boolean, what: string) => {
+    for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      // (the edge on own side a along u (b = 0) or b along v, sampled every half metre a quarter in from its ends)
+      const n = a ? [o.u[0] * a, o.u[1] * a] : [o.v[0] * b, o.v[1] * b];
+      const d = a ? o.v : o.u;
+      const [off, half] = a ? [o.hu, o.hv] : [o.hv, o.hu];
+      const run: number[][] = [];
+      const flush = () => {
+        if (run.length >= 2)
+          for (const [x, z] of run) {
+            open16++;
+            if (strips16.some((s) => s.glow === `Light03=${glow}` && Math.abs(s.top - (top - 0.03)) < 0.1 && Math.abs((x - s.x) * s.u[0] + (z - s.z) * s.u[1]) <= s.half + 0.15 && Math.abs((x - s.x) * -s.u[1] + (z - s.z) * s.u[0]) <= 0.35)) lit16++;
+            else if (dark16.length < 6) dark16.push(`${what} (${x.toFixed(1)}, ${z.toFixed(1)}) at ${top.toFixed(1)}`);
+          }
+        run.length = 0;
+      };
+      for (let t = -half + 0.25; t < half; t += 0.5) {
+        const [x, z] = [o.c[0] + n[0] * off + d[0] * t, o.c[1] + n[1] * off + d[1] * t];
+        if (covered(x + n[0] * 0.12, z + n[1] * 0.12)) flush();
+        else run.push([x, z]);
+      }
+      flush();
+    }
+  };
+  for (const sl of slabs16)
+    edgeWalk16(sl.o, sl.top, D16!.fin[sl.f].glow, (x, z) => slabs16.some((o2) => o2 !== sl && Math.abs(o2.top - sl.top) < 0.06 && inside16(o2.o, x, z, 0.02)) || at16(x, z).some((b) => b[4] < sl.top - 0.1 && b[5] > sl.top - 0.15 && !own16.has(b)), `${sl.g} slab ${sl.i}`);
+  const cans16 = (OH16?.modules ?? []).map((m) => ({ m, o: obox16(m[2], m[3], m[4], m[5], m[6])! }));
+  for (const c of cans16)
+    edgeWalk16(c.o, OH16!.top, D16?.fin[D16.kitFam[c.m[1]]]?.glow ?? "?", (x, z) => cans16.some((c2) => c2 !== c && inside16(c2.o, x, z, 0.02)) || at16(x, z).some((b) => b[4] < OH16!.top && b[5] > OH16!.top + 0.3), `canopy ${c.m[0]}`);
+  // (3) the run walls
+  let wallLit16 = 0;
+  for (const [i, q] of (RT16?.rows ?? []).entries()) {
+    const f = D16?.walls[q[0]];
+    if (!f || !/_Rusted Variant\.prefab$/.test(q[1])) continue;
+    if (/Plastic/.test(q[7] ?? "")) faults16.push(`run wall ${i} (${q[0]}) worn ${q[7]}`);
+    const o = obox16(q[1], q[2], q[3], q[4], q[6])!;
+    const top = q[5] + byName16.get(q[1])!.size[1] * q[6];
+    const near = strips16.filter((s) => s.glow === `Light03=${D16!.fin[f].glow}` && Math.abs(s.top - (top - 0.03)) < 0.1 && inside16(o, s.x, s.z, 0.4) && !inside16(o, s.x, s.z, 0.01));
+    const sides = new Set(near.map((s) => Math.sign((s.x - o.c[0]) * (o.hu < o.hv ? o.u[0] : o.v[0]) + (s.z - o.c[1]) * (o.hu < o.hv ? o.u[1] : o.v[1]))));
+    if (sides.size < 2) faults16.push(`run wall ${i} (${q[0]}) lit on ${sides.size} faces`);
+    else wallLit16++;
+  }
+  // (4) the girders: each under a slab, at its underside, with the street's clear height or a head's room under it
+  const gr16 = D16 ? byName16.get(D16.girder) : undefined;
+  const girders16 = (RT16?.rows ?? []).filter((q) => D16 && q[1] === D16.girder && q[6] <= D16.most + 1e-6 && Object.values(D16.fin).some((f) => (q[7] ?? "").split(";").every((p) => p.endsWith(`=${f.edge}`))));
+  for (const q of girders16) {
+    const top = q[5] + gr16!.size[1] * q[6];
+    const hung = slabs16.some((sl) => Math.abs(sl.under - top) < 0.03 && inside16(sl.o, q[2], q[3], 0.05));
+    const low = Math.max(0, ...at16(q[2], q[3]).filter((b) => b[5] <= q[5] + 0.01).map((b) => b[5]));
+    if (!hung || (low <= 0.05 ? q[5] < D16!.clear - 1e-6 : q[5] - low < D16!.head - 1e-6)) faults16.push(`girder at (${q[2]}, ${q[3]}) ${hung ? `foot ${q[5]} over ${low.toFixed(2)}` : "under no slab"}`);
+  }
+  // (5) every material named here drawn by the centre's file without dress16's own rows and kits
+  const named16 = D16 ? new Set([...Object.values(D16.fin).flatMap((f) => [f.top, f.edge, f.glow]), D16.under, D16.leg]) : new Set<string>();
+  const kits16 = new Set(Object.values(OH16?.kits ?? {}).flatMap((k) => [k.slab, k.leg]));
+  // (the routes' own placements, by their pivots as the layout's placeTurned sets them, left out)
+  const pivots16 = new Set<string>();
+  for (const q of RT16?.rows ?? []) {
+    const r = byName16.get(q[1]);
+    if (!r) continue;
+    const a = (q[4] * Math.PI) / 180;
+    const [mx, mz] = [((r.min[0] + r.max[0]) / 2) * q[6], ((r.min[2] + r.max[2]) / 2) * q[6]];
+    pivots16.add(`${q[1]} ${(q[2] - (Math.cos(a) * mx + Math.sin(a) * mz)).toFixed(1)} ${(q[3] - (-Math.sin(a) * mx + Math.cos(a) * mz)).toFixed(1)}`);
+  }
+  const drawn16 = new Set<string>();
+  for (const ch of Object.values(CH16)) {
+    if (ch.sector !== "c") continue;
+    for (const q of ch.place) {
+      const spec = q[6] as string | null | undefined;
+      if ((spec && kits16.has(spec)) || pivots16.has(`${String(q[0]).split("/").pop()} ${Number(q[1]).toFixed(1)} ${Number(q[3]).toFixed(1)}`)) continue;
+      const mats = byName16.get(String(q[0]).split("/").pop()!)?.materials ?? [];
+      const remap = spec && spec.includes("=") ? new Map(spec.split(";").map((p) => p.split("=") as [string, string])) : null;
+      for (const m of mats) drawn16.add(remap ? (remap.get(m) ?? m) : (spec ?? m));
+    }
+  }
+  const fresh16 = [...named16].filter((m) => !drawn16.has(m));
+  const nStrips16 = strips16.filter((s) => D16 && Object.values(D16.fin).some((f) => s.glow === `Light03=${f.glow}`)).length;
+  check(
+    "the batches' structures finished (rules.dress16): every slab and canopy of batches 13 to 15 in its family's floor, fascia and riveted underside, every canopy leg steel and every spoke's canopy its quarter's, every edge open to the air lit along its top in the family's glow, every run wall in a pack metal and lit along its top on both faces, every edge girder hung under its slab clear of the street and of heads, every material one the centre draws without them",
+    !!D16 && cat16.length > 0 && faults16.length === 0 && open16 > 0 && lit16 === open16 && fresh16.length === 0 && nStrips16 >= D16.least.strips && girders16.length >= D16.least.girders && wallLit16 >= D16.least.wallStrips,
+    !D16 ? "no rules.dress16" : `${slabs16.length} slabs, ${cans16.length} canopies; ${lit16} of ${open16} open edge half metres lit${dark16.length ? ` (dark: ${dark16.join("; ")})` : ""}; ${nStrips16} strips (${D16.least.strips} asked), ${girders16.length} girders (${D16.least.girders}), ${wallLit16} run walls lit both faces (${D16.least.wallStrips}); ${faults16.length} faults${faults16.length ? ` (${faults16.slice(0, 4).join("; ")})` : ""}; ${fresh16.length} materials new to the centre${fresh16.length ? ` (${fresh16.join(", ")})` : ""}`,
+  );
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

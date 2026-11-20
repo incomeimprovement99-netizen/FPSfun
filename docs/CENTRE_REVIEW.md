@@ -1108,3 +1108,27 @@ agent's: batches 13 to 15 built their decks, terraces and hoardings as tinted fl
 judged by numbers and routes and never put in front of a picture review until now. The play rose over the same versions
 (the layout reviews from 4.5 and 4 to 5.5 and 5.5); the look of what made it did not keep up. Taken up first in batch 16
 (docs/PLAN_ENDINGS.md part C, dress16).
+
+## Round 27 (the centre), 2026-11-20 (map version 149)
+
+The same spots as round 26 on version 149's high bake: batches 13 to 15's structures finished (dress16, Milestones 1192 and
+1193), THE WORKS' containers dimmer and THE TERRACES' hedges deeper green (1194). One fresh agent, the brief from its file,
+nothing but the pictures.
+
+CENTRE ROUND 27 reviewer (2026-11-20, map version 149): overall 6.1 (round 26: 6.0).
+Scores: visual 6.0, readability 6.5, flow 6.5, play-style 6.5, finish 5.5, fun 6.5, overall 6.1.
+Ten: 1 lights under the decks, strips and lamp pools every 6 to 8 m on every deck underside and canopy over the streets
+(05, 16, 22, night 24): "the streets are now the darkest and least readable part of the centre"; 2 the deck tiers read as
+routes, a stair or ladder and a lit arrow between each pair of tiers (15, 02); 3 the decks' tops in their quarter's colour,
+with grating, timber and glass sections; 4 a Red Tiger at ground level, one plaza quadrant a bespoke 2 to 3 storey building;
+5 THE VAULT brought down to the street; 6 the odd pieces (pink collars on NOODLE ROW's columns 16, the leaning black and
+pink slab 17, the floating pink bar 26, the north roof's hoist 14); 7 colour zones in the court and the base; 8 the 26 m
+floor furnished; 9 THE VAULT's gold deeper, cover on the lookout's north half; 10 the street's clutter at chest height.
+Broken: 04 the camera behind a bin; 05 and night 24 a deck pier mid-pavement, the pavement under the canopy black at night;
+11 an outdoor condenser inside the office; 14 the hoist building-scale; 15 deck slabs at mismatched heights, no walkable line
+readable; 16 pink blocks clamped half way up steel columns; 17 a black slab with pink strips leaning across; 20c the
+pillars' glowing outlines like debug highlights; 22 a green vehicle on a deck; 26 a pink bar floating; 28 the vault's floor
+"cheese rather than gold"; 01 a black horizontal cylinder.
+
+What the map agent read besides: up 0.1 on 6.0, finish and readability up half a point; what dress16 fixed reads fixed, and
+the darkness it brought is the new first ask. Version 149 shipped on it; lights under the decks next.
